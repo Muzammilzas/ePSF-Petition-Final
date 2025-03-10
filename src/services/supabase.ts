@@ -10,16 +10,34 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+  },
+  global: {
+    headers: {
+      'X-Client-Info': 'petition-form',
+    },
+  },
+});
 
-// Test the connection
-supabase.from('petitions').select('count').single()
-  .then(({ error }) => {
+// Test the connection and log detailed errors
+void supabase.from('petitions').select('count').single()
+  .then(({ data, error }) => {
     if (error) {
-      console.error('Supabase connection error:', error);
+      console.error('Supabase connection error:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
     } else {
-      console.log('Supabase connection successful');
+      console.log('Supabase connection successful', data);
     }
+  })
+  .catch((error: unknown) => {
+    console.error('Unexpected Supabase error:', error);
   });
 
 export interface Petition {
