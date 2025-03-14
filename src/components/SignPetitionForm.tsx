@@ -376,4 +376,35 @@ const SignPetitionFormContent: React.FC = () => {
   );
 };
 
-export default SignPetitionFormContent;
+// Wrapper component with GoogleReCaptchaProvider
+const SignPetitionForm: React.FC = () => {
+  const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+  
+  console.log('Initializing reCAPTCHA with site key:', !!recaptchaSiteKey);
+  
+  if (!recaptchaSiteKey) {
+    console.error('reCAPTCHA site key is missing');
+    return (
+      <Container maxWidth="md">
+        <Alert severity="error">
+          Form is temporarily unavailable. Please try again later.
+        </Alert>
+      </Container>
+    );
+  }
+
+  return (
+    <GoogleReCaptchaProvider
+      reCaptchaKey={recaptchaSiteKey}
+      scriptProps={{
+        async: true,
+        defer: true,
+        appendTo: 'head',
+      }}
+    >
+      <SignPetitionFormContent />
+    </GoogleReCaptchaProvider>
+  );
+};
+
+export default SignPetitionForm;
