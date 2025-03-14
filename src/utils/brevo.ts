@@ -1,147 +1,52 @@
 import axios from 'axios';
 
-// API Configuration
-const config = {
-  apiKey: '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',
-  listId: 5,
-  apiUrl: 'https://api.brevo.com/v3'
-};
+const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY;
+const BREVO_LIST_ID = 5; // Sign Petition list ID
 
-// Debug configuration
-console.log('Brevo Configuration Check:', {
-  hasApiKey: !!config.apiKey,
-  listId: config.listId,
-  environment: import.meta.env.MODE // This will show if we're in development or production
-});
+export const addContactToBrevoList = async (email: string, firstName: string, lastName: string) => {
+  console.log('Starting Brevo contact addition...', { hasApiKey: !!BREVO_API_KEY });
 
-export const addContactToBrevoList = async (
-  email: string,
-  firstName: string,
-  lastName: string,
-  timeshareName: string
-): Promise<any> => {
+  if (!BREVO_API_KEY) {
+    console.error('Brevo API key is not configured');
+    return;
+  }
+
+  const payload = {
+    email,
+    attributes: {
+      FIRSTNAME: firstName,
+      LASTNAME: lastName,
+    },
+    listIds: [BREVO_LIST_ID],
+    updateEnabled: true,
+  };
+
+  console.log('Sending request to Brevo:', { email, listId: BREVO_LIST_ID });
+
   try {
-    // Debug request
-    console.log('Initiating Brevo API request:', {
-      email,
-      firstName,
-      lastName,
-      timeshareName,
-      listId: config.listId,
-      environment: import.meta.env.MODE
-    });
-
-    // Common headers
-    const headers = {
-      'api-key': config.apiKey,
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, PUT',
-      'Access-Control-Allow-Headers': 'Content-Type, api-key'
-    };
-
-    // Step 1: Create or update contact
-    const contactPayload = {
-      email,
-      attributes: {
-        FIRSTNAME: firstName,
-        LASTNAME: lastName,
-        TIMESHARE_NAME: timeshareName
-      },
-      listIds: [config.listId],
-      updateEnabled: true
-    };
-
-    // Try to create the contact
-    const createResponse = await axios.post(
-      `${config.apiUrl}/contacts`,
-      contactPayload,
-      { headers }
-    );
-
-    console.log('Contact creation response:', {
-      status: createResponse.status,
-      data: createResponse.data
-    });
-
-    // Step 2: Ensure contact is in the list
-    const addToListResponse = await axios.post(
-      `${config.apiUrl}/contacts/lists/${config.listId}/contacts/add`,
-      { emails: [email] },
-      { headers }
-    );
-
-    console.log('Add to list response:', {
-      status: addToListResponse.status,
-      data: addToListResponse.data
-    });
-
-    return { success: true, data: createResponse.data };
-
-  } catch (error: any) {
-    // If contact exists, try updating
-    if (error.response?.status === 409) {
-      try {
-        console.log('Contact exists, updating...');
-        const updateResponse = await axios.put(
-          `${config.apiUrl}/contacts/${encodeURIComponent(email)}`,
-          {
-            attributes: {
-              FIRSTNAME: firstName,
-              LASTNAME: lastName,
-              TIMESHARE_NAME: timeshareName
-            },
-            listIds: [config.listId]
-          },
-          {
-            headers: {
-              'api-key': config.apiKey,
-              'Content-Type': 'application/json'
-            }
-          }
-        );
-
-        console.log('Update response:', {
-          status: updateResponse.status,
-          data: updateResponse.data
-        });
-
-        // Add to list after update
-        await axios.post(
-          `${config.apiUrl}/contacts/lists/${config.listId}/contacts/add`,
-          { emails: [email] },
-          {
-            headers: {
-              'api-key': config.apiKey,
-              'Content-Type': 'application/json'
-            }
-          }
-        );
-
-        return { success: true, data: updateResponse.data };
-      } catch (updateError: any) {
-        console.error('Update failed:', {
-          status: updateError.response?.status,
-          data: updateError.response?.data
-        });
+    const response = await axios.post(
+      'https://api.brevo.com/v3/contacts',
+      payload,
+      {
+        headers: {
+          'accept': 'application/json',
+          'api-key': BREVO_API_KEY,
+          'content-type': 'application/json',
+        },
       }
-    }
-
-    // Log detailed error information
-    console.error('Brevo API Error:', {
+    );
+    
+    console.log('Brevo API response:', response.status, response.statusText);
+    console.log('Contact added successfully:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('Brevo API error details:', {
       status: error.response?.status,
+      statusText: error.response?.statusText,
       data: error.response?.data,
       message: error.message,
-      stack: error.stack
     });
-
-    return {
-      success: false,
-      error: {
-        message: error.response?.data?.message || error.message,
-        status: error.response?.status
-      }
-    };
+    // Don't throw the error, just log it to prevent form submission from failing
+    return null;
   }
 }; 

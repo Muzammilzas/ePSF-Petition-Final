@@ -117,13 +117,12 @@ const SignPetitionFormContent: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Debug environment variables and reCAPTCHA initialization
-    console.log('Form Environment Check:', {
+    // Debug environment variables
+    console.log('Environment check:', {
       hasRecaptcha: !!import.meta.env.VITE_RECAPTCHA_SITE_KEY,
       hasBrevo: !!import.meta.env.VITE_BREVO_API_KEY,
-      recaptchaInitialized: !!executeRecaptcha,
     });
-  }, [executeRecaptcha]);
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -135,11 +134,10 @@ const SignPetitionFormContent: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submission started...');
     
     if (!executeRecaptcha) {
-      console.error('reCAPTCHA not initialized - check if site key is correct and domain is allowed');
-      setError('Form validation not available. Please try again in a few moments.');
+      console.error('reCAPTCHA not initialized');
+      setError('reCAPTCHA not yet available');
       return;
     }
 
@@ -147,12 +145,13 @@ const SignPetitionFormContent: React.FC = () => {
     setError(null);
 
     try {
-      console.log('Executing reCAPTCHA verification...');
+      console.log('Executing reCAPTCHA...');
+      // Execute reCAPTCHA with action
       const token = await executeRecaptcha('sign_petition');
-      console.log('reCAPTCHA verification completed:', !!token);
+      console.log('reCAPTCHA token received:', !!token);
       
       if (!token) {
-        throw new Error('Failed to execute reCAPTCHA verification');
+        throw new Error('Failed to execute reCAPTCHA');
       }
 
       console.log('Submitting signature for petition:', id);
@@ -177,29 +176,17 @@ const SignPetitionFormContent: React.FC = () => {
       
       console.log('Signature submitted successfully:', signatureData);
       
-      // After successful signature submission:
+      // After the signature is submitted successfully and we have signatureData:
       if (signatureData && signatureData.length > 0) {
         try {
-          console.log('Attempting to add contact to Brevo...', {
-            email: formData.email,
-            firstName: formData.first_name,
-            lastName: formData.last_name,
-            timeshareName: formData.timeshare_name
-          });
-
+          console.log('Adding contact to Brevo list...');
+          // Add contact to Brevo list
           const brevoResult = await addContactToBrevoList(
             formData.email,
             formData.first_name,
-            formData.last_name,
-            formData.timeshare_name
+            formData.last_name
           );
-          
-          if (!brevoResult.success) {
-            console.warn('Brevo contact addition failed:', brevoResult.error);
-            // Don't show error to user, just log it
-          } else {
-            console.log('Brevo contact addition successful:', brevoResult.data);
-          }
+          console.log('Brevo result:', brevoResult);
 
           // Collect metadata
           const metadata = {
@@ -211,10 +198,13 @@ const SignPetitionFormContent: React.FC = () => {
               timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
               language: navigator.language
             },
-            location: locationData || {
-              city: 'Unknown',
-              region: 'Unknown',
-              country: 'Unknown'
+            location: {
+              city: locationData?.city || 'Unknown',
+              region: locationData?.region || 'Unknown',
+              country: locationData?.country || 'Unknown',
+              latitude: locationData?.latitude || null,
+              longitude: locationData?.longitude || null,
+              ip_address: locationData?.ip_address || 'Unknown'
             },
             submission_date: new Date().toISOString()
           };
@@ -230,9 +220,8 @@ const SignPetitionFormContent: React.FC = () => {
           if (metadataError) {
             console.error('Error storing metadata:', metadataError);
           }
-        } catch (error: any) {
-          console.error('Brevo integration error:', error);
-          // Don't throw the error - we still want to show success to the user
+        } catch (error) {
+          console.error('Detailed Brevo error:', error);
         }
       }
 
@@ -274,12 +263,8 @@ const SignPetitionFormContent: React.FC = () => {
         navigate(`/thank-you/${id}`);
       }, 2000);
     } catch (err: any) {
-      console.error('Form submission error:', {
-        message: err.message,
-        response: err.response?.data,
-        stack: err.stack
-      });
-      setError(err.message || 'Failed to submit signature. Please try again.');
+      console.error('Form submission error:', err);
+      setError(err.message || 'Failed to submit signature');
     } finally {
       setLoading(false);
     }
@@ -319,64 +304,83 @@ const SignPetitionFormContent: React.FC = () => {
             </Alert>
             <Button
               component={Link}
-              to={`/thank-you/${id}`}
+              to={`/share/${id}`}
+              variant="contained"
+              color="primary"
+              sx={{ mt: 2 }}
             >
-              Go to Thank You Page
+              View Petition Progress
             </Button>
           </Box>
         ) : (
-          <form onSubmit={handleSubmit}>
+          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }}>
             <TextField
+              fullWidth
               label="First Name"
               name="first_name"
               value={formData.first_name}
               onChange={handleChange}
-              fullWidth
               margin="normal"
+              required
+              disabled={loading}
             />
             <TextField
+              fullWidth
               label="Last Name"
               name="last_name"
               value={formData.last_name}
               onChange={handleChange}
-              fullWidth
               margin="normal"
+              required
+              disabled={loading}
             />
             <TextField
+              fullWidth
               label="Email"
               name="email"
               type="email"
               value={formData.email}
               onChange={handleChange}
-              fullWidth
               margin="normal"
+              required
+              disabled={loading}
             />
             <TextField
-              label="Timeshare Name"
+              fullWidth
+              label="What is the name of your Timeshare?"
               name="timeshare_name"
               value={formData.timeshare_name}
               onChange={handleChange}
-              fullWidth
               margin="normal"
+              required
+              disabled={loading}
             />
+
             <Button
               type="submit"
               variant="contained"
               color="primary"
-              disabled={loading}
               fullWidth
-              sx={{ mt: 2 }}
+              disabled={loading}
+              sx={{ mt: 3, mb: 2 }}
             >
-              {loading ? 'Submitting...' : 'Sign Petition'}
+              {loading ? 'Signing...' : 'Sign Petition'}
             </Button>
-          </form>
+            
+            {loading && <LinearProgress sx={{ mt: 2 }} />}
+            
+            <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 2 }}>
+              By signing, you're joining our movement to make a difference.
+              This site is protected by reCAPTCHA.
+            </Typography>
+          </Box>
         )}
       </Paper>
     </Container>
   );
 };
 
-// Wrapper component with GoogleReCaptchaProvider
+// Update the wrapper component to use environment variable
 const SignPetitionForm: React.FC = () => {
   const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
   
@@ -407,4 +411,4 @@ const SignPetitionForm: React.FC = () => {
   );
 };
 
-export default SignPetitionForm;
+export default SignPetitionForm; 
