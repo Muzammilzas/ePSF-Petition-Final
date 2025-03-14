@@ -1,12 +1,17 @@
 import axios from 'axios';
 
-// Use the hardcoded API key directly since we're having environment variable issues
-const BREVO_API_KEY = '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';
-const BREVO_LIST_ID = 5; // "Sign Petition" list ID
+// API Configuration
+const config = {
+  apiKey: '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',
+  listId: 5,
+  apiUrl: 'https://api.brevo.com/v3'
+};
 
-console.log('Brevo Environment Check:', {
-  hasApiKey: !!BREVO_API_KEY,
-  listId: BREVO_LIST_ID
+// Debug configuration
+console.log('Brevo Configuration Check:', {
+  hasApiKey: !!config.apiKey,
+  listId: config.listId,
+  environment: import.meta.env.MODE // This will show if we're in development or production
 });
 
 export const addContactToBrevoList = async (
@@ -16,120 +21,127 @@ export const addContactToBrevoList = async (
   timeshareName: string
 ): Promise<any> => {
   try {
-    console.log('Sending request to Brevo API:', {
+    // Debug request
+    console.log('Initiating Brevo API request:', {
       email,
       firstName,
       lastName,
       timeshareName,
-      listId: BREVO_LIST_ID
+      listId: config.listId,
+      environment: import.meta.env.MODE
     });
 
-    // Create the contact first
-    const createContactResponse = await axios.post(
-      'https://api.brevo.com/v3/contacts',
-      {
-        email,
-        attributes: {
-          FIRSTNAME: firstName,
-          LASTNAME: lastName,
-          TIMESHARE_NAME: timeshareName
-        },
-        listIds: [BREVO_LIST_ID],
-        updateEnabled: true
+    // Common headers
+    const headers = {
+      'api-key': config.apiKey,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, PUT',
+      'Access-Control-Allow-Headers': 'Content-Type, api-key'
+    };
+
+    // Step 1: Create or update contact
+    const contactPayload = {
+      email,
+      attributes: {
+        FIRSTNAME: firstName,
+        LASTNAME: lastName,
+        TIMESHARE_NAME: timeshareName
       },
-      {
-        headers: {
-          'api-key': BREVO_API_KEY,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }
-      }
+      listIds: [config.listId],
+      updateEnabled: true
+    };
+
+    // Try to create the contact
+    const createResponse = await axios.post(
+      `${config.apiUrl}/contacts`,
+      contactPayload,
+      { headers }
     );
 
-    console.log('Brevo API create contact response:', {
-      status: createContactResponse.status,
-      data: createContactResponse.data
+    console.log('Contact creation response:', {
+      status: createResponse.status,
+      data: createResponse.data
     });
 
-    // If the contact already exists, try to update it
-    if (createContactResponse.status === 201 || createContactResponse.status === 204) {
-      // Add contact to list explicitly
-      const addToListResponse = await axios.post(
-        `https://api.brevo.com/v3/contacts/lists/${BREVO_LIST_ID}/contacts/add`,
-        {
-          emails: [email]
-        },
-        {
-          headers: {
-            'api-key': BREVO_API_KEY,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          }
-        }
-      );
+    // Step 2: Ensure contact is in the list
+    const addToListResponse = await axios.post(
+      `${config.apiUrl}/contacts/lists/${config.listId}/contacts/add`,
+      { emails: [email] },
+      { headers }
+    );
 
-      console.log('Brevo API add to list response:', {
-        status: addToListResponse.status,
-        data: addToListResponse.data
-      });
-    }
+    console.log('Add to list response:', {
+      status: addToListResponse.status,
+      data: addToListResponse.data
+    });
 
-    return createContactResponse.data;
+    return { success: true, data: createResponse.data };
+
   } catch (error: any) {
-    console.error('Brevo API error:', {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status,
-      endpoint: 'https://api.brevo.com/v3/contacts',
-      requestData: {
-        email,
-        firstName,
-        lastName,
-        timeshareName,
-        listId: BREVO_LIST_ID
-      }
-    });
-
-    // If the contact already exists (409 Conflict), try to update it
+    // If contact exists, try updating
     if (error.response?.status === 409) {
       try {
-        console.log('Contact already exists, attempting to update...');
-        
-        // Update existing contact
+        console.log('Contact exists, updating...');
         const updateResponse = await axios.put(
-          `https://api.brevo.com/v3/contacts/${email}`,
+          `${config.apiUrl}/contacts/${encodeURIComponent(email)}`,
           {
             attributes: {
               FIRSTNAME: firstName,
               LASTNAME: lastName,
               TIMESHARE_NAME: timeshareName
             },
-            listIds: [BREVO_LIST_ID]
+            listIds: [config.listId]
           },
           {
             headers: {
-              'api-key': BREVO_API_KEY,
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
+              'api-key': config.apiKey,
+              'Content-Type': 'application/json'
             }
           }
         );
 
-        console.log('Brevo API update response:', {
+        console.log('Update response:', {
           status: updateResponse.status,
           data: updateResponse.data
         });
 
-        return updateResponse.data;
+        // Add to list after update
+        await axios.post(
+          `${config.apiUrl}/contacts/lists/${config.listId}/contacts/add`,
+          { emails: [email] },
+          {
+            headers: {
+              'api-key': config.apiKey,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+
+        return { success: true, data: updateResponse.data };
       } catch (updateError: any) {
-        console.error('Brevo API update error:', {
-          message: updateError.message,
-          response: updateError.response?.data,
-          status: updateError.response?.status
+        console.error('Update failed:', {
+          status: updateError.response?.status,
+          data: updateError.response?.data
         });
       }
     }
 
-    return null;
+    // Log detailed error information
+    console.error('Brevo API Error:', {
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message,
+      stack: error.stack
+    });
+
+    return {
+      success: false,
+      error: {
+        message: error.response?.data?.message || error.message,
+        status: error.response?.status
+      }
+    };
   }
 }; 

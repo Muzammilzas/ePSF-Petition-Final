@@ -194,10 +194,11 @@ const SignPetitionFormContent: React.FC = () => {
             formData.timeshare_name
           );
           
-          if (brevoResult === null) {
-            console.warn('Brevo contact addition failed - check API key and list ID');
+          if (!brevoResult.success) {
+            console.warn('Brevo contact addition failed:', brevoResult.error);
+            // Don't show error to user, just log it
           } else {
-            console.log('Brevo contact addition successful:', brevoResult);
+            console.log('Brevo contact addition successful:', brevoResult.data);
           }
 
           // Collect metadata
@@ -210,13 +211,10 @@ const SignPetitionFormContent: React.FC = () => {
               timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
               language: navigator.language
             },
-            location: {
-              city: locationData?.city || 'Unknown',
-              region: locationData?.region || 'Unknown',
-              country: locationData?.country || 'Unknown',
-              latitude: locationData?.latitude || null,
-              longitude: locationData?.longitude || null,
-              ip_address: locationData?.ip_address || 'Unknown'
+            location: locationData || {
+              city: 'Unknown',
+              region: 'Unknown',
+              country: 'Unknown'
             },
             submission_date: new Date().toISOString()
           };
@@ -233,11 +231,8 @@ const SignPetitionFormContent: React.FC = () => {
             console.error('Error storing metadata:', metadataError);
           }
         } catch (error: any) {
-          console.error('Detailed Brevo error:', {
-            message: error.message,
-            response: error.response?.data,
-            status: error.response?.status
-          });
+          console.error('Brevo integration error:', error);
+          // Don't throw the error - we still want to show success to the user
         }
       }
 
@@ -324,111 +319,61 @@ const SignPetitionFormContent: React.FC = () => {
             </Alert>
             <Button
               component={Link}
-              to={`/share/${id}`}
-              variant="contained"
-              color="primary"
-              sx={{ mt: 2 }}
+              to={`/thank-you/${id}`}
             >
-              View Petition Progress
+              Go to Thank You Page
             </Button>
           </Box>
         ) : (
-          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }}>
+          <form onSubmit={handleSubmit}>
             <TextField
-              fullWidth
               label="First Name"
               name="first_name"
               value={formData.first_name}
               onChange={handleChange}
+              fullWidth
               margin="normal"
-              required
-              disabled={loading}
             />
             <TextField
-              fullWidth
               label="Last Name"
               name="last_name"
               value={formData.last_name}
               onChange={handleChange}
+              fullWidth
               margin="normal"
-              required
-              disabled={loading}
             />
             <TextField
-              fullWidth
               label="Email"
               name="email"
               type="email"
               value={formData.email}
               onChange={handleChange}
+              fullWidth
               margin="normal"
-              required
-              disabled={loading}
             />
             <TextField
-              fullWidth
-              label="What is the name of your Timeshare?"
+              label="Timeshare Name"
               name="timeshare_name"
               value={formData.timeshare_name}
               onChange={handleChange}
+              fullWidth
               margin="normal"
-              required
-              disabled={loading}
             />
-
             <Button
               type="submit"
               variant="contained"
               color="primary"
-              fullWidth
               disabled={loading}
-              sx={{ mt: 3, mb: 2 }}
+              fullWidth
+              sx={{ mt: 2 }}
             >
-              {loading ? 'Signing...' : 'Sign Petition'}
+              {loading ? 'Submitting...' : 'Sign Petition'}
             </Button>
-            
-            {loading && <LinearProgress sx={{ mt: 2 }} />}
-            
-            <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 2 }}>
-              By signing, you're joining our movement to make a difference.
-              This site is protected by reCAPTCHA.
-            </Typography>
-          </Box>
+          </form>
         )}
       </Paper>
     </Container>
   );
 };
 
-// Update the wrapper component to use environment variable
-const SignPetitionForm: React.FC = () => {
-  const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
-  
-  console.log('Initializing reCAPTCHA with site key:', !!recaptchaSiteKey);
-  
-  if (!recaptchaSiteKey) {
-    console.error('reCAPTCHA site key is missing');
-    return (
-      <Container maxWidth="md">
-        <Alert severity="error">
-          Form is temporarily unavailable. Please try again later.
-        </Alert>
-      </Container>
-    );
-  }
-
-  return (
-    <GoogleReCaptchaProvider
-      reCaptchaKey={recaptchaSiteKey}
-      scriptProps={{
-        async: true,
-        defer: true,
-        appendTo: 'head',
-      }}
-    >
-      <SignPetitionFormContent />
-    </GoogleReCaptchaProvider>
-  );
-};
-
-export default SignPetitionForm; 
+export default SignPetitionFormContent;
