@@ -132,36 +132,26 @@ const PetitionSignatures: React.FC = () => {
       if (petitionError) throw petitionError;
       setPetition(petitionData);
       
-      // First fetch signatures
+      // Fetch signatures with their metadata
       const { data: signaturesData, error: signaturesError } = await supabase
         .from('signatures')
-        .select('*')
+        .select(`
+          *,
+          metadata:signature_metadata(metadata)
+        `)
         .eq('petition_id', id)
         .order('created_at', { ascending: false });
       
       if (signaturesError) throw signaturesError;
       
-      // Then fetch metadata for each signature
-      const signaturesWithMetadata = await Promise.all((signaturesData || []).map(async (signature) => {
-        const { data: metadataData, error: metadataError } = await supabase
-          .from('signature_metadata')
-          .select('metadata')
-          .eq('signature_id', signature.id)
-          .single();
-        
-        if (metadataError) {
-          console.error('Error fetching metadata for signature:', signature.id, metadataError);
-          return { ...signature, metadata: null };
-        }
-        
-        return {
-          ...signature,
-          metadata: metadataData?.metadata || null
-        };
+      // Process signatures to include metadata
+      const processedSignatures = (signaturesData || []).map(signature => ({
+        ...signature,
+        metadata: signature.metadata?.[0]?.metadata || null
       }));
       
-      setSignatures(signaturesWithMetadata);
-      setFilteredSignatures(signaturesWithMetadata);
+      setSignatures(processedSignatures);
+      setFilteredSignatures(processedSignatures);
       
     } catch (error: any) {
       console.error('Error fetching data:', error);
@@ -202,7 +192,7 @@ const PetitionSignatures: React.FC = () => {
 
   const renderMetaDialog = () => {
     if (!selectedSignature?.metadata) return null;
-    const metadata: SignatureMetadata = selectedSignature.metadata;
+    const metadata = selectedSignature.metadata;
 
     return (
       <Dialog
@@ -457,10 +447,18 @@ const PetitionSignatures: React.FC = () => {
                     <TableCell align="center">
                       <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
                         <Button
-                          variant="outlined"
+                          variant="contained"
                           size="small"
                           onClick={() => handleViewMeta(signature)}
                           disabled={!signature.metadata}
+                          sx={{ 
+                            backgroundColor: '#01BD9B',
+                            color: '#FFFFFF',
+                            '&:hover': {
+                              backgroundColor: '#E0AC3F',
+                              color: '#FFFFFF'
+                            }
+                          }}
                         >
                           View Meta
                         </Button>

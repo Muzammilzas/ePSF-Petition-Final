@@ -15,6 +15,7 @@ import { PetitionProvider } from './context/PetitionContext';
 import { AuthProvider } from './context/AuthContext';
 import PetitionSignatures from './components/PetitionSignatures';
 import NotFound from './components/NotFound';
+import TestEmail from './components/TestEmail';
 
 const theme = createTheme({
   palette: {
@@ -140,6 +141,16 @@ const App: React.FC = () => {
                     element={
                       <ProtectedRoute>
                         <SharePetition />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  
+                  {/* Test Email Route */}
+                  <Route 
+                    path="/admin/test-email" 
+                    element={
+                      <ProtectedRoute>
+                        <TestEmail />
                       </ProtectedRoute>
                     } 
                   />

@@ -14,6 +14,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { usePetition } from '../context/PetitionContext';
 import { addContactToBrevoList } from '../utils/brevo';
+import { sendSignatureNotification } from '../utils/email';
 
 const getBrowserInfo = () => {
   const userAgent = navigator.userAgent;
@@ -219,6 +220,18 @@ const SignPetitionFormContent: React.FC = () => {
 
           if (metadataError) {
             console.error('Error storing metadata:', metadataError);
+          }
+
+          // Send email notification
+          try {
+            await sendSignatureNotification({
+              ...signatureData[0],
+              metadata,
+              created_at: new Date().toISOString()
+            });
+            console.log('Email notification sent successfully');
+          } catch (emailError) {
+            console.error('Error sending email notification:', emailError);
           }
         } catch (error) {
           console.error('Detailed Brevo error:', error);
