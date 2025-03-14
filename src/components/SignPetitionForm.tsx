@@ -117,12 +117,13 @@ const SignPetitionFormContent: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Debug environment variables
-    console.log('Environment check:', {
+    // Debug environment variables and reCAPTCHA initialization
+    console.log('Form Environment Check:', {
       hasRecaptcha: !!import.meta.env.VITE_RECAPTCHA_SITE_KEY,
       hasBrevo: !!import.meta.env.VITE_BREVO_API_KEY,
+      recaptchaInitialized: !!executeRecaptcha,
     });
-  }, []);
+  }, [executeRecaptcha]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -134,10 +135,11 @@ const SignPetitionFormContent: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Form submission started...');
     
     if (!executeRecaptcha) {
-      console.error('reCAPTCHA not initialized');
-      setError('reCAPTCHA not yet available');
+      console.error('reCAPTCHA not initialized - check if site key is correct and domain is allowed');
+      setError('Form validation not available. Please try again in a few moments.');
       return;
     }
 
@@ -145,13 +147,12 @@ const SignPetitionFormContent: React.FC = () => {
     setError(null);
 
     try {
-      console.log('Executing reCAPTCHA...');
-      // Execute reCAPTCHA with action
+      console.log('Executing reCAPTCHA verification...');
       const token = await executeRecaptcha('sign_petition');
-      console.log('reCAPTCHA token received:', !!token);
+      console.log('reCAPTCHA verification completed:', !!token);
       
       if (!token) {
-        throw new Error('Failed to execute reCAPTCHA');
+        throw new Error('Failed to execute reCAPTCHA verification');
       }
 
       console.log('Submitting signature for petition:', id);
@@ -176,17 +177,28 @@ const SignPetitionFormContent: React.FC = () => {
       
       console.log('Signature submitted successfully:', signatureData);
       
-      // After the signature is submitted successfully and we have signatureData:
+      // After successful signature submission:
       if (signatureData && signatureData.length > 0) {
         try {
-          console.log('Adding contact to Brevo list...');
-          // Add contact to Brevo list
+          console.log('Attempting to add contact to Brevo...', {
+            email: formData.email,
+            firstName: formData.first_name,
+            lastName: formData.last_name,
+            timeshareName: formData.timeshare_name
+          });
+
           const brevoResult = await addContactToBrevoList(
             formData.email,
             formData.first_name,
-            formData.last_name
+            formData.last_name,
+            formData.timeshare_name
           );
-          console.log('Brevo result:', brevoResult);
+          
+          if (brevoResult === null) {
+            console.warn('Brevo contact addition failed - check API key and list ID');
+          } else {
+            console.log('Brevo contact addition successful:', brevoResult);
+          }
 
           // Collect metadata
           const metadata = {
@@ -220,8 +232,12 @@ const SignPetitionFormContent: React.FC = () => {
           if (metadataError) {
             console.error('Error storing metadata:', metadataError);
           }
-        } catch (error) {
-          console.error('Detailed Brevo error:', error);
+        } catch (error: any) {
+          console.error('Detailed Brevo error:', {
+            message: error.message,
+            response: error.response?.data,
+            status: error.response?.status
+          });
         }
       }
 
@@ -263,8 +279,12 @@ const SignPetitionFormContent: React.FC = () => {
         navigate(`/thank-you/${id}`);
       }, 2000);
     } catch (err: any) {
-      console.error('Form submission error:', err);
-      setError(err.message || 'Failed to submit signature');
+      console.error('Form submission error:', {
+        message: err.message,
+        response: err.response?.data,
+        stack: err.stack
+      });
+      setError(err.message || 'Failed to submit signature. Please try again.');
     } finally {
       setLoading(false);
     }
