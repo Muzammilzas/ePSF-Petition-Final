@@ -1,52 +1,67 @@
 import axios from 'axios';
 
 const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY;
-const BREVO_LIST_ID = 5; // Sign Petition list ID
+const BREVO_LIST_ID = 5; // "Sign Petition" list ID
 
-export const addContactToBrevoList = async (email: string, firstName: string, lastName: string) => {
-  console.log('Starting Brevo contact addition...', { hasApiKey: !!BREVO_API_KEY });
+console.log('Brevo Environment Check:', {
+  hasApiKey: !!BREVO_API_KEY,
+  apiKeyPrefix: BREVO_API_KEY ? BREVO_API_KEY.substring(0, 10) + '...' : 'missing',
+  listId: BREVO_LIST_ID
+});
 
+export const addContactToBrevoList = async (
+  email: string,
+  firstName: string,
+  lastName: string
+): Promise<any> => {
   if (!BREVO_API_KEY) {
     console.error('Brevo API key is not configured');
-    return;
+    return null;
   }
 
-  const payload = {
-    email,
-    attributes: {
-      FIRSTNAME: firstName,
-      LASTNAME: lastName,
-    },
-    listIds: [BREVO_LIST_ID],
-    updateEnabled: true,
-  };
-
-  console.log('Sending request to Brevo:', { email, listId: BREVO_LIST_ID });
-
   try {
+    console.log('Sending request to Brevo API:', {
+      email,
+      firstName,
+      lastName,
+      listId: BREVO_LIST_ID
+    });
+
     const response = await axios.post(
       'https://api.brevo.com/v3/contacts',
-      payload,
+      {
+        email,
+        attributes: {
+          FIRSTNAME: firstName,
+          LASTNAME: lastName
+        },
+        listIds: [BREVO_LIST_ID],
+        updateEnabled: true
+      },
       {
         headers: {
-          'accept': 'application/json',
           'api-key': BREVO_API_KEY,
-          'content-type': 'application/json',
-        },
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
       }
     );
-    
-    console.log('Brevo API response:', response.status, response.statusText);
-    console.log('Contact added successfully:', response.data);
+
+    console.log('Brevo API response:', {
+      status: response.status,
+      data: response.data
+    });
+
     return response.data;
   } catch (error: any) {
-    console.error('Brevo API error details:', {
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      data: error.response?.data,
+    console.error('Brevo API error:', {
       message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      endpoint: 'https://api.brevo.com/v3/contacts'
     });
-    // Don't throw the error, just log it to prevent form submission from failing
+
+    // Don't throw the error - return null to indicate failure
     return null;
   }
 }; 
