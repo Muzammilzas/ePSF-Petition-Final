@@ -209,3 +209,78 @@ export const sendSignatureNotification = async (signatureData: SignatureData) =>
     throw error;
   }
 };
+
+export const sendSharePetitionEmail = async (signatureData: SignatureData) => {
+  const {
+    first_name,
+    email,
+    created_at
+  } = signatureData;
+
+  try {
+    console.log('Sending share petition email...');
+    
+    // Generate sharing URL with UTM parameters for tracking
+    const baseUrl = import.meta.env.VITE_APP_URL || 'https://epublicsf.org';
+    const sharingUrl = `${baseUrl}/petition?utm_source=email&utm_medium=share&utm_campaign=petition_share&ref=${encodeURIComponent(email)}`;
+    
+    // Get current signature count from Supabase
+    const { data: signatures, error: countError } = await supabase
+      .from('signatures')
+      .select('id', { count: 'exact' });
+    
+    const currentCount = signatures?.length || 0;
+    const signatureGoal = 2000;
+    const progressPercentage = ((currentCount / signatureGoal) * 100).toFixed(2);
+
+    const requestBody = {
+      to: [{
+        email: email,
+        name: first_name
+      }],
+      templateId: 4, // New template ID for share petition email
+      params: {
+        FIRST_NAME: first_name,
+        SIGNED_AT: new Date(created_at).toLocaleString(),
+        CURRENT_SIGNATURES: currentCount.toString(),
+        SIGNATURE_GOAL: signatureGoal.toString(),
+        PROGRESS_PERCENTAGE: progressPercentage,
+        SHARE_LINK: sharingUrl,
+        FACEBOOK_SHARE_LINK: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(sharingUrl)}`,
+        TWITTER_SHARE_LINK: `https://twitter.com/intent/tweet?url=${encodeURIComponent(sharingUrl)}&text=${encodeURIComponent('I just signed the Timeshare Reform petition. Join me in making a difference!')}`,
+        LINKEDIN_SHARE_LINK: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(sharingUrl)}`
+      }
+    };
+
+    console.log('Sending share petition request to Brevo with:', JSON.stringify(requestBody, null, 2));
+
+    const response = await axios.post(
+      'https://api.brevo.com/v3/smtp/email',
+      requestBody,
+      {
+        headers: {
+          'accept': 'application/json',
+          'api-key': import.meta.env.VITE_BREVO_API_KEY,
+          'content-type': 'application/json'
+        }
+      }
+    );
+
+    console.log('Share petition email sent successfully:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('Error sending share petition email:', {
+      message: error.message,
+      status: error?.response?.status,
+      statusText: error?.response?.statusText,
+      data: error?.response?.data,
+      headers: error?.response?.headers,
+      config: {
+        url: error?.config?.url,
+        method: error?.config?.method,
+        headers: error?.config?.headers
+      }
+    });
+    throw error;
+  }
+};
