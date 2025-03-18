@@ -16,6 +16,8 @@ import { AuthProvider } from './context/AuthContext';
 import PetitionSignatures from './components/PetitionSignatures';
 import NotFound from './components/NotFound';
 import TestEmail from './components/TestEmail';
+import LandingPage from './components/LandingPage';
+import NewLandingPage from './components/NewLandingPage';
 
 const theme = createTheme({
   palette: {
@@ -95,7 +97,8 @@ const App: React.FC = () => {
                 }}
               >
                 <Routes>
-                  {/* Public Routes - Only Sign Petition and Thank You pages */}
+                  {/* Public Routes */}
+                  <Route path="/" element={<NewLandingPage />} />
                   <Route path="/sign/:id" element={<SignPetitionForm />} />
                   <Route path="/thank-you/:id" element={<ThankYou />} />
                   
@@ -104,14 +107,6 @@ const App: React.FC = () => {
                   <Route path="/unauthorized" element={<Unauthorized />} />
                   
                   {/* Protected Admin Routes */}
-                  <Route 
-                    path="/" 
-                    element={
-                      <ProtectedRoute>
-                        <AdminDashboard />
-                      </ProtectedRoute>
-                    } 
-                  />
                   <Route 
                     path="/admin/dashboard" 
                     element={

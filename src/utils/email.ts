@@ -86,7 +86,9 @@ export const testEmailNotification = async () => {
         TIMEZONE: testData.metadata.device.timezone,
         CURRENT_SIGNATURES: "47",
         SIGNATURE_GOAL: "2000",
-        PROGRESS_PERCENTAGE: "2.35"
+        PROGRESS_PERCENTAGE: "2.35",
+        AUTOMATION_NUMBER: "1",
+        STEP_NUMBER: "4"
       }
     };
 
@@ -173,7 +175,9 @@ export const sendSignatureNotification = async (signatureData: SignatureData) =>
         TIMEZONE: metadata.device.timezone,
         CURRENT_SIGNATURES: currentCount.toString(),
         SIGNATURE_GOAL: signatureGoal.toString(),
-        PROGRESS_PERCENTAGE: progressPercentage
+        PROGRESS_PERCENTAGE: progressPercentage,
+        AUTOMATION_NUMBER: "1",
+        STEP_NUMBER: "4"
       }
     };
 
@@ -248,7 +252,9 @@ export const sendSharePetitionEmail = async (signatureData: SignatureData) => {
         SHARE_LINK: sharingUrl,
         FACEBOOK_SHARE_LINK: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(sharingUrl)}`,
         TWITTER_SHARE_LINK: `https://twitter.com/intent/tweet?url=${encodeURIComponent(sharingUrl)}&text=${encodeURIComponent('I just signed the Timeshare Reform petition. Join me in making a difference!')}`,
-        LINKEDIN_SHARE_LINK: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(sharingUrl)}`
+        LINKEDIN_SHARE_LINK: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(sharingUrl)}`,
+        AUTOMATION_NUMBER: "1",
+        STEP_NUMBER: "4"
       }
     };
 
