@@ -4,7 +4,6 @@ import '../styles/landing-page.css';
 
 const NewLandingPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleSignNow = () => {
@@ -16,29 +15,6 @@ const NewLandingPage: React.FC = () => {
       {/* Add Bootstrap Icons CDN */}
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" />
       
-      {/* Navigation */}
-      <nav className="navbar">
-        <div className="container nav-container">
-          <Link to="/" className="logo">
-            <img src="/images/epsf-logo-dark.png" alt="ePSF Logo" />
-          </Link>
-          <button 
-            className="mobile-menu-btn"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-label="Toggle menu"
-          >
-            <span></span>
-            <span></span>
-            <span></span>
-          </button>
-          <div className={`nav-menu ${mobileMenuOpen ? 'active' : ''}`}>
-            <a href="#about">About</a>
-            <a href="#our-plan">Our Plan</a>
-            <a href="#contact">Contact</a>
-          </div>
-        </div>
-      </nav>
-
       {/* Hero Section */}
       <section className="hero-section">
         <div className="container">
