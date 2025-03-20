@@ -10,7 +10,7 @@ const NewLandingPage: React.FC = () => {
 
   useEffect(() => {
     // Fetch signature count from the API
-    fetch('http://localhost:5174/api/signatures/count')
+    fetch('/api/signatures/count')
       .then(response => response.json())
       .then(data => {
         if (data.count) {
@@ -176,7 +176,7 @@ const NewLandingPage: React.FC = () => {
           </div>
           <div className="plan-cta">
             <Link 
-              to="http://localhost:5174/sign/84dec50d-d877-4f15-9250-f5364124371a" 
+              to="/sign/84dec50d-d877-4f15-9250-f5364124371a" 
               className="cta-button"
             >
               Take the First Step
@@ -224,7 +224,7 @@ const NewLandingPage: React.FC = () => {
             <p className="progress-text">{signatureCount.toLocaleString()} of {signatureGoal.toLocaleString()} signatures</p>
           </div>
           <Link 
-            to="http://localhost:5174/sign/84dec50d-d877-4f15-9250-f5364124371a" 
+            to="/sign/84dec50d-d877-4f15-9250-f5364124371a" 
             className="cta-button pulse"
           >
             Submit Your Signature
@@ -243,7 +243,7 @@ const NewLandingPage: React.FC = () => {
             <div className="modal-content">
               <h2>Sign the Petition Against Timeshare Fraud</h2>
               <p>Join {signatureCount.toLocaleString()} owners fighting for fair practices</p>
-              <form className="petition-form">
+              <form className="petition-form" action="/sign/84dec50d-d877-4f15-9250-f5364124371a" method="get">
                 <div className="form-group">
                   <label htmlFor="fullName">Full Name</label>
                   <input type="text" id="fullName" required />
