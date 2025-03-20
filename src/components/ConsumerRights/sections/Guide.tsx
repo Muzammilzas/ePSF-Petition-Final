@@ -1,181 +1,217 @@
 import React from 'react';
-import { Box, Container, Typography, Grid, Paper } from '@mui/material';
+import { Box, Container, Typography, Grid } from '@mui/material';
 import ShieldIcon from '@mui/icons-material/Shield';
-import GroupsIcon from '@mui/icons-material/Groups';
-import GavelIcon from '@mui/icons-material/Gavel';
 import { sectionStyles, colors } from '../styles';
 
 const Guide: React.FC = () => {
-  const features = [
-    {
-      icon: <ShieldIcon sx={{ fontSize: 48, color: colors.primary }} />,
-      title: 'Consumer Protection',
-      description: 'We advocate for stronger regulations and oversight in the timeshare industry to protect your rights and interests.',
-    },
-    {
-      icon: <GroupsIcon sx={{ fontSize: 48, color: colors.primary }} />,
-      title: 'Community Support',
-      description: 'Join a network of timeshare owners working together to create positive change in the industry.',
-    },
-    {
-      icon: <GavelIcon sx={{ fontSize: 48, color: colors.primary }} />,
-      title: 'Legal Advocacy',
-      description: 'We push for legal reforms to ensure fair treatment and transparent practices in timeshare operations.',
-    }
-  ];
-
   return (
     <Box sx={{
-      bgcolor: colors.background.accent,
-      py: { xs: 8, md: 12 },
+      ...sectionStyles.section,
+      bgcolor: colors.background.light,
+      py: { xs: 6, sm: 8, md: 12 },
       position: 'relative',
       overflow: 'hidden',
     }}>
-      {/* Background Pattern */}
-      <Box sx={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        opacity: 0.05,
-        background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
-      }} />
-
-      <Container sx={sectionStyles.container}>
-        <Box sx={{ position: 'relative', zIndex: 1, mb: 6, textAlign: 'center' }}>
-          <Typography
-            variant="h2"
-            sx={{
-              ...sectionStyles.heading,
-              color: colors.text.primary,
-              mb: 2,
-            }}
-          >
-            How We Fight for Your Rights
-          </Typography>
-          <Typography
-            sx={{
-              ...sectionStyles.subheading,
-              color: colors.text.secondary,
-              maxWidth: '800px',
-              mx: 'auto',
-            }}
-          >
-            At ePublic Safety Foundation, we're dedicated to protecting consumer rights through multiple channels.
-          </Typography>
-        </Box>
-
-        <Grid container spacing={4}>
-          {features.map((feature, index) => (
-            <Grid item xs={12} md={4} key={index}>
-              <Paper
-                elevation={0}
+      <Container maxWidth="lg">
+        <Grid 
+          container 
+          spacing={{ xs: 6, md: 8 }} 
+          alignItems="center"
+          direction={{ xs: 'column-reverse', md: 'row' }}
+        >
+          <Grid item xs={12} md={7}>
+            <Box sx={{ textAlign: { xs: 'center', md: 'left' } }}>
+              <Typography
+                component="span"
                 sx={{
-                  ...sectionStyles.card,
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  textAlign: 'center',
-                  p: 4,
-                  position: 'relative',
-                  overflow: 'hidden',
+                  display: 'inline-block',
+                  bgcolor: `${colors.primary}15`,
+                  color: colors.primary,
+                  px: 2,
+                  py: 1,
+                  borderRadius: 1,
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                  fontWeight: 600,
+                  mb: { xs: 2, md: 3 },
                 }}
               >
-                <Box sx={{
+                OUR MISSION
+              </Typography>
+
+              <Typography
+                variant="h2"
+                sx={{
+                  fontSize: { xs: '1.75rem', sm: '2rem', md: '2.5rem' },
+                  fontWeight: 700,
+                  mb: { xs: 3, md: 4 },
+                  color: colors.text.primary,
+                  lineHeight: 1.2,
+                }}
+              >
+                ePublic Safety Foundation: Your Rights Advocate
+              </Typography>
+
+              <Typography
+                sx={{
+                  color: colors.text.secondary,
+                  fontSize: { xs: '1rem', sm: '1.125rem' },
+                  mb: { xs: 2, md: 3 },
+                  lineHeight: 1.7,
+                  maxWidth: { xs: '100%', md: '90%' },
+                }}
+              >
+                At ePublic Safety Foundation, we're a nonprofit dedicated to defending consumer rights. We've seen how timeshare owners suffer from unfair practices, and we're stepping up with a powerful petition.
+              </Typography>
+
+              <Typography
+                sx={{
+                  color: colors.text.secondary,
+                  fontSize: { xs: '1rem', sm: '1.125rem' },
+                  mb: { xs: 4, md: 5 },
+                  lineHeight: 1.7,
+                  maxWidth: { xs: '100%', md: '90%' },
+                }}
+              >
+                With our expertise and your support, we'll demand the protections you deserve. Let us guide you to justice!
+              </Typography>
+
+              <Box sx={{ 
+                display: 'flex', 
+                gap: { xs: 2, sm: 3 },
+                flexDirection: { xs: 'column', sm: 'row' },
+                justifyContent: { xs: 'center', md: 'flex-start' },
+                width: { xs: '100%', sm: 'auto' },
+              }}>
+                <Typography
+                  component="a"
+                  href="/sign/84dec50d-d877-4f15-9250-f5364124371a"
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#fff',
+                    bgcolor: colors.primary,
+                    px: { xs: 3, sm: 4 },
+                    py: { xs: 1.5, sm: 2 },
+                    borderRadius: 50,
+                    textDecoration: 'none',
+                    fontWeight: 500,
+                    transition: 'all 0.2s',
+                    width: { xs: '100%', sm: 'auto' },
+                    fontSize: { xs: '0.875rem', sm: '1rem' },
+                    '&:hover': {
+                      bgcolor: colors.primary,
+                      filter: 'brightness(0.9)',
+                    },
+                  }}
+                >
+                  Sign The Petition
+                </Typography>
+              </Box>
+            </Box>
+          </Grid>
+
+          <Grid item xs={12} md={5}>
+            <Box sx={{ 
+              position: 'relative',
+              width: { xs: '240px', sm: '280px' },
+              height: { xs: '240px', sm: '280px' },
+              margin: '0 auto',
+            }}>
+              {/* Circular background layers */}
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: '100%',
+                  height: '100%',
+                  borderRadius: '50%',
+                  bgcolor: `${colors.primary}10`,
+                }}
+              />
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: '80%',
+                  height: '80%',
+                  borderRadius: '50%',
+                  bgcolor: `${colors.primary}15`,
+                }}
+              />
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: '60%',
+                  height: '60%',
+                  borderRadius: '50%',
+                  bgcolor: colors.primary,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <ShieldIcon sx={{ 
+                  fontSize: { xs: 60, sm: 80 },
+                  color: '#fff',
+                }} />
+              </Box>
+
+              {/* Labels */}
+              <Box
+                sx={{
                   position: 'absolute',
                   top: 0,
                   right: 0,
-                  width: '150px',
-                  height: '150px',
-                  background: `linear-gradient(135deg, ${colors.primary}10, transparent)`,
-                  borderRadius: '0 0 0 100%',
-                }} />
-                
-                <Box 
-                  sx={{ 
-                    mb: 3,
-                    p: 2,
-                    borderRadius: '50%',
-                    bgcolor: `${colors.primary}10`,
-                  }}
-                >
-                  {feature.icon}
-                </Box>
-                <Typography 
-                  variant="h5" 
-                  sx={{ 
-                    fontFamily: 'Ubuntu, sans-serif',
-                    mb: 2,
+                  bgcolor: '#fff',
+                  px: { xs: 1.5, sm: 2 },
+                  py: { xs: 0.75, sm: 1 },
+                  borderRadius: 1,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                }}
+              >
+                <Typography
+                  sx={{
+                    color: colors.primary,
+                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
                     fontWeight: 600,
-                    color: colors.text.primary,
                   }}
                 >
-                  {feature.title}
+                  Defending Your Rights
                 </Typography>
-                <Typography 
-                  sx={{ 
-                    ...sectionStyles.bodyText,
-                    color: colors.text.secondary,
-                  }}
-                >
-                  {feature.description}
-                </Typography>
-              </Paper>
-            </Grid>
-          ))}
-        </Grid>
+              </Box>
 
-        <Box sx={{ mt: 8, textAlign: 'center' }}>
-          <Paper
-            elevation={0}
-            sx={{
-              bgcolor: colors.primary,
-              color: colors.text.light,
-              p: { xs: 4, md: 6 },
-              borderRadius: 3,
-              position: 'relative',
-              overflow: 'hidden',
-              maxWidth: '800px',
-              mx: 'auto',
-              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-            }}
-          >
-            <Box sx={{
-              position: 'absolute',
-              top: 0,
-              right: 0,
-              width: '200px',
-              height: '200px',
-              background: `linear-gradient(135deg, ${colors.secondary}40, transparent)`,
-              borderRadius: '0 0 0 100%',
-            }} />
-            
-            <Box sx={{ position: 'relative' }}>
-              <Typography 
-                variant="h4" 
-                sx={{ 
-                  fontFamily: 'Ubuntu, sans-serif',
-                  mb: 2,
-                  fontWeight: 700 
+              <Box
+                sx={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  bgcolor: '#fff',
+                  px: { xs: 1.5, sm: 2 },
+                  py: { xs: 0.75, sm: 1 },
+                  borderRadius: 1,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
                 }}
               >
-                Join Our Movement
-              </Typography>
-              <Typography 
-                sx={{ 
-                  fontFamily: 'Roboto, sans-serif',
-                  fontSize: '1.125rem',
-                  opacity: 0.9,
-                  mb: 0,
-                }}
-              >
-                Together, we can create lasting change in the timeshare industry and protect consumer rights for generations to come.
-              </Typography>
+                <Typography
+                  sx={{
+                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                    fontWeight: 600,
+                  }}
+                >
+                  ePSF
+                </Typography>
+              </Box>
             </Box>
-          </Paper>
-        </Box>
+          </Grid>
+        </Grid>
       </Container>
     </Box>
   );

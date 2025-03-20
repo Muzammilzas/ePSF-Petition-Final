@@ -3,12 +3,13 @@ import { Theme } from '@mui/material';
 export const colors = {
   primary: '#01BD9B', // Teal
   secondary: '#E0AC3F', // Gold
-  accent: '#E0AC3F', // Using Gold as accent
+  destructive: '#ef4444', // Red for warning/error states
   background: {
     light: '#FFFFFF',
     dark: '#2C3E50',
     accent: '#F5F9FF',
-    card: '#FFFFFF'
+    card: '#FFFFFF',
+    gold: '#E0AC3F', // Gold background for problem section
   },
   text: {
     primary: '#2C3E50',
@@ -21,6 +22,8 @@ export const colors = {
 export const sectionStyles = {
   section: {
     py: { xs: 8, md: 12 },
+    position: 'relative',
+    overflow: 'hidden',
   },
   container: {
     maxWidth: '1440px !important',
@@ -32,6 +35,7 @@ export const sectionStyles = {
     fontWeight: 700,
     color: colors.text.primary,
     mb: 3,
+    lineHeight: 1.2,
   },
   subheading: {
     fontFamily: 'Ubuntu, sans-serif',
@@ -58,6 +62,13 @@ export const sectionStyles = {
       transform: 'translateY(-4px)',
     },
   },
+  glassmorphism: {
+    bgcolor: 'rgba(255, 255, 255, 0.9)',
+    backdropFilter: 'blur(10px)',
+    borderRadius: 2,
+    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+    border: '1px solid rgba(255, 255, 255, 0.2)',
+  },
   button: {
     fontFamily: 'Roboto, sans-serif',
     borderRadius: 2,
@@ -68,24 +79,42 @@ export const sectionStyles = {
     textTransform: 'none',
     transition: 'all 0.3s ease',
   },
-  primaryButton: {
-    bgcolor: colors.primary,
-    color: colors.text.light,
-    '&:hover': {
-      bgcolor: colors.primary,
-      filter: 'brightness(0.9)',
-    },
-  },
-  outlineButton: {
-    border: `2px solid ${colors.primary}`,
+  tag: {
+    display: 'inline-block',
+    px: 3,
+    py: 1,
+    mb: 2,
+    bgcolor: `${colors.primary}20`,
     color: colors.primary,
-    '&:hover': {
-      bgcolor: `${colors.primary}10`,
-      border: `2px solid ${colors.primary}`,
+    borderRadius: 1,
+    fontSize: '0.875rem',
+    fontWeight: 600,
+    fontFamily: 'Ubuntu, sans-serif',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+  },
+  formInput: {
+    '& .MuiOutlinedInput-root': {
+      bgcolor: colors.background.light,
+      '& fieldset': {
+        borderColor: 'rgba(0, 0, 0, 0.1)',
+      },
+      '&:hover fieldset': {
+        borderColor: colors.primary,
+      },
+      '&.Mui-focused fieldset': {
+        borderColor: colors.primary,
+      },
     },
   },
-  gradientOverlay: {
-    background: `linear-gradient(135deg, ${colors.primary}40, ${colors.secondary}40)`,
-    opacity: 0.1,
-  },
-} as const; 
+  bulletPoint: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 2,
+    mb: 2,
+    '& svg': {
+      color: colors.primary,
+      fontSize: '1.25rem',
+    },
+  }
+}; 

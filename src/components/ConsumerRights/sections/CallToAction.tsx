@@ -1,35 +1,183 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { Box, Container, Typography, Button } from '@mui/material';
+import { Box, Container, Typography, Grid } from '@mui/material';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import { sectionStyles, colors } from '../styles';
 
 const CallToAction: React.FC = () => {
+  const futurePoints = [
+    'Timeshare scams are stopped cold.',
+    'You have clear cancellation rights to exit bad deals.',
+    'A longer rescission period protects your choices.',
+    'Companies respect your consumer rights.',
+  ];
+
   return (
-    <Box sx={{ bgcolor: 'grey.900', color: 'white', py: 8 }}>
-      <Container>
-        <Box sx={{ maxWidth: 'md', mx: 'auto', textAlign: 'center' }}>
-          <Typography variant="h3" sx={{ mb: 2, fontWeight: 'bold' }}>
+    <Box sx={{
+      ...sectionStyles.section,
+      bgcolor: colors.background.light,
+      py: { xs: 10, md: 12 },
+    }}>
+      <Container sx={sectionStyles.container}>
+        <Box sx={{ textAlign: 'center', mb: 6 }}>
+          <Typography
+            sx={{
+              color: colors.primary,
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
+              mb: 2,
+            }}
+          >
+            TAKE ACTION
+          </Typography>
+          <Typography
+            variant="h2"
+            sx={{
+              ...sectionStyles.heading,
+              mb: 2,
+            }}
+          >
             Stand Up for Your Rights Today
           </Typography>
-          <Typography variant="h5" sx={{ mb: 3 }}>
+          <Typography
+            sx={{
+              color: colors.text.secondary,
+              fontSize: '1.125rem',
+              mb: 6,
+            }}
+          >
             Sign the Timeshare Fraud Petition Now
           </Typography>
-          <Typography sx={{ mb: 4 }}>
-            Ready to reclaim your consumer rights? Sign the ePublic Safety Foundation petition to stop unfair timeshare practices. It's fast, secure, and makes a difference. Together, we'll tell lawmakers: consumers come first!
-          </Typography>
-          <Button
-            component={Link}
-            to="/sign-petition"
-            variant="contained"
-            color="secondary"
-            size="large"
-            sx={{ py: 1.5, px: 4 }}
-          >
-            Submit Signature
-          </Button>
-          <Typography variant="body2" sx={{ mt: 2, color: 'grey.400' }}>
-            Your data is safe with ePSF, a nonprofit for consumer rights.
-          </Typography>
         </Box>
+
+        <Grid container spacing={8} alignItems="center" justifyContent="center">
+          <Grid item xs={12} md={6}>
+            <Box>
+              <Typography
+                variant="h4"
+                sx={{
+                  fontFamily: 'Ubuntu, sans-serif',
+                  fontWeight: 700,
+                  mb: 3,
+                }}
+              >
+                A Future Where Your Rights Win
+              </Typography>
+
+              <Typography sx={{ mb: 3, color: colors.text.secondary }}>
+                Imagine a world where:
+              </Typography>
+
+              <Box sx={{ mb: 4 }}>
+                {futurePoints.map((point, index) => (
+                  <Box
+                    key={index}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 2,
+                      mb: 2,
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: '50%',
+                        bgcolor: `${colors.primary}15`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <CheckCircleIcon
+                        sx={{
+                          fontSize: 16,
+                          color: colors.primary,
+                        }}
+                      />
+                    </Box>
+                    <Typography>{point}</Typography>
+                  </Box>
+                ))}
+              </Box>
+
+              <Typography sx={{ mb: 4, color: colors.text.secondary }}>
+                Your signature makes this real. Join us to create a safer, fairer future
+                for all timeshare owners!
+              </Typography>
+
+              <Box sx={{ 
+                display: 'flex',
+                justifyContent: { xs: 'center', md: 'flex-start' },
+                mt: 5,
+              }}>
+                <Typography
+                  component="a"
+                  href="/sign/84dec50d-d877-4f15-9250-f5364124371a"
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#fff',
+                    bgcolor: colors.primary,
+                    px: { xs: 3, md: 4 },
+                    py: { xs: 1.5, md: 2 },
+                    borderRadius: 28,
+                    textDecoration: 'none',
+                    fontWeight: 500,
+                    transition: 'all 0.2s',
+                    fontSize: { xs: '0.875rem', md: '1rem' },
+                    '&:hover': {
+                      filter: 'brightness(0.9)',
+                    },
+                  }}
+                >
+                  Sign the Petition →
+                </Typography>
+              </Box>
+            </Box>
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <Box
+              sx={{
+                position: 'relative',
+                borderRadius: 2,
+                overflow: 'hidden',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+              }}
+            >
+              <Box
+                component="img"
+                src="/assets/images/collaboration.jpg"
+                alt="Collaboration"
+                sx={{
+                  width: '100%',
+                  height: 'auto',
+                  display: 'block',
+                }}
+              />
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: 16,
+                  right: 16,
+                  bgcolor: colors.background.light,
+                  color: colors.primary,
+                  px: 2,
+                  py: 1,
+                  borderRadius: 1,
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                }}
+              >
+                Rights Secured
+              </Box>
+            </Box>
+          </Grid>
+        </Grid>
       </Container>
     </Box>
   );
