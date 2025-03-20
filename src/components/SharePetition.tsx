@@ -188,6 +188,11 @@ const SharePetition: React.FC = () => {
     }
   };
 
+  // Add number formatting function
+  const formatNumber = (num: number) => {
+    return num.toLocaleString();
+  };
+
   if (loading) {
     return (
       <Container>
@@ -250,7 +255,7 @@ const SharePetition: React.FC = () => {
 
         <Box sx={{ mt: 4, mb: 4 }}>
           <Typography variant="h6" gutterBottom align="center">
-            {displaySignatureCount} of {currentPetition?.goal || 2000} signatures collected
+            {formatNumber(displaySignatureCount)} of {formatNumber(currentPetition?.goal || 2000)} signatures collected
           </Typography>
           <LinearProgress 
             variant="determinate" 

@@ -18,6 +18,7 @@ import NotFound from './components/NotFound';
 import TestEmail from './components/TestEmail';
 import LandingPage from './components/LandingPage';
 import NewLandingPage from './components/NewLandingPage';
+import ConsumerRights from './components/ConsumerRights';
 
 const theme = createTheme({
   palette: {
@@ -99,6 +100,7 @@ const App: React.FC = () => {
                 <Routes>
                   {/* Public Routes */}
                   <Route path="/" element={<NewLandingPage />} />
+                  <Route path="/consumer-rights" element={<ConsumerRights />} />
                   <Route path="/sign/:id" element={<SignPetitionForm />} />
                   <Route path="/thank-you/:id" element={<ThankYou />} />
                   

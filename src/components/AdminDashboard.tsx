@@ -38,7 +38,8 @@ import {
   Search as SearchIcon, 
   Visibility as VisibilityIcon, 
   Delete as DeleteIcon,
-  List as ListIcon 
+  List as ListIcon,
+  Edit as EditIcon
 } from '@mui/icons-material';
 
 interface TabPanelProps {
@@ -164,6 +165,74 @@ const SignaturesDialog: React.FC<SignaturesDialogProps> = ({ open, onClose, peti
   );
 };
 
+// Add new interface for EditPetitionDialog
+interface EditPetitionDialogProps {
+  open: boolean;
+  onClose: () => void;
+  petition: any;
+  onSave: (id: string, updates: any) => Promise<void>;
+}
+
+const EditPetitionDialog: React.FC<EditPetitionDialogProps> = ({ open, onClose, petition, onSave }) => {
+  const [goal, setGoal] = useState(petition?.goal || 0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSave = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await onSave(petition.id, { goal: parseInt(goal.toString()) });
+      onClose();
+    } catch (err: any) {
+      setError(err.message || 'Failed to update petition');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Edit Petition</DialogTitle>
+      <DialogContent>
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+        <TextField
+          fullWidth
+          label="Signature Goal"
+          type="number"
+          value={goal}
+          onChange={(e) => setGoal(parseInt(e.target.value) || 0)}
+          margin="normal"
+          InputProps={{
+            inputProps: { min: 0 }
+          }}
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button 
+          onClick={handleSave} 
+          variant="contained" 
+          disabled={loading}
+          sx={{ 
+            backgroundColor: '#01BD9B',
+            color: '#FFFFFF',
+            '&:hover': {
+              backgroundColor: '#01a989'
+            }
+          }}
+        >
+          {loading ? 'Saving...' : 'Save Changes'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
 const AdminDashboard: React.FC = () => {
   const { user, signOut, forceRefreshAuth } = useAuth();
   const navigate = useNavigate();
@@ -188,6 +257,7 @@ const AdminDashboard: React.FC = () => {
   const [signatureSortOrder, setSignatureSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const [selectedPetition, setSelectedPetition] = useState<{id: string, title: string} | null>(null);
+  const [editPetition, setEditPetition] = useState<any | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -401,6 +471,30 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  // Add function to handle petition updates
+  const handleUpdatePetition = async (id: string, updates: any) => {
+    try {
+      const { error } = await supabase
+        .from('petitions')
+        .update(updates)
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      // Update local state
+      setPetitions(petitions.map(p => 
+        p.id === id ? { ...p, ...updates } : p
+      ));
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to update petition');
+    }
+  };
+
+  // Add number formatting function
+  const formatNumber = (num: number) => {
+    return num.toLocaleString();
+  };
+
   if (loading) {
     return (
       <Container>
@@ -448,7 +542,7 @@ const AdminDashboard: React.FC = () => {
             <Button
               variant="contained"
               color="primary"
-              onClick={() => navigate('/create-petition')}
+              onClick={() => navigate('/admin/create')}
               sx={{ 
                 backgroundColor: '#01BD9B',
                 color: '#FFFFFF',
@@ -554,7 +648,7 @@ const AdminDashboard: React.FC = () => {
           
           <Box sx={{ mb: 2 }}>
             <Typography variant="h6">
-              All Petitions ({filteredPetitions.length})
+              All Petitions ({formatNumber(filteredPetitions.length)})
             </Typography>
           </Box>
           
@@ -575,8 +669,8 @@ const AdminDashboard: React.FC = () => {
                   <TableRow key={petition.id}>
                     <TableCell>{petition.id}</TableCell>
                     <TableCell>{petition.title}</TableCell>
-                    <TableCell>{petition.goal}</TableCell>
-                    <TableCell>{petition.signature_count || 0}</TableCell>
+                    <TableCell>{formatNumber(petition.goal)}</TableCell>
+                    <TableCell>{formatNumber(petition.signature_count || 0)}</TableCell>
                     <TableCell>
                       {new Date(petition.created_at).toLocaleDateString()}
                     </TableCell>
@@ -598,6 +692,15 @@ const AdminDashboard: React.FC = () => {
                             size="small"
                           >
                             <ListIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Edit Petition">
+                          <IconButton
+                            onClick={() => setEditPetition(petition)}
+                            color="primary"
+                            size="small"
+                          >
+                            <EditIcon />
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Delete Petition">
@@ -690,7 +793,7 @@ const AdminDashboard: React.FC = () => {
           
           <Box sx={{ mb: 2 }}>
             <Typography variant="h6">
-              All Signatures ({filteredSignatures.length})
+              All Signatures ({formatNumber(filteredSignatures.length)})
             </Typography>
           </Box>
           
@@ -792,6 +895,16 @@ const AdminDashboard: React.FC = () => {
           onClose={() => setSelectedPetition(null)}
           petitionId={selectedPetition.id}
           petitionTitle={selectedPetition.title}
+        />
+      )}
+
+      {/* EditPetitionDialog */}
+      {editPetition && (
+        <EditPetitionDialog
+          open={true}
+          onClose={() => setEditPetition(null)}
+          petition={editPetition}
+          onSave={handleUpdatePetition}
         />
       )}
     </Container>

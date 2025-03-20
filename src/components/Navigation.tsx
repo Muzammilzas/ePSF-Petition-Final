@@ -27,7 +27,7 @@ const Navigation: React.FC = () => {
             display: 'flex',
             justifyContent: 'flex-start',
             alignItems: 'center',
-            flex: 1
+            flex: 1,
           }}
         >
           <img 
@@ -42,53 +42,23 @@ const Navigation: React.FC = () => {
 
         {/* Right section - Admin buttons */}
         {isAdmin && (
-          <Box 
-            sx={{ 
-              display: 'flex', 
-              gap: 1,
-              alignItems: 'center',
-              justifyContent: 'flex-end',
-              flex: 1
-            }}
-          >
+          <Box sx={{ display: 'flex', gap: 2 }}>
             <Button
               component={RouterLink}
               to="/admin/dashboard"
               variant="text"
-              size="large"
-              sx={{
-                color: '#01BD9B',
-                fontWeight: 500,
-                '&:hover': {
-                  backgroundColor: 'rgba(1, 189, 155, 0.04)',
-                },
-              }}
+              sx={{ color: '#01BD9B' }}
             >
               Dashboard
             </Button>
             <Button
-              component={RouterLink}
-              to="/admin/create"
-              variant="text"
-              size="large"
-              sx={{
-                color: '#01BD9B',
-                fontWeight: 500,
-                '&:hover': {
-                  backgroundColor: 'rgba(1, 189, 155, 0.04)',
-                },
-              }}
-            >
-              Create Petition
-            </Button>
-            <Button
               onClick={handleSignOut}
-              variant="text"
-              size="large"
+              variant="outlined"
               sx={{
+                borderColor: '#E0AC3F',
                 color: '#E0AC3F',
-                fontWeight: 500,
                 '&:hover': {
+                  borderColor: '#c99a38',
                   backgroundColor: 'rgba(224, 172, 63, 0.04)',
                 },
               }}

@@ -1,14 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import '../styles/landing-page.css';
 
 const NewLandingPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [signatureCount, setSignatureCount] = useState(3427);
+  const signatureGoal = 10000;
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Fetch signature count from the API
+    fetch('http://localhost:5174/api/signatures/count')
+      .then(response => response.json())
+      .then(data => {
+        if (data.count) {
+          setSignatureCount(data.count);
+        }
+      })
+      .catch(error => console.error('Error fetching signature count:', error));
+  }, []);
 
   const handleSignNow = () => {
     window.location.href = '/sign/84dec50d-d877-4f15-9250-f5364124371a';
   };
+
+  // Calculate progress percentage
+  const progressPercentage = ((signatureCount / signatureGoal) * 100).toFixed(1);
 
   return (
     <div className="landing-page">
@@ -30,7 +47,7 @@ const NewLandingPage: React.FC = () => {
               <div className="trust-badges">
                 <div className="trust-badge">
                   <i className="bi bi-people-fill trust-icon"></i>
-                  <span>3,427 Owners Joined</span>
+                  <span>{signatureCount.toLocaleString()} Owners Joined</span>
                 </div>
                 <div className="trust-badge">
                   <i className="bi bi-shield-fill-check trust-icon"></i>
@@ -108,15 +125,15 @@ const NewLandingPage: React.FC = () => {
               <ul className="credentials-list">
                 <li>
                   <i className="bi bi-check-circle-fill check-icon"></i>
-                  <span>10+ Years of Advocacy</span>
+                  <span>Advocating for Fairness Since</span>
                 </li>
                 <li>
                   <i className="bi bi-check-circle-fill check-icon"></i>
-                  <span>5,000+ Owners Helped</span>
+                  <span>Fighting for Timeshare Justice</span>
                 </li>
                 <li>
                   <i className="bi bi-check-circle-fill check-icon"></i>
-                  <span>Nonprofit Status</span>
+                  <span>A Trusted Voice for Timeshare Reform</span>
                 </li>
               </ul>
             </div>
@@ -202,9 +219,9 @@ const NewLandingPage: React.FC = () => {
           <p className="subtitle">Your Signature Can End Timeshare Fraud</p>
           <div className="signature-progress">
             <div className="progress-bar">
-              <div className="progress-fill" style={{ width: '68.5%' }}></div>
+              <div className="progress-fill" style={{ width: `${progressPercentage}%` }}></div>
             </div>
-            <p className="progress-text">3,427 of 5,000 signatures</p>
+            <p className="progress-text">{signatureCount.toLocaleString()} of {signatureGoal.toLocaleString()} signatures</p>
           </div>
           <Link 
             to="http://localhost:5174/sign/84dec50d-d877-4f15-9250-f5364124371a" 
@@ -225,7 +242,7 @@ const NewLandingPage: React.FC = () => {
             </button>
             <div className="modal-content">
               <h2>Sign the Petition Against Timeshare Fraud</h2>
-              <p>Join 3,427 owners fighting for fair practices</p>
+              <p>Join {signatureCount.toLocaleString()} owners fighting for fair practices</p>
               <form className="petition-form">
                 <div className="form-group">
                   <label htmlFor="fullName">Full Name</label>
@@ -253,7 +270,7 @@ const NewLandingPage: React.FC = () => {
                   </div>
                   <div className="trust-item">
                     <i className="bi bi-people-fill modal-icon"></i>
-                    <span>3,427 Signatures</span>
+                    <span>{signatureCount.toLocaleString()} Signatures</span>
                   </div>
                 </div>
               </form>
