@@ -1,6 +1,77 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import '../styles/landing-page.css';
+import { motion, useAnimation, useInView } from 'framer-motion';
+
+// Animation variants
+const fadeIn = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    transition: { duration: 0.6 }
+  }
+};
+
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.2
+    }
+  }
+};
+
+const scaleIn = {
+  hidden: { scale: 0.8, opacity: 0 },
+  visible: { 
+    scale: 1, 
+    opacity: 1,
+    transition: { duration: 0.5 }
+  }
+};
+
+// Component for animating numbers
+interface CountingNumberProps {
+  value: string | number;
+  prefix?: string;
+  suffix?: string;
+}
+
+const CountingNumber: React.FC<CountingNumberProps> = ({ value, prefix = '', suffix = '' }) => {
+  const [displayValue, setDisplayValue] = useState(0);
+  const controls = useAnimation();
+  const ref = React.useRef(null);
+  const isInView = useInView(ref, { once: true, amount: 0.5 });
+  
+  useEffect(() => {
+    if (isInView) {
+      let startValue = 0;
+      const endValue = parseInt(value.toString());
+      const duration = 2000; // 2 seconds
+      const increment = Math.ceil(endValue / (duration / 50)); // Update every 50ms
+      
+      const timer = setInterval(() => {
+        startValue += increment;
+        if (startValue > endValue) {
+          clearInterval(timer);
+          setDisplayValue(endValue);
+        } else {
+          setDisplayValue(startValue);
+        }
+      }, 50);
+      
+      return () => clearInterval(timer);
+    }
+  }, [isInView, value]);
+  
+  return (
+    <motion.span ref={ref} className="stat-value">
+      {prefix}{displayValue}{suffix}
+    </motion.span>
+  );
+};
 
 const NewLandingPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -36,33 +107,53 @@ const NewLandingPage: React.FC = () => {
       <section className="hero-section">
         <div className="container">
           <div className="hero-content">
-            <div className="hero-text">
-              <h1 className="hero-title">Tired of Timeshare Scams and Unfair Contracts?</h1>
-              <p className="hero-subtitle">You Deserve Fairness—Sign Our Petition to Fight Back</p>
-              <p className="hero-description">
+            <motion.div 
+              className="hero-text"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, amount: 0.3 }}
+              variants={staggerContainer}
+            >
+              <motion.h1 className="hero-title" variants={fadeIn}>
+                Tired of Timeshare Scams and Unfair Contracts?
+              </motion.h1>
+              <motion.p className="hero-subtitle" variants={fadeIn}>
+                You Deserve Fairness—Sign Our Petition to Fight Back
+              </motion.p>
+              <motion.p className="hero-description" variants={fadeIn}>
                 As a timeshare owner, you want vacations, not headaches. But scams, fraud, and impossible 
                 cancellation rules have turned your dream into a nightmare. You're not alone—thousands face 
                 the same unfair practices.
-              </p>
-              <div className="trust-badges">
+              </motion.p>
+              <motion.div className="trust-badges" variants={fadeIn}>
                 <div className="trust-badge">
                   <i className="bi bi-people-fill trust-icon"></i>
-                  <span>{signatureCount.toLocaleString()} Owners Joined</span>
+                  <div className="badge-content">
+                    <span className="badge-text">{signatureCount} Owners Joined</span>
+                  </div>
                 </div>
                 <div className="trust-badge">
                   <i className="bi bi-shield-fill-check trust-icon"></i>
-                  <span>Nonprofit Advocacy</span>
+                  <div className="badge-content">
+                    <span className="badge-text">Nonprofit Advocacy</span>
+                  </div>
                 </div>
-              </div>
-            </div>
-            <div className="hero-image-wrapper">
+              </motion.div>
+            </motion.div>
+            <motion.div 
+              className="hero-image-wrapper"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              variants={scaleIn}
+            >
               <img 
                 src="/images/ePSF Google ad images (1) (1).png" 
                 alt="Timeshare contract with scam stamp"
                 className="hero-img"
               />
               <span className="image-tag">End the Nightmare</span>
-            </div>
+            </motion.div>
           </div>
         </div>
       </section>
@@ -70,44 +161,64 @@ const NewLandingPage: React.FC = () => {
       {/* Problem Section */}
       <section id="problems" className="problems-section">
         <div className="container">
-          <h2 className="section-title">The Timeshare Trap Is Real</h2>
-          <div className="problem-cards">
-            <div className="problem-card">
+          <motion.h2 
+            className="section-title"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeIn}
+          >
+            The Timeshare Trap Is Real
+          </motion.h2>
+          <motion.div 
+            className="problem-cards"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={staggerContainer}
+          >
+            <motion.div className="problem-card" variants={fadeIn}>
               <div className="icon-circle">
                 <img src="/images/High-Pressure-Sales.png" alt="High Pressure Sales Icon" className="problem-icon" />
               </div>
               <h3>High-Pressure Sales</h3>
               <p>Aggressive tactics and misleading promises force you into rushed decisions you'll regret.</p>
-            </div>
-            <div className="problem-card">
+            </motion.div>
+            <motion.div className="problem-card" variants={fadeIn}>
               <div className="icon-circle">
                 <img src="/images/Hidden-Fees.png" alt="Hidden Fees Icon" className="problem-icon" />
               </div>
               <h3>Hidden Fees</h3>
               <p>Unexpected costs and rising maintenance fees drain your savings year after year.</p>
-            </div>
-            <div className="problem-card">
+            </motion.div>
+            <motion.div className="problem-card" variants={fadeIn}>
               <div className="icon-circle">
                 <img src="/images/No-way-out.png" alt="No Way Out Icon" className="problem-icon" />
               </div>
               <h3>No Way Out</h3>
               <p>Limited cancellation rights and short rescission periods trap you in unwanted contracts.</p>
-            </div>
-          </div>
-          <div className="stats-strip">
-            <div className="stat-item">
-              <span className="stat-value">87%</span>
+            </motion.div>
+          </motion.div>
+          <motion.div 
+            className="stats-strip"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={staggerContainer}
+          >
+            <motion.div className="stat-item" variants={scaleIn}>
+              <CountingNumber value="87" suffix="%" />
               <span className="stat-label">Regret Their Purchase</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-value">3-10</span>
+            </motion.div>
+            <motion.div className="stat-item" variants={scaleIn}>
+              <motion.span className="stat-value" variants={fadeIn}>3-10</motion.span>
               <span className="stat-label">Days to Cancel</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-value">$22K</span>
+            </motion.div>
+            <motion.div className="stat-item" variants={scaleIn}>
+              <CountingNumber value="22" prefix="$" suffix="K" />
               <span className="stat-label">Average Loss</span>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </div>
       </section>
 
@@ -179,7 +290,7 @@ const NewLandingPage: React.FC = () => {
               to="/sign/84dec50d-d877-4f15-9250-f5364124371a" 
               className="cta-button"
             >
-              Take the First Step
+              Submit Your Signature
               <i className="bi bi-arrow-right button-icon"></i>
             </Link>
           </div>
@@ -189,47 +300,87 @@ const NewLandingPage: React.FC = () => {
       {/* Outcomes Section */}
       <section className="outcomes-section">
         <div className="container">
-          <div className="outcomes-grid">
-            <div className="outcome success">
+          <motion.div 
+            className="outcomes-grid"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={staggerContainer}
+          >
+            <motion.div 
+              className="outcome success"
+              variants={fadeIn}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+            >
               <h3>With Your Signature</h3>
               <ul>
-                <li><i className="bi bi-check-lg outcome-icon"></i>Stronger consumer protections</li>
-                <li><i className="bi bi-check-lg outcome-icon"></i>Fair cancellation rights</li>
-                <li><i className="bi bi-check-lg outcome-icon"></i>Extended rescission periods</li>
-                <li><i className="bi bi-check-lg outcome-icon"></i>End to predatory practices</li>
+                <motion.li variants={fadeIn}><i className="bi bi-check-lg outcome-icon"></i>Stronger consumer protections</motion.li>
+                <motion.li variants={fadeIn}><i className="bi bi-check-lg outcome-icon"></i>Fair cancellation rights</motion.li>
+                <motion.li variants={fadeIn}><i className="bi bi-check-lg outcome-icon"></i>Extended rescission periods</motion.li>
+                <motion.li variants={fadeIn}><i className="bi bi-check-lg outcome-icon"></i>End to predatory practices</motion.li>
               </ul>
-            </div>
-            <div className="outcome failure">
+            </motion.div>
+            <motion.div 
+              className="outcome failure"
+              variants={fadeIn}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+            >
               <h3>Without Action</h3>
               <ul>
-                <li><i className="bi bi-x-lg outcome-icon"></i>More families scammed</li>
-                <li><i className="bi bi-x-lg outcome-icon"></i>Continued exploitation</li>
-                <li><i className="bi bi-x-lg outcome-icon"></i>Limited legal recourse</li>
-                <li><i className="bi bi-x-lg outcome-icon"></i>Growing financial burden</li>
+                <motion.li variants={fadeIn}><i className="bi bi-x-lg outcome-icon"></i>More families scammed</motion.li>
+                <motion.li variants={fadeIn}><i className="bi bi-x-lg outcome-icon"></i>Continued exploitation</motion.li>
+                <motion.li variants={fadeIn}><i className="bi bi-x-lg outcome-icon"></i>Limited legal recourse</motion.li>
+                <motion.li variants={fadeIn}><i className="bi bi-x-lg outcome-icon"></i>Growing financial burden</motion.li>
               </ul>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </div>
       </section>
 
-      {/* Final CTA Section */}
+      {/* Donation Section */}
       <section className="final-cta-section">
         <div className="container">
-          <h2>Take Action: Sign Today</h2>
-          <p className="subtitle">Your Signature Can End Timeshare Fraud</p>
-          <div className="signature-progress">
-            <div className="progress-bar">
-              <div className="progress-fill" style={{ width: `${progressPercentage}%` }}></div>
-            </div>
-            <p className="progress-text">{signatureCount.toLocaleString()} of {signatureGoal.toLocaleString()} signatures</p>
-          </div>
-          <Link 
-            to="/sign/84dec50d-d877-4f15-9250-f5364124371a" 
-            className="cta-button pulse"
+          <motion.h2
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeIn}
           >
-            Submit Your Signature
-            <i className="bi bi-pen button-icon"></i>
-          </Link>
+            Fuel the Fight for Consumer Protection
+          </motion.h2>
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={staggerContainer}
+          >
+            <motion.p className="subtitle" variants={fadeIn}>
+              Timeshare fraud and unfair contracts harm thousands of families every year. 
+            </motion.p>
+            <motion.p className="subtitle" variants={fadeIn}>
+              Your donation helps us push for stronger laws, hold bad actors accountable, 
+              and protect consumers from financial traps.
+            </motion.p>
+            <motion.p className="subtitle" variants={fadeIn}>
+              Stand with us—every dollar makes a difference.
+            </motion.p>
+            <motion.a 
+              href="https://www.epublicsf.org/donate" 
+              target="_blank"
+              rel="noopener noreferrer"
+              className="cta-button pulse"
+              variants={scaleIn}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              Donate Now
+              <i className="bi bi-heart button-icon"></i>
+            </motion.a>
+          </motion.div>
         </div>
       </section>
 

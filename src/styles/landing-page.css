@@ -88,7 +88,7 @@ img {
 
 .hero-subtitle {
   font-family: 'Roboto', sans-serif;
-  font-size: clamp(1.25rem, 2.5vw, 1.5rem);
+  font-size: 1.2rem;
   font-weight: 500;
   margin-bottom: 2rem;
   opacity: 0.9;
@@ -156,16 +156,31 @@ img {
   display: flex;
   gap: 2.5rem;
   margin-top: 2.5rem;
+  align-items: center;
 }
 
 .trust-badge {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  background-color: rgba(1, 189, 155, 0.1);
+  padding: 8px 16px;
+  border-radius: 8px;
 }
 
 .trust-badge i {
   color: var(--accent);
+  font-size: 1.5rem;
+}
+
+.badge-text {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.badge-content {
+  display: flex;
+  flex-direction: column;
 }
 
 .hero-image-wrapper {
@@ -694,6 +709,12 @@ img {
     flex-direction: column;
     gap: 1rem;
     align-items: center;
+    justify-content: center;
+  }
+
+  .trust-badge {
+    width: 100%;
+    justify-content: center;
   }
 
   /* Problem Section */
@@ -839,11 +860,12 @@ img {
 
 /* Icon styles for Bootstrap Icons */
 .trust-icon {
-  font-size: 24px;
+  font-size: 1.5rem;
   color: var(--accent);
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 24px;
 }
 
 .check-icon {
@@ -894,11 +916,7 @@ img {
 }
 
 /* Update existing styles to work with icons */
-.trust-badge {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
+/* Trust badge styling is already defined earlier */
 
 .credentials-list li {
   display: flex;

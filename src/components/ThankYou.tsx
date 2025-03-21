@@ -12,7 +12,7 @@ import {
 import { useParams, useLocation } from 'react-router-dom';
 import { usePetition } from '../context/PetitionContext';
 import { supabase } from '../services/supabase';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
 
 interface LocationState {
   signatureNumber?: number;
@@ -40,7 +40,7 @@ const ThankYou: React.FC = () => {
   // Function to get the sign petition URL
   const getSignPetitionUrl = () => {
     const baseUrl = window.location.origin;
-    return `${baseUrl}/sign/${id}`;
+    return `${baseUrl}/`;
   };
 
   // Function to handle copying the link
@@ -200,9 +200,9 @@ const ThankYou: React.FC = () => {
             color="primary"
             size="large"
             onClick={handleCopyLink}
-            startIcon={<ContentCopyIcon />}
+            startIcon={<PersonAddIcon />}
           >
-            Copy Petition Link
+            Invite a Friend
           </Button>
         </Box>
       </Paper>
@@ -211,7 +211,7 @@ const ThankYou: React.FC = () => {
         open={openSnackbar}
         autoHideDuration={3000}
         onClose={() => setOpenSnackbar(false)}
-        message="Link copied to clipboard!"
+        message="Invitation link copied! Share with your friends to join the cause!"
       />
     </Container>
   );
