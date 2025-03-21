@@ -142,40 +142,15 @@ const CallToAction: React.FC = () => {
 
           <Grid item xs={12} md={6}>
             <Box
+              component="img"
+              src="/images/third-section.webp"
+              alt="Stand Up for Your Rights"
               sx={{
-                position: 'relative',
-                borderRadius: 2,
-                overflow: 'hidden',
-                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+                width: '100%',
+                height: 'auto',
+                display: 'block',
               }}
-            >
-              <Box
-                component="img"
-                src="/assets/images/collaboration.jpg"
-                alt="Collaboration"
-                sx={{
-                  width: '100%',
-                  height: 'auto',
-                  display: 'block',
-                }}
-              />
-              <Box
-                sx={{
-                  position: 'absolute',
-                  top: 16,
-                  right: 16,
-                  bgcolor: colors.background.light,
-                  color: colors.primary,
-                  px: 2,
-                  py: 1,
-                  borderRadius: 1,
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                }}
-              >
-                Rights Secured
-              </Box>
-            </Box>
+            />
           </Grid>
         </Grid>
       </Container>

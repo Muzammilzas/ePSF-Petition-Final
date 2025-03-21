@@ -92,46 +92,19 @@ const DarkCallToAction: React.FC = () => {
         <Box sx={{
           position: 'relative',
           width: { xs: '100%', md: '500px' },
-          height: { xs: '300px', md: '400px' },
-          borderRadius: '16px',
-          overflow: 'hidden',
-          bgcolor: '#1A1A1A',
+          bgcolor: 'transparent',
         }}>
           <Box
             component="img"
-            src="/images/rights-lost.jpg"
+            src="/images/Without Action.webp"
             alt="Rights Lost"
             sx={{
               width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              opacity: 0.6,
+              height: 'auto',
+              display: 'block',
+              opacity: 1,
             }}
           />
-          <Box sx={{
-            position: 'absolute',
-            top: '16px',
-            right: '16px',
-            bgcolor: 'rgba(0, 0, 0, 0.8)',
-            color: '#FF4444',
-            px: 2,
-            py: 1,
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-          }}>
-            <Box
-              component="span"
-              sx={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                bgcolor: '#FF4444',
-              }}
-            />
-            Rights Lost
-          </Box>
         </Box>
       </Container>
     </Box>

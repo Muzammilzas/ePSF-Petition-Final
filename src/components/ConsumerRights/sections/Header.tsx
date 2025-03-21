@@ -8,7 +8,7 @@ const Header: React.FC = () => {
       sx={{
         ...sectionStyles.section,
         minHeight: '92vh',
-        bgcolor: colors.background.dark,
+        bgcolor: colors.background.light,
         position: 'relative',
         overflow: 'hidden',
         '&::before': {
@@ -18,7 +18,7 @@ const Header: React.FC = () => {
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'linear-gradient(to bottom right, rgba(0,0,0,0.7), rgba(0,0,0,0.5))',
+          background: 'none',
           zIndex: 1,
         },
       }}
@@ -31,7 +31,7 @@ const Header: React.FC = () => {
           left: 0,
           right: 0,
           bottom: 0,
-          opacity: 0.1,
+          opacity: 0.05,
           backgroundImage: `url('/assets/pattern.svg')`,
           backgroundSize: '100px 100px',
         }}
@@ -41,14 +41,18 @@ const Header: React.FC = () => {
         <Grid container spacing={6} alignItems="center">
           <Grid item xs={12} md={6}>
             <Box>
-              <Box sx={sectionStyles.tag}>CONSUMER PROTECTION</Box>
+              <Box sx={{
+                ...sectionStyles.tag,
+                bgcolor: `${colors.primary}15`,
+                color: colors.primary,
+              }}>CONSUMER PROTECTION</Box>
               <Typography
                 variant="h1"
                 sx={{
                   fontFamily: 'Ubuntu, sans-serif',
                   fontSize: { xs: '2.5rem', sm: '3rem', md: '3.5rem', lg: '4rem' },
                   fontWeight: 800,
-                  color: colors.text.light,
+                  color: colors.text.primary,
                   lineHeight: 1.1,
                   mb: 3,
                 }}
@@ -59,8 +63,7 @@ const Header: React.FC = () => {
                 variant="h5"
                 sx={{
                   fontFamily: 'Roboto, sans-serif',
-                  color: colors.text.light,
-                  opacity: 0.9,
+                  color: colors.text.secondary,
                   mb: 4,
                   maxWidth: '600px',
                   lineHeight: 1.5,
@@ -71,8 +74,7 @@ const Header: React.FC = () => {
               <Typography
                 sx={{
                   fontFamily: 'Roboto, sans-serif',
-                  color: colors.text.light,
-                  opacity: 0.8,
+                  color: colors.text.secondary,
                   mb: 4,
                   maxWidth: '600px',
                   lineHeight: 1.7,
@@ -112,41 +114,17 @@ const Header: React.FC = () => {
             </Box>
           </Grid>
           <Grid item xs={12} md={6}>
-            <Box sx={{ position: 'relative' }}>
-              <Box
-                component="img"
-                src="/assets/images/signing-petition.jpg"
-                alt="Person signing a petition"
-                sx={{
-                  width: '100%',
-                  height: 'auto',
-                  borderRadius: 2,
-                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
-                }}
-              />
-              <Box
-                sx={{
-                  position: 'absolute',
-                  top: 16,
-                  right: 16,
-                  bgcolor: '#fff',
-                  px: 2,
-                  py: 1,
-                  borderRadius: 1,
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                }}
-              >
-                <Typography
-                  sx={{
-                    color: colors.primary,
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                  }}
-                >
-                  Rights Matter
-                </Typography>
-              </Box>
-            </Box>
+            <Box
+              component="img"
+              src="/images/First-section.webp"
+              alt="Consumer rights protection"
+              sx={{
+                width: '100%',
+                height: 'auto',
+                borderRadius: 0,
+                boxShadow: 'none',
+              }}
+            />
           </Grid>
         </Grid>
       </Container>

@@ -10,6 +10,7 @@ interface Problem {
   icon: React.ReactNode;
   title: string;
   description: string;
+  image: string;
 }
 
 const Problem: React.FC = () => {
@@ -18,28 +19,32 @@ const Problem: React.FC = () => {
       icon: <ErrorOutlineIcon sx={{ fontSize: 40, color: colors.destructive }} />,
       title: 'Scams and Fraud',
       description: 'Companies trick owners into bad deals with misleading information and hidden fees.',
+      image: '/images/Scams and Fraud.png'
     },
     {
       icon: <WarningAmberIcon sx={{ fontSize: 40, color: colors.destructive }} />,
       title: 'Limited Cancellation Rights',
       description: "Once you sign, you're trapped in an unwanted contract with virtually no way out.",
+      image: '/images/Limited Cancellation Rights.png'
     },
     {
       icon: <GavelIcon sx={{ fontSize: 40, color: colors.destructive }} />,
       title: 'Short Rescission Period',
       description: 'The legal timeframe to cancel is unfairly brief, often passing before issues are discovered.',
+      image: '/images/Short Rescission Period.png'
     },
     {
       icon: <MoneyOffIcon sx={{ fontSize: 40, color: colors.destructive }} />,
       title: 'Aggressive Promotions',
       description: 'High-pressure sales tactics hide the truth and rush you into decisions.',
+      image: '/images/Aggressive Promotions.png'
     }
   ];
 
   return (
     <Box id="learn-more" sx={{
       ...sectionStyles.section,
-      bgcolor: colors.background.gold,
+      bgcolor: colors.primary,
       py: { xs: 10, md: 12 },
     }}>
       <Container sx={sectionStyles.container}>
@@ -48,7 +53,7 @@ const Problem: React.FC = () => {
             variant="h2"
             sx={{
               ...sectionStyles.heading,
-              color: colors.text.dark,
+              color: '#fff',
               mb: 2,
             }}
           >
@@ -57,10 +62,10 @@ const Problem: React.FC = () => {
           <Typography
             sx={{
               ...sectionStyles.subheading,
-              color: colors.text.dark,
+              color: '#fff',
               maxWidth: '800px',
               mx: 'auto',
-              opacity: 0.8,
+              opacity: 0.9,
             }}
           >
             As a consumer, you have rights—but timeshare companies often deny these basic principles.
@@ -69,26 +74,16 @@ const Problem: React.FC = () => {
 
         <Grid container spacing={4}>
           <Grid item xs={12} md={6}>
-            <Box sx={{ position: 'relative' }}>
-              <Box sx={{
-                position: 'relative',
-                borderRadius: 4,
-                overflow: 'hidden',
-                boxShadow: '0 10px 30px rgba(0, 0, 0, 0.1)',
-              }}>
-                <Box
-                  component="img"
-                  src="https://images.unsplash.com/photo-1605810230434-7631ac76ec81?auto=format&fit=crop&w=800&q=80"
-                  alt="Timeshare rights denied"
-                  sx={{
-                    width: '100%',
-                    height: 'auto',
-                    aspectRatio: '4/3',
-                    objectFit: 'cover',
-                  }}
-                />
-              </Box>
-            </Box>
+            <Box
+              component="img"
+              src="/images/sec-section.webp"
+              alt="Timeshare rights denied"
+              sx={{
+                width: '100%',
+                height: 'auto',
+                display: 'block',
+              }}
+            />
           </Grid>
 
           <Grid item xs={12} md={6}>
@@ -99,18 +94,35 @@ const Problem: React.FC = () => {
                   elevation={0}
                   sx={{
                     p: 3,
-                    bgcolor: 'rgba(255, 255, 255, 0.9)',
+                    bgcolor: 'rgba(255, 255, 255, 0.95)',
                     borderRadius: 2,
                     boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
                   }}
                 >
                   <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                    <Box sx={{
-                      p: 1.5,
-                      borderRadius: '50%',
-                      bgcolor: 'rgba(255, 255, 255, 0.8)',
-                    }}>
-                      {problem.icon}
+                    <Box 
+                      sx={{
+                        width: 60,
+                        height: 60,
+                        position: 'relative',
+                        overflow: 'hidden',
+                        borderRadius: '50%',
+                        bgcolor: 'rgba(255, 255, 255, 1)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Box
+                        component="img"
+                        src={problem.image}
+                        alt={problem.title}
+                        sx={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                        }}
+                      />
                     </Box>
                     <Box>
                       <Typography
@@ -142,7 +154,7 @@ const Problem: React.FC = () => {
                   fontFamily: 'Ubuntu, sans-serif',
                   fontSize: '1.125rem',
                   fontWeight: 500,
-                  color: colors.text.dark,
+                  color: '#fff',
                   opacity: 0.9,
                   textAlign: 'center',
                   mt: 2,
