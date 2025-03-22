@@ -238,7 +238,7 @@ const Plan: React.FC = () => {
                 },
               }}
             >
-              Add Your Name →
+              Take the First Step Now
             </Typography>
           </Box>
         </Box>

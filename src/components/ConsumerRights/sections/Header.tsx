@@ -1,10 +1,75 @@
 import React from 'react';
 import { Box, Container, Typography, Grid } from '@mui/material';
+import { motion } from 'framer-motion';
 import { sectionStyles, colors } from '../styles';
+
+// Motion components
+const MotionBox = motion(Box);
+const MotionTypography = motion(Typography);
+const MotionGrid = motion(Grid);
+
+// Animation variants
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      delayChildren: 0.1,
+      staggerChildren: 0.1
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 30 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.7,
+      ease: "easeOut"
+    }
+  }
+};
+
+const imageVariants = {
+  hidden: { opacity: 0, x: 50 },
+  visible: {
+    opacity: 1,
+    x: 0,
+    transition: {
+      duration: 0.7,
+      ease: "easeOut",
+      delay: 0.3
+    }
+  }
+};
+
+const buttonVariants = {
+  hidden: { opacity: 0, scale: 0.9 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    transition: {
+      duration: 0.4,
+      delay: 0.6
+    }
+  },
+  hover: {
+    scale: 1.05,
+    boxShadow: "0 10px 15px -3px rgba(1, 189, 155, 0.2)"
+  },
+  tap: {
+    scale: 0.98
+  }
+};
 
 const Header: React.FC = () => {
   return (
-    <Box
+    <MotionBox
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
       sx={{
         ...sectionStyles.section,
         minHeight: '92vh',
@@ -32,22 +97,27 @@ const Header: React.FC = () => {
           right: 0,
           bottom: 0,
           opacity: 0.05,
-          backgroundImage: `url('/assets/pattern.svg')`,
-          backgroundSize: '100px 100px',
+          background: `radial-gradient(circle, ${colors.primary} 1px, transparent 1px)`,
+          backgroundSize: '20px 20px',
         }}
       />
 
       <Container sx={{ ...sectionStyles.container, position: 'relative', zIndex: 1 }}>
         <Grid container spacing={6} alignItems="center">
           <Grid item xs={12} md={6}>
-            <Box>
-              <Box sx={{
-                ...sectionStyles.tag,
-                bgcolor: `${colors.primary}15`,
-                color: colors.primary,
-              }}>CONSUMER PROTECTION</Box>
-              <Typography
+            <MotionBox variants={containerVariants}>
+              <MotionBox 
+                variants={itemVariants}
+                sx={{
+                  ...sectionStyles.tag,
+                  bgcolor: `${colors.primary}15`,
+                  color: colors.primary,
+                }}
+              >CONSUMER PROTECTION</MotionBox>
+              
+              <MotionTypography
                 variant="h1"
+                variants={itemVariants}
                 sx={{
                   fontFamily: 'Ubuntu, sans-serif',
                   fontSize: { xs: '2.5rem', sm: '3rem', md: '3.5rem', lg: '4rem' },
@@ -58,9 +128,11 @@ const Header: React.FC = () => {
                 }}
               >
                 Your Consumer Rights Matter
-              </Typography>
-              <Typography
+              </MotionTypography>
+              
+              <MotionTypography
                 variant="h5"
+                variants={itemVariants}
                 sx={{
                   fontFamily: 'Roboto, sans-serif',
                   color: colors.text.secondary,
@@ -70,8 +142,10 @@ const Header: React.FC = () => {
                 }}
               >
                 Sign our petition to protect timeshare owners from unfair practices and demand stronger consumer protections.
-              </Typography>
-              <Typography
+              </MotionTypography>
+              
+              <MotionTypography
+                variants={itemVariants}
                 sx={{
                   fontFamily: 'Roboto, sans-serif',
                   color: colors.text.secondary,
@@ -84,36 +158,34 @@ const Header: React.FC = () => {
                 Yet, shady companies deny you basic consumer rights with scams, fraud, 
                 and contracts you can't escape. ePublic Safety Foundation is here to 
                 fight for you—sign our petition to demand the protections you're entitled to!
-              </Typography>
+              </MotionTypography>
+              
               <Box sx={{ display: 'flex', gap: 2 }}>
-                <Typography
-                  component="a"
+                <motion.a
                   href="/sign/84dec50d-d877-4f15-9250-f5364124371a"
-                  sx={{
+                  variants={buttonVariants}
+                  whileHover="hover"
+                  whileTap="tap"
+                  style={{
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     color: '#fff',
-                    bgcolor: colors.primary,
-                    px: { xs: 3, sm: 4 },
-                    py: { xs: 1.5, sm: 2 },
-                    borderRadius: 50,
+                    backgroundColor: colors.primary,
+                    padding: '0.75rem 1.5rem',
+                    borderRadius: '50px',
                     textDecoration: 'none',
                     fontWeight: 500,
-                    transition: 'all 0.2s',
-                    fontSize: { xs: '0.875rem', sm: '1rem' },
-                    '&:hover': {
-                      bgcolor: colors.primary,
-                      filter: 'brightness(0.9)',
-                    },
+                    fontSize: '1rem',
                   }}
                 >
-                  Sign the Petition
-                </Typography>
+                  Protect My Rights Now
+                </motion.a>
               </Box>
-            </Box>
+            </MotionBox>
           </Grid>
-          <Grid item xs={12} md={6}>
+          
+          <MotionGrid item xs={12} md={6} variants={imageVariants}>
             <Box
               component="img"
               src="/images/First-section.webp"
@@ -125,10 +197,10 @@ const Header: React.FC = () => {
                 boxShadow: 'none',
               }}
             />
-          </Grid>
+          </MotionGrid>
         </Grid>
       </Container>
-    </Box>
+    </MotionBox>
   );
 };
 

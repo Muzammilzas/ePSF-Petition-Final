@@ -105,7 +105,7 @@ const Guide: React.FC = () => {
                     },
                   }}
                 >
-                  Sign The Petition
+                  Join the Fight for Justice
                 </Typography>
               </Box>
             </Box>
