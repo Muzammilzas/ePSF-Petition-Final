@@ -152,7 +152,7 @@ const DonationCancel: React.FC = () => {
                   fontWeight: 700, 
                   color: 'secondary.main', // Using secondary color
                   fontSize: { xs: '1.75rem', sm: '2.25rem', md: '2.5rem' },
-                  textTransform: 'uppercase',
+                  textTransform: 'none',
                   letterSpacing: '0.05em'
                 }}
               >
