@@ -386,6 +386,19 @@ const SignPetitionFormContent: React.FC = () => {
               By signing, you're joining our movement to make a difference.
               This site is protected by reCAPTCHA.
             </Typography>
+            
+            <Box sx={{ mt: 4, p: 2, bgcolor: 'background.paper', border: '1px solid #e0e0e0', borderRadius: 1 }}>
+              <Typography variant="h6" gutterBottom sx={{ fontSize: '1rem', fontWeight: 'bold' }}>
+                Petition Disclaimer:
+              </Typography>
+              <Typography variant="body2" color="text.secondary" align="left">
+                This petition is for informational and advocacy purposes only. It does not constitute legal advice or representation. 
+                The organizers are not attorneys and are not affiliated with any law firm. Statements in this petition reflect personal 
+                experiences, publicly available information, and concerns shared by affected timeshare owners. All individuals are 
+                encouraged to consult a licensed attorney for legal advice regarding their own circumstances. The petition's purpose 
+                is to raise awareness and advocate for consumer protections, transparency, and reform in the timeshare industry.
+              </Typography>
+            </Box>
           </Box>
         )}
       </Paper>

@@ -19,6 +19,8 @@ import TestEmail from './components/TestEmail';
 import LandingPage from './components/LandingPage';
 import NewLandingPage from './components/NewLandingPage';
 import ConsumerRights from './components/ConsumerRights';
+import DonationComplete from './components/DonationComplete';
+import DonationCancel from './components/DonationCancel';
 
 const theme = createTheme({
   palette: {
@@ -103,6 +105,8 @@ const App: React.FC = () => {
                   <Route path="/consumer-rights" element={<ConsumerRights />} />
                   <Route path="/sign/:id" element={<SignPetitionForm />} />
                   <Route path="/thank-you/:id" element={<ThankYou />} />
+                  <Route path="/complete" element={<DonationComplete />} />
+                  <Route path="/cancel" element={<DonationCancel />} />
                   
                   {/* Authentication Routes */}
                   <Route path="/admin/login" element={<AdminLogin />} />

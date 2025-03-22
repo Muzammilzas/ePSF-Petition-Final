@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ePSF Donation - Redirecting to PayPal</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8fafc;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 40px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 100%;
+        }
+        .logo {
+            max-width: 180px;
+            margin-bottom: 30px;
+        }
+        h1 {
+            color: #01BD9B;
+            margin-bottom: 20px;
+        }
+        p {
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 30px 0;
+        }
+        .spinner {
+            border: 5px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top: 5px solid #E0AC3F;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .redirect-text {
+            color: #777;
+            font-size: 16px;
+        }
+        .footer {
+            margin-top: 30px;
+            font-size: 14px;
+            color: #999;
+        }
+        .footer a {
+            color: #01BD9B;
+            text-decoration: none;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img src="/your-logo.png" alt="ePSF Logo" class="logo">
+        <h1>Thank You for Your Support</h1>
+        <p>Your contribution helps us protect timeshare owners from unfair practices and push for meaningful industry reform.</p>
+        
+        <div class="loading">
+            <div class="spinner"></div>
+            <p class="redirect-text">Redirecting you to our secure payment page...</p>
+        </div>
+        
+        <div class="footer">
+            <p>If you are not redirected within 5 seconds, <a href="#" id="manual-redirect">click here</a>.</p>
+        </div>
+    </div>
+
+    <script>
+        // Get the current origin (protocol + hostname + port)
+        const origin = window.location.origin;
+        
+        // Create the PayPal donation URL with success and cancel URLs
+        const paypalDonateUrl = "https://www.paypal.com/donate/?hosted_button_id=CJ3BQFH766EXG" + 
+                               "&return=" + encodeURIComponent(origin + "/complete") +
+                               "&cancel_return=" + encodeURIComponent(origin + "/cancel");
+        
+        // Set the manual redirect link
+        document.getElementById('manual-redirect').href = paypalDonateUrl;
+        
+        // Auto redirect after a short delay
+        setTimeout(function() {
+            window.location.href = paypalDonateUrl;
+        }, 2000);
+    </script>
+</body>
+</html> 

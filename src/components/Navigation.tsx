@@ -88,7 +88,7 @@ const Navigation: React.FC = () => {
       return [
         {
           text: 'Donate Now',
-          link: 'https://epublicsf.org/donation',
+          link: '/donate.html',
           external: true,
           variant: 'contained',
           sx: {

@@ -369,9 +369,7 @@ const NewLandingPage: React.FC = () => {
               Stand with us—every dollar makes a difference.
             </motion.p>
             <motion.a 
-              href="https://www.epublicsf.org/donate" 
-              target="_blank"
-              rel="noopener noreferrer"
+              href="/donate.html"
               className="cta-button pulse"
               variants={scaleIn}
               whileHover={{ scale: 1.05 }}
@@ -429,6 +427,18 @@ const NewLandingPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Disclaimer Section */}
+      <section className="disclaimer-section">
+        <div className="container">
+          <div className="disclaimer-content">
+            <h4>Petition Disclaimer:</h4>
+            <p>
+              This petition is for informational and advocacy purposes only. It does not constitute legal advice or representation. The organizers are not attorneys and are not affiliated with any law firm. Statements in this petition reflect personal experiences, publicly available information, and concerns shared by affected timeshare owners. All individuals are encouraged to consult a licensed attorney for legal advice regarding their own circumstances. The petition's purpose is to raise awareness and advocate for consumer protections, transparency, and reform in the timeshare industry.
+            </p>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };

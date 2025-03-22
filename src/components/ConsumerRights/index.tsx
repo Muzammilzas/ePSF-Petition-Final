@@ -7,6 +7,7 @@ import DebtInheritance from './sections/DebtInheritance';
 import Guide from './sections/Guide';
 import Plan from './sections/Plan';
 import DarkCallToAction from './sections/DarkCallToAction';
+import DonationCta from './sections/DonationCta';
 import Success from './sections/Success';
 import Failure from './sections/Failure';
 import { colors } from './styles';
@@ -39,6 +40,7 @@ const ConsumerRights: React.FC = () => {
         <DebtInheritance />
         <Guide />
         <Plan />
+        <DonationCta />
         <DarkCallToAction />
         {/* Success and Failure components are rendered conditionally based on form submission */}
       </MotionBox>
