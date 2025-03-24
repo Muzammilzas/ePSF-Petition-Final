@@ -21,6 +21,7 @@ import NewLandingPage from './components/NewLandingPage';
 import ConsumerRights from './components/ConsumerRights';
 import DonationComplete from './components/DonationComplete';
 import DonationCancel from './components/DonationCancel';
+import DonationPage from './components/DonationPage';
 
 const theme = createTheme({
   palette: {
@@ -107,6 +108,7 @@ const App: React.FC = () => {
                   <Route path="/thank-you/:id" element={<ThankYou />} />
                   <Route path="/complete" element={<DonationComplete />} />
                   <Route path="/cancel" element={<DonationCancel />} />
+                  <Route path="/donate" element={<DonationPage />} />
                   
                   {/* Authentication Routes */}
                   <Route path="/admin/login" element={<AdminLogin />} />
