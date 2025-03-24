@@ -87,8 +87,9 @@ const Navigation: React.FC = () => {
     } else {
       return [
         {
-          text: 'Donate',
-          link: '/donation',
+          text: 'Donate Now',
+          link: '/donate',
+          external: false,
           variant: 'contained',
           sx: {
             color: '#fff',

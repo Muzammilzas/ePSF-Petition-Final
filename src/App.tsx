@@ -108,7 +108,7 @@ const App: React.FC = () => {
                   <Route path="/thank-you/:id" element={<ThankYou />} />
                   <Route path="/complete" element={<DonationComplete />} />
                   <Route path="/cancel" element={<DonationCancel />} />
-                  <Route path="/donation" element={<DonationPage />} />
+                  <Route path="/donate" element={<DonationPage />} />
                   
                   {/* Authentication Routes */}
                   <Route path="/admin/login" element={<AdminLogin />} />

@@ -38,9 +38,7 @@ const DonationPage: React.FC = () => {
   const DonateButton = () => (
     <Button
       component="a"
-      href="https://www.paypal.com/donate/?hosted_button_id=CJ3BQFH766EXG"
-      target="_blank"
-      rel="noopener noreferrer"
+      href="/donation.html"
       variant="contained"
       color="primary"
       size="large"
@@ -223,9 +221,7 @@ const DonationPage: React.FC = () => {
           </Typography>
           <Button
             component="a"
-            href="https://www.paypal.com/donate/?hosted_button_id=CJ3BQFH766EXG"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/donation.html"
             variant="contained"
             sx={{
               bgcolor: 'white',
