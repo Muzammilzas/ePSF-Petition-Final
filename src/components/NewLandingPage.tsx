@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import '../styles/landing-page.css';
 import { motion, useAnimation, useInView } from 'framer-motion';
+import { Button } from '@mui/material';
 
 // Animation variants
 const fadeIn = {
@@ -368,16 +369,29 @@ const NewLandingPage: React.FC = () => {
             <motion.p className="subtitle" variants={fadeIn}>
               Stand with us—every dollar makes a difference.
             </motion.p>
-            <motion.a 
-              href="/donate.html"
-              className="cta-button pulse"
+            <motion.div
               variants={scaleIn}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              className="cta-button-container"
             >
-              Donate Now
-              <i className="bi bi-heart button-icon"></i>
-            </motion.a>
+              <Link 
+                to="/donation"
+                style={{ textDecoration: 'none' }}
+              >
+                <Button
+                  variant="contained"
+                  color="primary"
+                  className="cta-button"
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }}
+                >
+                  Donate Now
+                  <i className="bi bi-heart button-icon"></i>
+                </Button>
+              </Link>
+            </motion.div>
           </motion.div>
         </div>
       </section>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Container, Typography, Button } from '@mui/material';
 import { sectionStyles, colors } from '../styles';
+import { Link } from 'react-router-dom';
 
 const DonationCta: React.FC = () => {
   return (
@@ -110,8 +111,8 @@ const DonationCta: React.FC = () => {
             {/* Action Button */}
             <Box>
               <Button
-                component="a"
-                href="/donate.html"
+                component={Link}
+                to="/donation"
                 variant="contained"
                 size="large"
                 sx={{
