@@ -22,6 +22,9 @@ import ConsumerRights from './components/ConsumerRights';
 import DonationComplete from './components/DonationComplete';
 import DonationCancel from './components/DonationCancel';
 import DonationPage from './components/DonationPage';
+import ReportScamPage from './components/ReportScam/ReportScamPage';
+import ScamReportsAdmin from './components/Admin/ScamReportsAdmin';
+import SuccessMessage from './components/ReportScam/SuccessMessage';
 
 const theme = createTheme({
   palette: {
@@ -109,6 +112,8 @@ const App: React.FC = () => {
                   <Route path="/complete" element={<DonationComplete />} />
                   <Route path="/cancel" element={<DonationCancel />} />
                   <Route path="/donate" element={<DonationPage />} />
+                  <Route path="/report-scam" element={<ReportScamPage />} />
+                  <Route path="/report-scam/thank-you" element={<SuccessMessage />} />
                   
                   {/* Authentication Routes */}
                   <Route path="/admin/login" element={<AdminLogin />} />
@@ -136,6 +141,14 @@ const App: React.FC = () => {
                     element={
                       <ProtectedRoute>
                         <PetitionSignatures />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/admin/scam-reports" 
+                    element={
+                      <ProtectedRoute>
+                        <ScamReportsAdmin />
                       </ProtectedRoute>
                     } 
                   />

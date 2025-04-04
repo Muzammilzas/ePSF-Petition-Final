@@ -553,6 +553,20 @@ const AdminDashboard: React.FC = () => {
             >
               Create Petition
             </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => navigate('/admin/scam-reports')}
+              sx={{ 
+                backgroundColor: '#01BD9B',
+                color: '#FFFFFF',
+                '&:hover': {
+                  backgroundColor: '#01a989'
+                }
+              }}
+            >
+              Scam Reports
+            </Button>
             <Button 
               variant="contained" 
               color="secondary" 
