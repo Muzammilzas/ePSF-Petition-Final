@@ -144,8 +144,8 @@ const Navigation: React.FC = () => {
         },
         {
           text: 'Report a Scam',
-          link: 'https://epublicsf.org/report-scams/',
-          external: true,
+          link: '/report-scam',
+          external: false,
           variant: 'contained',
           sx: {
             color: '#fff',
