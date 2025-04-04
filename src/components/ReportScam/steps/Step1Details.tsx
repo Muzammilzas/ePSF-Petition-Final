@@ -103,6 +103,10 @@ const Step1Details: React.FC<Step1DetailsProps> = ({ formData, onChange, onNext,
     });
   };
 
+  const handleDateChange = (date: Date | null) => {
+    onChange('dateOccurred', date ? date.toISOString().split('T')[0] : '');
+  };
+
   const isValid = () => {
     // Check if at least one scam type is selected with required fields filled
     const hasValidScamType = Object.entries(formData.scamTypes).some(([_, data]) => {
@@ -486,11 +490,14 @@ const Step1Details: React.FC<Step1DetailsProps> = ({ formData, onChange, onNext,
       )}
 
       <LocalizationProvider dateAdapter={AdapterDateFns}>
+        <Typography variant="subtitle1" gutterBottom>
+          When did this happen?
+        </Typography>
         <DatePicker
-          label="Date of incident"
+          label="Date"
           value={formData.dateOccurred ? new Date(formData.dateOccurred) : null}
-          onChange={(date) => onChange('dateOccurred', date?.toISOString() || '')}
-          sx={{ width: '100%', mb: 3 }}
+          onChange={handleDateChange}
+          slotProps={{ textField: { fullWidth: true, sx: { mb: 3 } } }}
         />
       </LocalizationProvider>
 

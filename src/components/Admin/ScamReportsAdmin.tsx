@@ -227,6 +227,14 @@ const ScamReportsAdmin: React.FC = () => {
     }).format(amount);
   };
 
+  const handleDateFromChange = (date: Date | null) => {
+    setFilters({ ...filters, dateFrom: date });
+  };
+
+  const handleDateToChange = (date: Date | null) => {
+    setFilters({ ...filters, dateTo: date });
+  };
+
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
@@ -241,7 +249,7 @@ const ScamReportsAdmin: React.FC = () => {
               <DatePicker
                 label="Date From"
                 value={filters.dateFrom}
-                onChange={(date) => setFilters({ ...filters, dateFrom: date })}
+                onChange={handleDateFromChange}
                 slotProps={{ textField: { fullWidth: true } }}
               />
             </Grid>
@@ -249,7 +257,7 @@ const ScamReportsAdmin: React.FC = () => {
               <DatePicker
                 label="Date To"
                 value={filters.dateTo}
-                onChange={(date) => setFilters({ ...filters, dateTo: date })}
+                onChange={handleDateToChange}
                 slotProps={{ textField: { fullWidth: true } }}
               />
             </Grid>
