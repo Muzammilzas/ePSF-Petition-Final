@@ -149,7 +149,12 @@ const SignaturesDialog: React.FC<SignaturesDialogProps> = ({ open, onClose, peti
                     <TableCell>{signature.email}</TableCell>
                     <TableCell>{signature.timeshare_name || 'N/A'}</TableCell>
                     <TableCell>
-                      {new Date(signature.created_at).toLocaleDateString()}
+                      {new Date(signature.created_at).toLocaleDateString('en-US', {
+                        timeZone: 'America/New_York',
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
+                      })}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -450,7 +455,16 @@ const AdminDashboard: React.FC = () => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
+    return new Date(dateString).toLocaleString('en-US', {
+      timeZone: 'America/New_York',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
   };
 
   // Add a function to handle viewing a petition
@@ -541,17 +555,23 @@ const AdminDashboard: React.FC = () => {
             </Typography>
             <Button
               variant="contained"
-              color="primary"
-              onClick={() => navigate('/admin/create')}
-              sx={{ 
-                backgroundColor: '#01BD9B',
+              onClick={() => navigate('/admin/create-petition')}
+              sx={{ mr: 2 }}
+            >
+              Create Petition
+            </Button>
+            <Button
+              variant="contained"
+              onClick={() => navigate('/admin/forms')}
+              sx={{
+                backgroundColor: '#E0AC3F',
                 color: '#FFFFFF',
                 '&:hover': {
-                  backgroundColor: '#01a989'
+                  backgroundColor: '#c99a38'
                 }
               }}
             >
-              Create Petition
+              Forms
             </Button>
             <Button
               variant="contained"
@@ -686,7 +706,12 @@ const AdminDashboard: React.FC = () => {
                     <TableCell>{formatNumber(petition.goal)}</TableCell>
                     <TableCell>{formatNumber(petition.signature_count || 0)}</TableCell>
                     <TableCell>
-                      {new Date(petition.created_at).toLocaleDateString()}
+                      {new Date(petition.created_at).toLocaleDateString('en-US', {
+                        timeZone: 'America/New_York',
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
+                      })}
                     </TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>

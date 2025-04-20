@@ -16,8 +16,7 @@ import { AuthProvider } from './context/AuthContext';
 import PetitionSignatures from './components/PetitionSignatures';
 import NotFound from './components/NotFound';
 import TestEmail from './components/TestEmail';
-import LandingPage from './components/LandingPage';
-import NewLandingPage from './components/NewLandingPage';
+import PetitionPage from './components/PetitionPage';
 import ConsumerRights from './components/ConsumerRights';
 import DonationComplete from './components/DonationComplete';
 import DonationCancel from './components/DonationCancel';
@@ -25,6 +24,18 @@ import DonationPage from './components/DonationPage';
 import ReportScamPage from './components/ReportScam/ReportScamPage';
 import ScamReportsAdmin from './components/Admin/ScamReportsAdmin';
 import SuccessMessage from './components/ReportScam/SuccessMessage';
+import AbandonedFormsAdmin from './components/Admin/AbandonedFormsAdmin';
+import FormsAdmin from './components/Admin/FormsAdmin';
+import WhereScamsThriveSubmissions from './pages/admin/WhereScamsThriveSubmissions';
+import BeforeYouSignSubmissions from './pages/admin/BeforeYouSignSubmissions';
+import SpottingExitScamsSubmissions from './pages/admin/SpottingExitScamsSubmissions';
+import TimeshareScamChecklistSubmissions from './pages/admin/TimeshareScamChecklistSubmissions';
+import HomePage from './pages/home-2';
+import TimeshareScamReport from './pages/TimeshareScamReport';
+import TimeshareScamChecklist from './pages/TimeshareScamChecklist';
+import WhereScamsThrive from './pages/WhereScamsThrive';
+import BeforeYouSign from './pages/BeforeYouSign';
+import SpottingExitScams from './pages/SpottingExitScams';
 
 const theme = createTheme({
   palette: {
@@ -105,7 +116,8 @@ const App: React.FC = () => {
               >
                 <Routes>
                   {/* Public Routes */}
-                  <Route path="/" element={<NewLandingPage />} />
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/petition" element={<PetitionPage />} />
                   <Route path="/consumer-rights" element={<ConsumerRights />} />
                   <Route path="/sign/:id" element={<SignPetitionForm />} />
                   <Route path="/thank-you/:id" element={<ThankYou />} />
@@ -114,6 +126,11 @@ const App: React.FC = () => {
                   <Route path="/donate" element={<DonationPage />} />
                   <Route path="/report-scam" element={<ReportScamPage />} />
                   <Route path="/report-scam/thank-you" element={<SuccessMessage />} />
+                  <Route path="/timeshare-scam" element={<TimeshareScamReport />} />
+                  <Route path="/timeshare-scam-checklist" element={<TimeshareScamChecklist />} />
+                  <Route path="/where-scams-thrive" element={<WhereScamsThrive />} />
+                  <Route path="/before-you-sign" element={<BeforeYouSign />} />
+                  <Route path="/spotting-exit-scams" element={<SpottingExitScams />} />
                   
                   {/* Authentication Routes */}
                   <Route path="/admin/login" element={<AdminLogin />} />
@@ -149,6 +166,54 @@ const App: React.FC = () => {
                     element={
                       <ProtectedRoute>
                         <ScamReportsAdmin />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/admin/forms" 
+                    element={
+                      <ProtectedRoute>
+                        <FormsAdmin />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/admin/forms/where-scams-thrive" 
+                    element={
+                      <ProtectedRoute>
+                        <WhereScamsThriveSubmissions />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/admin/forms/before-you-sign" 
+                    element={
+                      <ProtectedRoute>
+                        <BeforeYouSignSubmissions />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/admin/forms/spotting-exit-scams" 
+                    element={
+                      <ProtectedRoute>
+                        <SpottingExitScamsSubmissions />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/admin/forms/checklist" 
+                    element={
+                      <ProtectedRoute>
+                        <TimeshareScamChecklistSubmissions />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/admin/abandoned-forms" 
+                    element={
+                      <ProtectedRoute>
+                        <AbandonedFormsAdmin />
                       </ProtectedRoute>
                     } 
                   />

@@ -13,10 +13,13 @@ import {
   Divider,
   Select,
   MenuItem,
+  InputLabel,
+  Grid,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { parsePhoneNumber, AsYouType, getCountries, CountryCode, getCountryCallingCode } from 'libphonenumber-js';
 
 interface ScamType {
   selected: boolean;
@@ -38,7 +41,7 @@ interface Step1DetailsProps {
       other: ScamType & { description: string };
     };
     contactMethods: {
-      phone: ContactMethod & { number: string };
+      phone: ContactMethod & { number: string; countryCode: string };
       email: ContactMethod & { address: string; evidence: File | null };
       socialMedia: ContactMethod & { platform: string; profileName: string };
       inPerson: ContactMethod & { location: string; eventType: string };
@@ -53,6 +56,23 @@ interface Step1DetailsProps {
 }
 
 const socialMediaPlatforms = ['Facebook', 'Instagram', 'WhatsApp', 'LinkedIn', 'Other'];
+
+const COUNTRY_LIST = getCountries().map(country => {
+  try {
+    const callingCode = getCountryCallingCode(country as CountryCode);
+    return {
+      code: country,
+      name: new Intl.DisplayNames(['en'], { type: 'region' }).of(country) || country,
+      callingCode: callingCode
+    };
+  } catch {
+    return {
+      code: country,
+      name: new Intl.DisplayNames(['en'], { type: 'region' }).of(country) || country,
+      callingCode: '0'
+    };
+  }
+}).sort((a, b) => a.name.localeCompare(b.name));
 
 const Step1Details: React.FC<Step1DetailsProps> = ({ formData, onChange, onNext, onBack }) => {
   const handleScamTypeChange = (type: keyof typeof formData.scamTypes) => {
@@ -105,6 +125,32 @@ const Step1Details: React.FC<Step1DetailsProps> = ({ formData, onChange, onNext,
 
   const handleDateChange = (date: Date | null) => {
     onChange('dateOccurred', date ? date.toISOString().split('T')[0] : '');
+  };
+
+  const handlePhoneChange = (value: string) => {
+    try {
+      if (!formData.contactMethods.phone.countryCode) {
+        handleContactDetailChange('phone', 'number', value);
+        return;
+      }
+      const formatter = new AsYouType(formData.contactMethods.phone.countryCode as CountryCode);
+      const formattedNumber = formatter.input(value);
+      handleContactDetailChange('phone', 'number', formattedNumber);
+    } catch (error) {
+      // If formatting fails, just use the raw value
+      handleContactDetailChange('phone', 'number', value);
+    }
+  };
+
+  const validatePhoneNumber = (phone: string, countryCode: string) => {
+    if (!phone.trim()) return false;
+    if (!countryCode) return false;
+    try {
+      const phoneNumber = parsePhoneNumber(phone, countryCode as CountryCode);
+      return phoneNumber?.isValid() || false;
+    } catch {
+      return false;
+    }
   };
 
   const isValid = () => {
@@ -330,36 +376,44 @@ const Step1Details: React.FC<Step1DetailsProps> = ({ formData, onChange, onNext,
             label="Phone"
           />
           {formData.contactMethods.phone.selected && (
-            <Box sx={{ ml: 3 }}>
-              <Typography variant="subtitle1" gutterBottom>
-                If the scammer contacted you by phone, what number did they use?
-              </Typography>
-              <TextField
-                fullWidth
-                type="tel"
-                placeholder="Enter phone number"
-                value={formData.contactMethods.phone.number}
-                onChange={(e) => {
-                  // Only allow numbers
-                  const value = e.target.value.replace(/\D/g, '');
-                  if (value.length <= 10) {
-                    // Format the phone number as (XXX) XXX-XXXX
-                    let formattedValue = value;
-                    if (value.length >= 3) {
-                      formattedValue = `(${value.slice(0, 3)})${value.slice(3)}`;
-                    }
-                    if (value.length >= 6) {
-                      formattedValue = `(${value.slice(0, 3)}) ${value.slice(3, 6)}-${value.slice(6)}`;
-                    }
-                    handleContactDetailChange('phone', 'number', formattedValue);
-                  }
-                }}
-                inputProps={{
-                  maxLength: 14, // (XXX) XXX-XXXX
-                  placeholder: "(XXX) XXX-XXXX"
-                }}
-                sx={{ mt: 1 }}
-              />
+            <Box sx={{ mb: 3 }}>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={4}>
+                  <FormControl fullWidth>
+                    <InputLabel>Country</InputLabel>
+                    <Select
+                      value={formData.contactMethods.phone.countryCode || 'US'}
+                      label="Country"
+                      onChange={(e) => {
+                        handleContactDetailChange('phone', 'countryCode', e.target.value);
+                        handleContactDetailChange('phone', 'number', ''); // Reset phone when country changes
+                      }}
+                    >
+                      {COUNTRY_LIST.map(country => (
+                        <MenuItem key={country.code} value={country.code}>
+                          {country.name} (+{country.callingCode})
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={8}>
+                  <TextField
+                    fullWidth
+                    label="Phone Number"
+                    value={formData.contactMethods.phone.number}
+                    onChange={(e) => handlePhoneChange(e.target.value)}
+                    required={formData.contactMethods.phone.selected}
+                    error={formData.contactMethods.phone.selected && formData.contactMethods.phone.number && !validatePhoneNumber(formData.contactMethods.phone.number, formData.contactMethods.phone.countryCode) || undefined}
+                    helperText={(() => {
+                      if (!formData.contactMethods.phone.selected) return '';
+                      if (!formData.contactMethods.phone.number) return 'Phone number is required';
+                      if (!formData.contactMethods.phone.countryCode) return 'Please select a country';
+                      return validatePhoneNumber(formData.contactMethods.phone.number, formData.contactMethods.phone.countryCode) ? '' : 'Invalid phone number for selected country';
+                    })()}
+                  />
+                </Grid>
+              </Grid>
             </Box>
           )}
         </Box>

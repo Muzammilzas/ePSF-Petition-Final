@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Container, Typography, Box, Paper, Stepper, Step, StepLabel } from '@mui/material';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -9,6 +9,8 @@ import Step3Additional from './steps/Step3Additional';
 import SuccessMessage from './SuccessMessage';
 import { submitScamReport, uploadEvidence, ScamReport, ScamTypeDetail, ContactMethod } from '../../services/scamReportService';
 import { sendScamReportNotification, sendReporterConfirmation } from '../../services/emailService';
+import { saveAbandonedForm, markFormCompleted } from '../../services/abandonedFormService';
+import { v4 as uuidv4 } from 'uuid';
 
 interface ScamTypeData {
   selected: boolean;
@@ -43,6 +45,7 @@ interface FormData {
   preferredContact: 'Email' | 'Phone' | 'Either' | 'None';
   email: string;
   phone: string;
+  countryCode: string;
   city: string;
   state: string;
   ageRange: 'Under 30' | '30–45' | '46–60' | '61+' | '';
@@ -58,7 +61,7 @@ interface FormData {
     other: ScamType & { description: string };
   };
   contactMethods: {
-    phone: { selected: boolean; number: string };
+    phone: { selected: boolean; number: string; countryCode: string };
     email: { selected: boolean; address: string; evidence: File | null };
     socialMedia: { selected: boolean; platform: string; profileName: string };
     inPerson: { selected: boolean; location: string; eventType: string };
@@ -81,12 +84,14 @@ const steps = ['Your Information', 'Tell Us What Happened', 'Share Any Known Det
 
 const ReportScamPage: React.FC = () => {
   const [activeStep, setActiveStep] = useState(0);
+  const [sessionId, setSessionId] = useState<string>('');
   const [formData, setFormData] = useState<FormData>({
     // Personal Information
     fullName: '',
     preferredContact: 'None',
     email: '',
     phone: '',
+    countryCode: 'US',
     city: '',
     state: '',
     ageRange: '',
@@ -123,6 +128,7 @@ const ReportScamPage: React.FC = () => {
       phone: {
         selected: false,
         number: '',
+        countryCode: 'US',
       },
       email: {
         selected: false,
@@ -156,6 +162,160 @@ const ReportScamPage: React.FC = () => {
 
   const navigate = useNavigate();
 
+  // Move hasFormData to component scope
+  const hasFormData = () => {
+    // Consider any form interaction as potentially abandoned
+    const hasPersonalInfo = !!(
+      formData.fullName ||
+      formData.email ||
+      formData.phone ||
+      formData.city ||
+      formData.state ||
+      formData.ageRange ||
+      formData.preferredContact !== 'None'
+    );
+
+    const hasScamTypes = Object.values(formData.scamTypes).some(type => type.selected);
+    
+    const hasContactMethods = Object.values(formData.contactMethods).some(method => method.selected);
+    
+    const hasScammerInfo = !!(
+      formData.scammerName ||
+      formData.companyName ||
+      formData.scammerEmail ||
+      formData.scammerPhone ||
+      formData.scammerWebsite
+    );
+
+    const hasIncidentDetails = !!(
+      formData.moneyLost ||
+      formData.amountLost ||
+      formData.dateOccurred ||
+      formData.evidence ||
+      formData.reportedElsewhere ||
+      formData.reportedTo
+    );
+
+    // Return true if ANY section has data
+    return hasPersonalInfo || hasScamTypes || hasContactMethods || hasScammerInfo || hasIncidentDetails;
+  };
+
+  // Initialize session ID
+  useEffect(() => {
+    // Generate a new session ID for each form start
+    const newSessionId = `${uuidv4()}_${Date.now()}`;
+    setSessionId(newSessionId);
+    console.log('New session started:', newSessionId);
+  }, []);
+
+  // Track last saved form data to prevent duplicate saves
+  const [lastSavedData, setLastSavedData] = useState<string>('');
+
+  // Save form data periodically and when user leaves
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const saveFormData = async () => {
+      try {
+        // Only save if we have data and it has changed
+        if (hasFormData()) {
+          const currentFormDataString = JSON.stringify(formData);
+          
+          // Check if the form data has actually changed
+          if (currentFormDataString !== lastSavedData) {
+            console.log('Form data changed, saving...', {
+              sessionId,
+              currentStep: activeStep,
+              hasPersonalInfo: !!(formData.fullName || formData.email || formData.phone),
+              hasLocation: !!(formData.city || formData.state),
+              hasScamTypes: Object.values(formData.scamTypes).some(type => type.selected),
+              hasContactMethods: Object.values(formData.contactMethods).some(method => method.selected),
+              hasScammerInfo: !!(formData.scammerName || formData.companyName),
+              step: activeStep,
+              timestamp: new Date().toLocaleString('en-US', {
+                timeZone: 'America/New_York',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+              })
+            });
+
+            const { data, error } = await saveAbandonedForm(
+              formData,
+              activeStep.toString(),
+              sessionId
+            );
+            
+            if (error) {
+              console.error('Error saving abandoned form:', error);
+              return;
+            }
+            
+            // Update last saved data after successful save
+            setLastSavedData(currentFormDataString);
+            console.log('Form data saved successfully', { data });
+          }
+        }
+      } catch (error) {
+        console.error('Exception saving abandoned form:', error);
+      }
+    };
+
+    // Save form data every 30 seconds (increased from 15 to reduce frequency)
+    const saveInterval = setInterval(saveFormData, 30000);
+
+    // Save form data when user leaves the page
+    const handleBeforeUnload = async (e: BeforeUnloadEvent) => {
+      if (hasFormData()) {
+        e.preventDefault();
+        e.returnValue = '';
+        await saveFormData();
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      clearInterval(saveInterval);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      if (hasFormData()) {
+        saveFormData();
+      }
+    };
+  }, [formData, activeStep, sessionId, lastSavedData]);
+
+  // Save whenever the step changes
+  useEffect(() => {
+    if (!sessionId) return;
+    
+    const saveFormData = async () => {
+      if (hasFormData()) {
+        try {
+          const currentFormDataString = JSON.stringify(formData);
+          
+          // Only save if data has changed
+          if (currentFormDataString !== lastSavedData) {
+            const { error } = await saveAbandonedForm(formData, activeStep.toString(), sessionId);
+            if (error) {
+              console.error('Error saving form on step change:', error);
+            } else {
+              setLastSavedData(currentFormDataString);
+              console.log('Form saved on step change');
+            }
+          }
+        } catch (error) {
+          console.error('Exception saving form on step change:', error);
+        }
+      }
+    };
+
+    saveFormData();
+  }, [activeStep, sessionId, formData, lastSavedData]);
+
   const handleNext = () => {
     setActiveStep((prevStep) => prevStep + 1);
   };
@@ -169,7 +329,16 @@ const ReportScamPage: React.FC = () => {
       // Upload evidence file if it exists
       let evidenceUrl = '';
       if (formData.evidence) {
-        const timestamp = new Date().getTime();
+        const timestamp = new Date().toLocaleString('en-US', {
+          timeZone: 'America/New_York',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true
+        });
         const fileName = `${timestamp}-${formData.evidence.name}`;
         const { success, url, error } = await uploadEvidence(formData.evidence, fileName);
         if (!success) throw error;
@@ -267,7 +436,12 @@ const ReportScamPage: React.FC = () => {
         preferred_contact: formData.preferredContact,
         money_lost: formData.moneyLost,
         amount_lost: formData.amountLost ? parseFloat(formData.amountLost) : undefined,
-        date_occurred: formData.dateOccurred || new Date().toISOString().split('T')[0],
+        date_occurred: formData.dateOccurred || new Date().toLocaleDateString('en-US', {
+          timeZone: 'America/New_York',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        }),
         scammer_name: formData.scammerName,
         company_name: formData.companyName,
         scammer_phone: formData.scammerPhone,
@@ -299,6 +473,12 @@ const ReportScamPage: React.FC = () => {
       } catch (emailError) {
         console.error('Error sending email notifications:', emailError);
         // Don't throw error here, as the report was successfully submitted
+      }
+
+      // Mark form as completed and clean up session
+      if (sessionId) {
+        await markFormCompleted(sessionId);
+        localStorage.removeItem('scam_report_session_id');
       }
 
       // Navigate to thank you page

@@ -37,7 +37,16 @@ export const testEmailNotification = async () => {
     last_name: "User",
     email: "test@example.com",
     timeshare_name: "Test Timeshare",
-    created_at: new Date().toISOString(),
+    created_at: new Date().toLocaleString('en-US', {
+      timeZone: 'America/New_York',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    }),
     metadata: {
       device: {
         browser: "Test Browser",
@@ -55,7 +64,16 @@ export const testEmailNotification = async () => {
         longitude: 0,
         ip_address: "127.0.0.1"
       },
-      submission_date: new Date().toISOString()
+      submission_date: new Date().toLocaleString('en-US', {
+        timeZone: 'America/New_York',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      })
     }
   };
 
@@ -74,7 +92,16 @@ export const testEmailNotification = async () => {
         LAST_NAME: testData.last_name,
         EMAIL: testData.email,
         TIMESHARE_NAME: testData.timeshare_name,
-        SIGNED_AT: new Date(testData.created_at).toLocaleString(),
+        SIGNED_AT: new Date(testData.created_at).toLocaleString('en-US', {
+          timeZone: 'America/New_York',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true
+        }),
         CITY: testData.metadata.location.city,
         REGION: testData.metadata.location.region,
         COUNTRY: testData.metadata.location.country,
@@ -163,7 +190,16 @@ export const sendSignatureNotification = async (signatureData: SignatureData) =>
         LAST_NAME: last_name,
         EMAIL: email,
         TIMESHARE_NAME: timeshare_name,
-        SIGNED_AT: new Date(created_at).toLocaleString(),
+        SIGNED_AT: new Date(created_at).toLocaleString('en-US', {
+          timeZone: 'America/New_York',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true
+        }),
         CITY: metadata.location.city,
         REGION: metadata.location.region,
         COUNTRY: metadata.location.country,
@@ -245,7 +281,16 @@ export const sendSharePetitionEmail = async (signatureData: SignatureData) => {
       templateId: 4, // New template ID for share petition email
       params: {
         FIRST_NAME: first_name,
-        SIGNED_AT: new Date(created_at).toLocaleString(),
+        SIGNED_AT: new Date(created_at).toLocaleString('en-US', {
+          timeZone: 'America/New_York',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true
+        }),
         CURRENT_SIGNATURES: currentCount.toString(),
         SIGNATURE_GOAL: signatureGoal.toString(),
         PROGRESS_PERCENTAGE: progressPercentage,

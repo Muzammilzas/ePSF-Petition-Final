@@ -25,13 +25,20 @@ import {
   DialogActions,
   Button,
   Link,
+  Tabs,
+  Tab,
+  CircularProgress,
+  Alert,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import DeleteIcon from '@mui/icons-material/Delete';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import { supabase } from '../../services/supabase';
+import { formatCurrency } from '../../utils/formatters';
+import { AbandonedForm, deleteAbandonedForm, getAbandonedForms } from '../../services/abandonedFormService';
 
 interface ScamReport {
   id: number;
@@ -86,6 +93,32 @@ interface ContactMethod {
   event_type?: string;
 }
 
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
+}
+
+function TabPanel(props: TabPanelProps) {
+  const { children, value, index, ...other } = props;
+
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`scam-reports-tabpanel-${index}`}
+      aria-labelledby={`scam-reports-tab-${index}`}
+      {...other}
+    >
+      {value === index && (
+        <Box sx={{ py: 3 }}>
+          {children}
+        </Box>
+      )}
+    </div>
+  );
+}
+
 const ScamReportsAdmin: React.FC = () => {
   const [reports, setReports] = useState<ScamReport[]>([]);
   const [page, setPage] = useState(0);
@@ -101,8 +134,16 @@ const ScamReportsAdmin: React.FC = () => {
     dateTo: null as Date | null,
     scamType: '',
     moneyLost: '',
+    willingToSpeak: '',
     searchTerm: '',
   });
+  const [tabValue, setTabValue] = useState(0);
+  const [abandonedForms, setAbandonedForms] = useState<AbandonedForm[]>([]);
+  const [loadingAbandoned, setLoadingAbandoned] = useState(false);
+  const [selectedAbandonedForm, setSelectedAbandonedForm] = useState<AbandonedForm | null>(null);
+  const [abandonedFormDialogOpen, setAbandonedFormDialogOpen] = useState(false);
+  const [deleteAbandonedDialogOpen, setDeleteAbandonedDialogOpen] = useState(false);
+  const [selectedAbandonedFormId, setSelectedAbandonedFormId] = useState<string | null>(null);
 
   const fetchReports = async () => {
     try {
@@ -119,6 +160,9 @@ const ScamReportsAdmin: React.FC = () => {
       }
       if (filters.moneyLost !== '') {
         query = query.eq('money_lost', filters.moneyLost === 'true');
+      }
+      if (filters.willingToSpeak !== '') {
+        query = query.eq('speak_with_team', filters.willingToSpeak === 'true');
       }
       if (filters.searchTerm) {
         query = query.or(`scammer_name.ilike.%${filters.searchTerm}%,company_name.ilike.%${filters.searchTerm}%`);
@@ -143,7 +187,7 @@ const ScamReportsAdmin: React.FC = () => {
     try {
       const [scamTypesResponse, contactMethodsResponse] = await Promise.all([
         supabase
-          .from('scam_type_details')
+          .from('scam_types')
           .select('*')
           .eq('report_id', reportId),
         supabase
@@ -219,143 +263,447 @@ const ScamReportsAdmin: React.FC = () => {
     setReportDetails(null);
   };
 
-  const formatCurrency = (amount: number | null) => {
-    if (amount === null) return 'N/A';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setTabValue(newValue);
+    if (newValue === 1 && abandonedForms.length === 0) {
+      fetchAbandonedForms();
+    }
   };
 
-  const handleDateFromChange = (date: Date | null) => {
-    setFilters({ ...filters, dateFrom: date });
+  const fetchAbandonedForms = async () => {
+    setLoadingAbandoned(true);
+    try {
+      const forms = await getAbandonedForms();
+      setAbandonedForms(forms);
+    } catch (error) {
+      console.error('Error fetching abandoned forms:', error);
+      setAbandonedForms([]);
+    }
+    setLoadingAbandoned(false);
   };
 
-  const handleDateToChange = (date: Date | null) => {
-    setFilters({ ...filters, dateTo: date });
+  const handleViewAbandonedForm = (form: any) => {
+    setSelectedAbandonedForm(form);
+    setAbandonedFormDialogOpen(true);
+  };
+
+  const handleDeleteAbandonedForm = async () => {
+    if (!selectedAbandonedFormId) return;
+    
+    try {
+      const { success, error } = await deleteAbandonedForm(selectedAbandonedFormId);
+      
+      if (!success) {
+        console.error('Error deleting abandoned form:', error);
+        alert('Failed to delete abandoned form. Please try again.');
+        return;
+      }
+
+      // Refresh the abandoned forms list
+      await fetchAbandonedForms();
+      setDeleteAbandonedDialogOpen(false);
+      setSelectedAbandonedFormId(null);
+    } catch (error) {
+      console.error('Error deleting abandoned form:', error);
+      alert('Failed to delete abandoned form. Please try again.');
+    }
+  };
+
+  const exportToCSV = () => {
+    // Create CSV header
+    const headers = [
+      'Date Reported',
+      'Reporter Name',
+      'Location',
+      'Contact Info',
+      'Scammer Name',
+      'Company',
+      'Money Lost',
+      'Amount Lost',
+      'Willing to Speak',
+      'Age Range',
+      'Preferred Contact',
+      'Share Anonymously',
+      'Date Occurred',
+      'Scammer Phone',
+      'Scammer Email',
+      'Scammer Website',
+      'Reported Elsewhere',
+      'Reported To',
+      'Want Updates'
+    ];
+
+    // Transform reports data
+    const csvData = reports.map(report => [
+      new Date(report.created_at).toLocaleDateString('en-US', {
+        timeZone: 'America/New_York',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }),
+      report.reporter_name,
+      `${report.reporter_city}, ${report.reporter_state}`,
+      `Email: ${report.reporter_email}, Phone: ${report.reporter_phone}`,
+      report.scammer_name,
+      report.company_name,
+      report.money_lost ? 'Yes' : 'No',
+      report.amount_lost ? formatCurrency(report.amount_lost) : 'N/A',
+      report.speak_with_team ? 'Yes' : 'No',
+      report.reporter_age_range || 'N/A',
+      report.preferred_contact,
+      report.share_anonymously ? 'Yes' : 'No',
+      new Date(report.date_occurred).toLocaleDateString('en-US', {
+        timeZone: 'America/New_York',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }),
+      report.scammer_phone,
+      report.scammer_email,
+      report.scammer_website,
+      report.reported_elsewhere ? 'Yes' : 'No',
+      report.reported_to || 'N/A',
+      report.want_updates ? 'Yes' : 'No'
+    ]);
+
+    // Combine headers and data
+    const csvContent = [
+      headers.join(','),
+      ...csvData.map(row => row.map(cell => `"${cell || ''}"`).join(','))
+    ].join('\n');
+
+    // Create and download the file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `scam_reports_${new Date().toLocaleDateString('en-US', {
+      timeZone: 'America/New_York',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).replace(/\//g, '-')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const exportDetailedReports = async () => {
+    try {
+      // Fetch all reports with their details
+      const { data: allReports, error: reportsError } = await supabase
+        .from('scam_reports')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (reportsError) throw reportsError;
+
+      const detailedReports = await Promise.all(allReports.map(async (report) => {
+        const [scamTypesResponse, contactMethodsResponse] = await Promise.all([
+          supabase
+            .from('scam_types')
+            .select('*')
+            .eq('report_id', report.id),
+          supabase
+            .from('contact_methods')
+            .select('*')
+            .eq('report_id', report.id),
+        ]);
+
+        return {
+          ...report,
+          scamTypes: scamTypesResponse.data || [],
+          contactMethods: contactMethodsResponse.data || []
+        };
+      }));
+
+      // Create a formatted JSON string
+      const jsonContent = JSON.stringify(detailedReports, null, 2);
+
+      // Download the file
+      const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `detailed_scam_reports_${new Date().toLocaleDateString('en-US', {
+        timeZone: 'America/New_York',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).replace(/\//g, '-')}.json`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Error exporting detailed reports:', error);
+      alert('Failed to export detailed reports. Please try again.');
+    }
   };
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
-        <Typography variant="h4" gutterBottom>
-          Scam Reports Administration
-        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Typography variant="h4">
+            Scam Reports Administration
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<FileDownloadIcon />}
+              onClick={exportToCSV}
+            >
+              Export CSV
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<FileDownloadIcon />}
+              onClick={exportDetailedReports}
+            >
+              Export Detailed Reports
+            </Button>
+          </Box>
+        </Box>
 
-        {/* Filters */}
-        <Paper sx={{ p: 2, mb: 2 }}>
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} sm={6} md={2}>
-              <DatePicker
-                label="Date From"
-                value={filters.dateFrom}
-                onChange={handleDateFromChange}
-                slotProps={{ textField: { fullWidth: true } }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={2}>
-              <DatePicker
-                label="Date To"
-                value={filters.dateTo}
-                onChange={handleDateToChange}
-                slotProps={{ textField: { fullWidth: true } }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={2}>
-              <FormControl fullWidth>
-                <InputLabel>Money Lost</InputLabel>
-                <Select
-                  value={filters.moneyLost}
-                  label="Money Lost"
-                  onChange={(e) => setFilters({ ...filters, moneyLost: e.target.value })}
-                >
-                  <MenuItem value="">All</MenuItem>
-                  <MenuItem value="true">Yes</MenuItem>
-                  <MenuItem value="false">No</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6} md={4}>
-              <TextField
-                fullWidth
-                label="Search by name or company"
-                value={filters.searchTerm}
-                onChange={(e) => setFilters({ ...filters, searchTerm: e.target.value })}
-              />
-            </Grid>
-          </Grid>
-        </Paper>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+          <Tabs value={tabValue} onChange={handleTabChange} aria-label="scam reports tabs">
+            <Tab label="Completed Reports" />
+            <Tab label="Abandoned Forms" />
+          </Tabs>
+        </Box>
 
-        {/* Reports Table */}
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Date Reported</TableCell>
-                <TableCell>Reporter Name</TableCell>
-                <TableCell>Location</TableCell>
-                <TableCell>Contact</TableCell>
-                <TableCell>Scammer Name</TableCell>
-                <TableCell>Company</TableCell>
-                <TableCell>Money Lost</TableCell>
-                <TableCell>Amount</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {reports.map((report) => (
-                <TableRow key={report.id}>
-                  <TableCell>{new Date(report.created_at).toLocaleDateString()}</TableCell>
-                  <TableCell>{report.reporter_name || 'N/A'}</TableCell>
-                  <TableCell>{`${report.reporter_city}, ${report.reporter_state}` || 'N/A'}</TableCell>
-                  <TableCell>
-                    {report.preferred_contact === 'Email' ? report.reporter_email :
-                     report.preferred_contact === 'Phone' ? report.reporter_phone :
-                     report.preferred_contact === 'Either' ? `${report.reporter_email}, ${report.reporter_phone}` :
-                     'No Contact Preferred'}
-                  </TableCell>
-                  <TableCell>{report.scammer_name || 'N/A'}</TableCell>
-                  <TableCell>{report.company_name || 'N/A'}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={report.money_lost ? 'Yes' : 'No'}
-                      color={report.money_lost ? 'error' : 'success'}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell>{formatCurrency(report.amount_lost)}</TableCell>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleViewDetails(report)}
-                        title="View Details"
-                      >
-                        <VisibilityIcon />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleDelete(report.id)}
-                        title="Delete Report"
-                        color="error"
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </Box>
-                  </TableCell>
+        <TabPanel value={tabValue} index={0}>
+          {/* Filters */}
+          <Paper sx={{ p: 2, mb: 2 }}>
+            <Grid container spacing={2} alignItems="center">
+              <Grid item xs={12} sm={6} md={2}>
+                <DatePicker
+                  label="Date From"
+                  value={filters.dateFrom}
+                  onChange={(date) => setFilters({ ...filters, dateFrom: date })}
+                  slotProps={{ textField: { fullWidth: true } }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={2}>
+                <DatePicker
+                  label="Date To"
+                  value={filters.dateTo}
+                  onChange={(date) => setFilters({ ...filters, dateTo: date })}
+                  slotProps={{ textField: { fullWidth: true } }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={2}>
+                <FormControl fullWidth>
+                  <InputLabel>Money Lost</InputLabel>
+                  <Select
+                    value={filters.moneyLost}
+                    label="Money Lost"
+                    onChange={(e) => setFilters({ ...filters, moneyLost: e.target.value })}
+                  >
+                    <MenuItem value="">All</MenuItem>
+                    <MenuItem value="true">Yes</MenuItem>
+                    <MenuItem value="false">No</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6} md={2}>
+                <FormControl fullWidth>
+                  <InputLabel>Willing to Speak</InputLabel>
+                  <Select
+                    value={filters.willingToSpeak}
+                    label="Willing to Speak"
+                    onChange={(e) => setFilters({ ...filters, willingToSpeak: e.target.value })}
+                  >
+                    <MenuItem value="">All</MenuItem>
+                    <MenuItem value="true">Yes</MenuItem>
+                    <MenuItem value="false">No</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  fullWidth
+                  label="Search by name or company"
+                  value={filters.searchTerm}
+                  onChange={(e) => setFilters({ ...filters, searchTerm: e.target.value })}
+                />
+              </Grid>
+            </Grid>
+          </Paper>
+
+          {/* Reports Table */}
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Date Reported</TableCell>
+                  <TableCell>Reporter Name</TableCell>
+                  <TableCell>Location</TableCell>
+                  <TableCell>Contact</TableCell>
+                  <TableCell>Scammer Name</TableCell>
+                  <TableCell>Company</TableCell>
+                  <TableCell>Money Lost</TableCell>
+                  <TableCell>Amount</TableCell>
+                  <TableCell>Willing to speak</TableCell>
+                  <TableCell>Actions</TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          <TablePagination
-            component="div"
-            count={totalCount}
-            page={page}
-            onPageChange={handleChangePage}
-            rowsPerPage={rowsPerPage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-          />
-        </TableContainer>
+              </TableHead>
+              <TableBody>
+                {reports.map((report) => (
+                  <TableRow key={report.id}>
+                    <TableCell>{new Date(report.created_at).toLocaleDateString('en-US', {
+                      timeZone: 'America/New_York',
+                      year: 'numeric',
+                      month: '2-digit',
+                      day: '2-digit'
+                    })}</TableCell>
+                    <TableCell>{report.reporter_name || 'N/A'}</TableCell>
+                    <TableCell>{`${report.reporter_city}, ${report.reporter_state}` || 'N/A'}</TableCell>
+                    <TableCell>
+                      {report.preferred_contact === 'Email' ? report.reporter_email :
+                       report.preferred_contact === 'Phone' ? report.reporter_phone :
+                       report.preferred_contact === 'Either' ? `${report.reporter_email}, ${report.reporter_phone}` :
+                       'No Contact Preferred'}
+                    </TableCell>
+                    <TableCell>{report.scammer_name || 'N/A'}</TableCell>
+                    <TableCell>{report.company_name || 'N/A'}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label={report.money_lost ? 'Yes' : 'No'}
+                        color={report.money_lost ? 'error' : 'success'}
+                        size="small"
+                      />
+                    </TableCell>
+                    <TableCell>{formatCurrency(report.amount_lost)}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label={report.speak_with_team ? 'Yes' : 'No'}
+                        color={report.speak_with_team ? 'primary' : 'default'}
+                        size="small"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleViewDetails(report)}
+                          title="View Details"
+                        >
+                          <VisibilityIcon />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDelete(report.id)}
+                          title="Delete Report"
+                          color="error"
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <TablePagination
+              component="div"
+              count={totalCount}
+              page={page}
+              onPageChange={handleChangePage}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+            />
+          </TableContainer>
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={1}>
+          {loadingAbandoned ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Date Reported</TableCell>
+                    <TableCell>Reporter Name</TableCell>
+                    <TableCell>Location</TableCell>
+                    <TableCell>Contact</TableCell>
+                    <TableCell>Scammer Name</TableCell>
+                    <TableCell>Company</TableCell>
+                    <TableCell>Money Lost</TableCell>
+                    <TableCell>Amount</TableCell>
+                    <TableCell>Willing to speak</TableCell>
+                    <TableCell align="center">Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {abandonedForms.map((form) => (
+                    <TableRow key={form.id}>
+                      <TableCell>{new Date(form.created_at).toLocaleDateString('en-US', {
+                        timeZone: 'America/New_York',
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
+                      })}</TableCell>
+                      <TableCell>{form.form_data?.fullName || 'N/A'}</TableCell>
+                      <TableCell>
+                        {form.form_data?.city && form.form_data?.state 
+                          ? `${form.form_data.city}, ${form.form_data.state}`
+                          : 'N/A'}
+                      </TableCell>
+                      <TableCell>
+                        {form.form_data?.preferredContact === 'Email' ? form.form_data.email :
+                         form.form_data?.preferredContact === 'Phone' ? form.form_data.phone :
+                         form.form_data?.preferredContact === 'Either' ? `${form.form_data.email}, ${form.form_data.phone}` :
+                         'No Contact Preferred'}
+                      </TableCell>
+                      <TableCell>{form.form_data?.scammerName || 'N/A'}</TableCell>
+                      <TableCell>{form.form_data?.companyName || 'N/A'}</TableCell>
+                      <TableCell>
+                        <Chip
+                          label={form.form_data?.moneyLost ? 'Yes' : 'No'}
+                          color={form.form_data?.moneyLost ? 'error' : 'success'}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell>{form.form_data?.amountLost ? formatCurrency(form.form_data.amountLost) : 'N/A'}</TableCell>
+                      <TableCell>
+                        <Chip
+                          label={form.form_data?.speakWithTeam ? 'Yes' : 'No'}
+                          color={form.form_data?.speakWithTeam ? 'primary' : 'default'}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell align="center">
+                        <IconButton
+                          onClick={() => handleViewAbandonedForm(form)}
+                          color="primary"
+                          size="small"
+                        >
+                          <VisibilityIcon />
+                        </IconButton>
+                        <IconButton
+                          onClick={() => {
+                            setSelectedAbandonedFormId(form.id);
+                            setDeleteAbandonedDialogOpen(true);
+                          }}
+                          color="error"
+                          size="small"
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </TabPanel>
 
         {/* Details Dialog */}
         <Dialog
@@ -367,7 +715,12 @@ const ScamReportsAdmin: React.FC = () => {
           {selectedReport && (
             <>
               <DialogTitle>
-                Report Details - {new Date(selectedReport.created_at).toLocaleDateString()}
+                Report Details - {new Date(selectedReport.created_at).toLocaleDateString('en-US', {
+                  timeZone: 'America/New_York',
+                  year: 'numeric',
+                  month: '2-digit',
+                  day: '2-digit'
+                })}
               </DialogTitle>
               <DialogContent>
                 <Box sx={{ mb: 3 }}>
@@ -453,7 +806,12 @@ const ScamReportsAdmin: React.FC = () => {
                   <Grid container spacing={2}>
                     <Grid item xs={12} sm={6}>
                       <Typography variant="subtitle2">Date Occurred</Typography>
-                      <Typography>{new Date(selectedReport.date_occurred).toLocaleDateString()}</Typography>
+                      <Typography>{new Date(selectedReport.date_occurred).toLocaleDateString('en-US', {
+                        timeZone: 'America/New_York',
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
+                      })}</Typography>
                     </Grid>
                     <Grid item xs={12} sm={6}>
                       <Typography variant="subtitle2">Money Lost</Typography>
@@ -504,45 +862,128 @@ const ScamReportsAdmin: React.FC = () => {
                   <>
                     <Box sx={{ mb: 3 }}>
                       <Typography variant="h6" gutterBottom>
-                        Scam Types
+                        Type of Scams
                       </Typography>
-                      {reportDetails.scamTypes.map((type, index) => (
-                        <Paper key={index} sx={{ p: 2, mb: 1 }}>
-                          <Typography variant="subtitle1" gutterBottom>
-                            {type.scam_type.replace(/_/g, ' ').toUpperCase()}
-                          </Typography>
-                          {type.claimed_sale_amount && (
-                            <Typography>
-                              Claimed Sale Amount: {formatCurrency(type.claimed_sale_amount)}
+                      <Grid container spacing={2}>
+                        {/* Fake Resale Offers */}
+                        <Grid item xs={12}>
+                          <Paper sx={{ p: 2, mb: 1, bgcolor: 'background.default' }}>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'primary.main', mb: 1 }}>
+                              Fake Resale Offers
                             </Typography>
-                          )}
-                          {type.amount && (
-                            <Typography>
-                              Amount: {formatCurrency(type.amount)}
+                            {reportDetails?.scamTypes.some(type => type.scam_type === 'fake_resale') ? (
+                              reportDetails.scamTypes
+                                .filter(type => type.scam_type === 'fake_resale')
+                                .map((type, index) => (
+                                  <Box key={index} sx={{ ml: 2 }}>
+                                    <Typography>
+                                      <strong>Claimed Sale Amount:</strong> {type.claimed_sale_amount ? formatCurrency(type.claimed_sale_amount) : 'Not provided'}
+                                    </Typography>
+                                  </Box>
+                                ))
+                            ) : (
+                              <Typography color="text.secondary" sx={{ ml: 2 }}>Not selected</Typography>
+                            )}
+                          </Paper>
+                        </Grid>
+
+                        {/* Upfront Fees for Help */}
+                        <Grid item xs={12}>
+                          <Paper sx={{ p: 2, mb: 1, bgcolor: 'background.default' }}>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'primary.main', mb: 1 }}>
+                              Upfront Fees for Help
                             </Typography>
-                          )}
-                          {type.promised_services && (
-                            <Typography>
-                              Promised Services: {type.promised_services}
+                            {reportDetails?.scamTypes.some(type => type.scam_type === 'upfront_fees') ? (
+                              reportDetails.scamTypes
+                                .filter(type => type.scam_type === 'upfront_fees')
+                                .map((type, index) => (
+                                  <Box key={index} sx={{ ml: 2 }}>
+                                    <Typography>
+                                      <strong>Amount:</strong> {type.amount ? formatCurrency(type.amount) : 'Not provided'}
+                                    </Typography>
+                                    <Typography>
+                                      <strong>Promised Services:</strong> {type.promised_services || 'Not provided'}
+                                    </Typography>
+                                  </Box>
+                                ))
+                            ) : (
+                              <Typography color="text.secondary" sx={{ ml: 2 }}>Not selected</Typography>
+                            )}
+                          </Paper>
+                        </Grid>
+
+                        {/* High-Pressure Sales */}
+                        <Grid item xs={12}>
+                          <Paper sx={{ p: 2, mb: 1, bgcolor: 'background.default' }}>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'primary.main', mb: 1 }}>
+                              High-Pressure Sales
                             </Typography>
-                          )}
-                          {type.tactics && (
-                            <Typography>
-                              Tactics Used: {type.tactics}
+                            {reportDetails?.scamTypes.some(type => type.scam_type === 'high_pressure_sales') ? (
+                              reportDetails.scamTypes
+                                .filter(type => type.scam_type === 'high_pressure_sales')
+                                .map((type, index) => (
+                                  <Box key={index} sx={{ ml: 2 }}>
+                                    <Typography>
+                                      <strong>Tactics Used:</strong> {type.tactics || 'Not provided'}
+                                    </Typography>
+                                    <Typography>
+                                      <strong>Limited Time or Threat Used:</strong> {type.limited_time_or_threat ? 'Yes' : 'No'}
+                                    </Typography>
+                                  </Box>
+                                ))
+                            ) : (
+                              <Typography color="text.secondary" sx={{ ml: 2 }}>Not selected</Typography>
+                            )}
+                          </Paper>
+                        </Grid>
+
+                        {/* Refund or Exit Scam */}
+                        <Grid item xs={12}>
+                          <Paper sx={{ p: 2, mb: 1, bgcolor: 'background.default' }}>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'primary.main', mb: 1 }}>
+                              Refund or Exit Scam
                             </Typography>
-                          )}
-                          {type.promised_refund && (
-                            <Typography>
-                              Promised Refund: {type.promised_refund}
+                            {reportDetails?.scamTypes.some(type => type.scam_type === 'refund_exit') ? (
+                              reportDetails.scamTypes
+                                .filter(type => type.scam_type === 'refund_exit')
+                                .map((type, index) => (
+                                  <Box key={index} sx={{ ml: 2 }}>
+                                    <Typography>
+                                      <strong>Promised Refund:</strong> {type.promised_refund || 'Not provided'}
+                                    </Typography>
+                                    <Typography>
+                                      <strong>Contacted After Other Company:</strong> {type.contacted_after_other_company ? 'Yes' : 'No'}
+                                    </Typography>
+                                  </Box>
+                                ))
+                            ) : (
+                              <Typography color="text.secondary" sx={{ ml: 2 }}>Not selected</Typography>
+                            )}
+                          </Paper>
+                        </Grid>
+
+                        {/* Other */}
+                        <Grid item xs={12}>
+                          <Paper sx={{ p: 2, mb: 1, bgcolor: 'background.default' }}>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'primary.main', mb: 1 }}>
+                              Other
                             </Typography>
-                          )}
-                          {type.description && (
-                            <Typography>
-                              Description: {type.description}
-                            </Typography>
-                          )}
-                        </Paper>
-                      ))}
+                            {reportDetails?.scamTypes.some(type => type.scam_type === 'other') ? (
+                              reportDetails.scamTypes
+                                .filter(type => type.scam_type === 'other')
+                                .map((type, index) => (
+                                  <Box key={index} sx={{ ml: 2 }}>
+                                    <Typography>
+                                      <strong>Description:</strong> {type.description || 'Not provided'}
+                                    </Typography>
+                                  </Box>
+                                ))
+                            ) : (
+                              <Typography color="text.secondary" sx={{ ml: 2 }}>Not selected</Typography>
+                            )}
+                          </Paper>
+                        </Grid>
+                      </Grid>
                     </Box>
 
                     <Box sx={{ mb: 3 }}>
@@ -600,6 +1041,86 @@ const ScamReportsAdmin: React.FC = () => {
               </DialogActions>
             </>
           )}
+        </Dialog>
+
+        {/* Abandoned Form Details Dialog */}
+        <Dialog
+          open={abandonedFormDialogOpen}
+          onClose={() => setAbandonedFormDialogOpen(false)}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>Abandoned Form Details</DialogTitle>
+          <DialogContent>
+            {selectedAbandonedForm && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="h6" gutterBottom>Form Progress</Typography>
+                <Typography>Current Step: {selectedAbandonedForm.current_step}</Typography>
+                <Typography>Last Updated: {new Date(selectedAbandonedForm.last_updated_at).toLocaleString('en-US', {
+                  timeZone: 'America/New_York',
+                  year: 'numeric',
+                  month: '2-digit',
+                  day: '2-digit',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                  hour12: true
+                })}</Typography>
+                
+                <Typography variant="h6" sx={{ mt: 3 }} gutterBottom>Form Data</Typography>
+                <Box sx={{ mt: 1 }}>
+                  <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                    {JSON.stringify(selectedAbandonedForm.form_data, null, 2)}
+                  </pre>
+                </Box>
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setAbandonedFormDialogOpen(false)}>Close</Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Delete Abandoned Form Dialog */}
+        <Dialog
+          open={deleteAbandonedDialogOpen}
+          onClose={() => setDeleteAbandonedDialogOpen(false)}
+        >
+          <DialogTitle>Delete Abandoned Form</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Are you sure you want to delete this abandoned form? This action cannot be undone.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button 
+              onClick={() => setDeleteAbandonedDialogOpen(false)}
+              variant="outlined"
+              sx={{ 
+                borderColor: '#01BD9B',
+                color: '#01BD9B',
+                '&:hover': {
+                  borderColor: '#01BD9B',
+                  backgroundColor: 'rgba(1, 189, 155, 0.04)',
+                }
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleDeleteAbandonedForm} 
+              variant="contained"
+              sx={{ 
+                bgcolor: '#E0AC3F',
+                color: '#fff',
+                '&:hover': {
+                  bgcolor: '#c99a38',
+                }
+              }}
+            >
+              Delete
+            </Button>
+          </DialogActions>
         </Dialog>
       </Container>
     </LocalizationProvider>

@@ -13,6 +13,7 @@ import {
   InputLabel,
   Grid,
 } from '@mui/material';
+import { parsePhoneNumber, AsYouType, getCountries, CountryCode, getCountryCallingCode } from 'libphonenumber-js';
 
 interface Step0PersonalProps {
   formData: {
@@ -20,6 +21,7 @@ interface Step0PersonalProps {
     preferredContact: 'Email' | 'Phone' | 'Either' | 'None';
     email: string;
     phone: string;
+    countryCode: string;
     city: string;
     state: string;
     ageRange: 'Under 30' | '30–45' | '46–60' | '61+' | '';
@@ -39,6 +41,23 @@ const US_STATES = [
   'DC', 'PR', 'VI', 'GU', 'MP', 'AS'
 ];
 
+const COUNTRY_LIST = getCountries().map(country => {
+  try {
+    const callingCode = getCountryCallingCode(country as CountryCode);
+    return {
+      code: country,
+      name: new Intl.DisplayNames(['en'], { type: 'region' }).of(country) || country,
+      callingCode: callingCode
+    };
+  } catch {
+    return {
+      code: country,
+      name: new Intl.DisplayNames(['en'], { type: 'region' }).of(country) || country,
+      callingCode: '0'
+    };
+  }
+}).sort((a, b) => a.name.localeCompare(b.name));
+
 const Step0Personal: React.FC<Step0PersonalProps> = ({ formData, onChange, onNext }) => {
   const isValid = () => {
     // Basic validation
@@ -49,7 +68,15 @@ const Step0Personal: React.FC<Step0PersonalProps> = ({ formData, onChange, onNex
     if (['Email', 'Either'].includes(formData.preferredContact) && !formData.email.trim()) return false;
     
     // Phone validation if phone is preferred contact
-    if (['Phone', 'Either'].includes(formData.preferredContact) && !formData.phone.trim()) return false;
+    if (['Phone', 'Either'].includes(formData.preferredContact)) {
+      try {
+        if (!formData.phone.trim()) return false;
+        const phoneNumber = parsePhoneNumber(formData.phone, formData.countryCode as CountryCode);
+        if (!phoneNumber || !phoneNumber.isValid()) return false;
+      } catch {
+        return false;
+      }
+    }
     
     // City and state are required
     if (!formData.city.trim() || !formData.state.trim()) return false;
@@ -57,11 +84,30 @@ const Step0Personal: React.FC<Step0PersonalProps> = ({ formData, onChange, onNex
     return true;
   };
 
-  const formatPhoneNumber = (value: string) => {
-    const numbers = value.replace(/\D/g, '');
-    if (numbers.length <= 3) return numbers;
-    if (numbers.length <= 6) return `(${numbers.slice(0, 3)}) ${numbers.slice(3)}`;
-    return `(${numbers.slice(0, 3)}) ${numbers.slice(3, 6)}-${numbers.slice(6, 10)}`;
+  const handlePhoneChange = (value: string) => {
+    try {
+      if (!formData.countryCode) {
+        onChange('phone', value);
+        return;
+      }
+      const formatter = new AsYouType(formData.countryCode as CountryCode);
+      const formattedNumber = formatter.input(value);
+      onChange('phone', formattedNumber);
+    } catch (error) {
+      // If formatting fails, just use the raw value
+      onChange('phone', value);
+    }
+  };
+
+  const validatePhoneNumber = (phone: string, countryCode: string) => {
+    if (!phone.trim()) return false;
+    if (!countryCode) return false;
+    try {
+      const phoneNumber = parsePhoneNumber(phone, countryCode as CountryCode);
+      return phoneNumber?.isValid() || false;
+    } catch {
+      return false;
+    }
   };
 
   return (
@@ -108,25 +154,45 @@ const Step0Personal: React.FC<Step0PersonalProps> = ({ formData, onChange, onNex
       )}
 
       {['Phone', 'Either'].includes(formData.preferredContact) && (
-        <TextField
-          fullWidth
-          label="Phone Number"
-          value={formData.phone}
-          onChange={(e) => {
-            const numbers = e.target.value.replace(/\D/g, '');
-            if (numbers.length <= 10) {
-              onChange('phone', formatPhoneNumber(numbers));
-            }
-          }}
-          sx={{ mb: 3 }}
-          required={['Phone', 'Either'].includes(formData.preferredContact)}
-          error={['Phone', 'Either'].includes(formData.preferredContact) && !formData.phone}
-          helperText={['Phone', 'Either'].includes(formData.preferredContact) && !formData.phone ? 'Phone number is required for your preferred contact method' : ''}
-          inputProps={{
-            maxLength: 14,
-            placeholder: "(XXX) XXX-XXXX"
-          }}
-        />
+        <Box sx={{ mb: 3 }}>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={4}>
+              <FormControl fullWidth>
+                <InputLabel>Country</InputLabel>
+                <Select
+                  value={formData.countryCode || 'US'}
+                  label="Country"
+                  onChange={(e) => {
+                    onChange('countryCode', e.target.value);
+                    onChange('phone', ''); // Reset phone when country changes
+                  }}
+                >
+                  {COUNTRY_LIST.map(country => (
+                    <MenuItem key={country.code} value={country.code}>
+                      {country.name} (+{country.callingCode})
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={8}>
+              <TextField
+                fullWidth
+                label="Phone Number"
+                value={formData.phone}
+                onChange={(e) => handlePhoneChange(e.target.value)}
+                required={['Phone', 'Either'].includes(formData.preferredContact)}
+                error={['Phone', 'Either'].includes(formData.preferredContact) && formData.phone && !validatePhoneNumber(formData.phone, formData.countryCode) || undefined}
+                helperText={(() => {
+                  if (!['Phone', 'Either'].includes(formData.preferredContact)) return '';
+                  if (!formData.phone) return 'Phone number is required for your preferred contact method';
+                  if (!formData.countryCode) return 'Please select a country';
+                  return validatePhoneNumber(formData.phone, formData.countryCode) ? '' : 'Invalid phone number for selected country';
+                })()}
+              />
+            </Grid>
+          </Grid>
+        </Box>
       )}
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
@@ -172,7 +238,7 @@ const Step0Personal: React.FC<Step0PersonalProps> = ({ formData, onChange, onNex
       </Typography>
       <FormControl component="fieldset" sx={{ mb: 3 }}>
         <RadioGroup
-          value={formData.speakWithTeam.toString()}
+          value={formData.speakWithTeam ? "true" : "false"}
           onChange={(e) => onChange('speakWithTeam', e.target.value === 'true')}
         >
           <FormControlLabel value="true" control={<Radio />} label="Yes" />
@@ -185,7 +251,7 @@ const Step0Personal: React.FC<Step0PersonalProps> = ({ formData, onChange, onNex
       </Typography>
       <FormControl component="fieldset" sx={{ mb: 3 }}>
         <RadioGroup
-          value={formData.shareAnonymously.toString()}
+          value={formData.shareAnonymously ? "true" : "false"}
           onChange={(e) => onChange('shareAnonymously', e.target.value === 'true')}
         >
           <FormControlLabel value="true" control={<Radio />} label="Yes, anonymously" />

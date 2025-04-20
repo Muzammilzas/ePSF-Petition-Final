@@ -101,7 +101,12 @@ export const sendScamReportNotification = async (data: ScamReportEmailData) => {
         speak_with_team: report.speak_with_team ? 'Yes' : 'No',
         share_anonymously: report.share_anonymously ? 'Yes' : 'No',
         
-        date_occurred: new Date(report.date_occurred).toLocaleDateString(),
+        date_occurred: new Date(report.date_occurred).toLocaleDateString('en-US', {
+          timeZone: 'America/New_York',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        }),
         money_lost: report.money_lost ? 'Yes' : 'No',
         amount_lost: moneyLostAmount,
         scammer_name: report.scammer_name || 'Not provided',
@@ -180,8 +185,18 @@ export const sendReporterConfirmation = async (report: ScamReport) => {
       templateId: 7, // Updated to use template ID 7
       params: {
         REPORTER_NAME: report.reporter_name,
-        DATE_OCCURRED: new Date(report.date_occurred).toLocaleDateString(),
-        REPORT_DATE: new Date().toLocaleDateString(),
+        DATE_OCCURRED: new Date(report.date_occurred).toLocaleDateString('en-US', {
+          timeZone: 'America/New_York',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        }),
+        REPORT_DATE: new Date().toLocaleDateString('en-US', {
+          timeZone: 'America/New_York',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        }),
         COMPANY_NAME: report.company_name || 'the company',
         MONEY_LOST: report.money_lost ? 'Yes' : 'No',
         AMOUNT_LOST: report.amount_lost 
