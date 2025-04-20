@@ -407,7 +407,11 @@ const AbandonedFormsAdmin: React.FC = () => {
                                       {k}
                                     </Typography>
                                     <Typography>
-                                      {typeof v === 'boolean' ? (v ? 'Yes' : 'No') : (v || 'Not specified')}
+                                      {typeof v === 'boolean' 
+                                        ? (v ? 'Yes' : 'No') 
+                                        : (v instanceof File 
+                                          ? `File: ${v.name}` 
+                                          : (v?.toString() || 'Not specified'))}
                                     </Typography>
                                   </Box>
                                 ))}

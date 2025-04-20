@@ -72,6 +72,7 @@ interface FormData {
   scammerName: string;
   companyName: string;
   scammerPhone: string;
+  scammerPhoneCountryCode: string;
   scammerEmail: string;
   scammerWebsite: string;
   evidence: File | null;
@@ -88,10 +89,10 @@ const ReportScamPage: React.FC = () => {
   const [formData, setFormData] = useState<FormData>({
     // Personal Information
     fullName: '',
-    preferredContact: 'None',
+    preferredContact: 'Either',
     email: '',
     phone: '',
-    countryCode: 'US',
+    countryCode: '+1',
     city: '',
     state: '',
     ageRange: '',
@@ -128,7 +129,7 @@ const ReportScamPage: React.FC = () => {
       phone: {
         selected: false,
         number: '',
-        countryCode: 'US',
+        countryCode: '+1',
       },
       email: {
         selected: false,
@@ -152,6 +153,7 @@ const ReportScamPage: React.FC = () => {
     scammerName: '',
     companyName: '',
     scammerPhone: '',
+    scammerPhoneCountryCode: '+1',
     scammerEmail: '',
     scammerWebsite: '',
     evidence: null,

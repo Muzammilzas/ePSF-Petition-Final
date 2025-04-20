@@ -56,8 +56,8 @@ export interface ActionCardProps {
   title: string;
   description: string;
   buttonText: string;
-  buttonLink: string;
-  icon: SvgIconComponent;
+  onClick: () => void;
+  icon: React.ElementType;
   delay?: number;
 }
 
