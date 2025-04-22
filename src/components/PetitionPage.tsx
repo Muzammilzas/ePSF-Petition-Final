@@ -139,6 +139,41 @@ const PetitionPage: React.FC = () => {
                   </div>
                 </div>
               </motion.div>
+              
+              <motion.div className="cta-button-wrapper" variants={fadeIn}>
+                <Link 
+                  to="/sign/84dec50d-d877-4f15-9250-f5364124371a"
+                  style={{
+                    backgroundColor: '#2E3B55',
+                    color: 'white',
+                    padding: '12px 24px',
+                    fontSize: '1.1rem',
+                    fontWeight: 'bold',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    margin: '2rem 0',
+                    boxShadow: '0 4px 12px rgba(46, 59, 85, 0.2)',
+                    transition: 'all 0.3s ease',
+                    textDecoration: 'none',
+                    width: 'fit-content',
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(46, 59, 85, 0.3)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(46, 59, 85, 0.2)';
+                  }}
+                >
+                  <i className="bi bi-pen-fill"></i>
+                  Sign The Petition Now
+                </Link>
+              </motion.div>
             </motion.div>
             <motion.div 
               className="hero-image-wrapper"
@@ -152,7 +187,23 @@ const PetitionPage: React.FC = () => {
                 alt="Timeshare contract with scam stamp"
                 className="hero-img"
               />
-              <span className="image-tag">End the Nightmare</span>
+              <span 
+                style={{
+                  position: 'absolute',
+                  bottom: '15px',
+                  right: '15px',
+                  backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                  color: 'white',
+                  padding: '6px 12px',
+                  borderRadius: '4px',
+                  fontSize: '0.9rem',
+                  fontWeight: '500',
+                  letterSpacing: '0.5px',
+                  backdropFilter: 'blur(4px)',
+                }}
+              >
+                End the Nightmare
+              </span>
             </motion.div>
           </div>
         </div>
@@ -217,6 +268,142 @@ const PetitionPage: React.FC = () => {
             <motion.div className="stat-item" variants={scaleIn}>
               <CountingNumber value="22" prefix="$" suffix="K" />
               <span className="stat-label">Average Loss</span>
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Vacation Dream to Financial Trap Section */}
+      <section className="dream-to-trap-section">
+        <div className="container">
+          <motion.div
+            className="content-wrapper"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={staggerContainer}
+          >
+            <motion.h2 className="section-title" variants={fadeIn}>
+              From Vacation Dream to Financial Trap
+            </motion.h2>
+            <motion.p className="section-description" variants={fadeIn}>
+              What looked like a peaceful getaway turned into rising fees, confusing contracts, and no clear way out.
+            </motion.p>
+
+            {/* Tactics Section */}
+            <motion.div 
+              className="tactics-container"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              variants={staggerContainer}
+            >
+              <h2 className="section-title">The Tactics That Keep People Stuck</h2>
+              <div className="tactics-grid">
+                <motion.div className="tactic-card" variants={fadeIn}>
+                  <i className="bi bi-shield-x"></i>
+                  <h4>Class-Action Waivers</h4>
+                  <p>Block group lawsuits, protecting companies over people.</p>
+                </motion.div>
+                <motion.div className="tactic-card" variants={fadeIn}>
+                  <i className="bi bi-exclamation-triangle"></i>
+                  <h4>Deceptive Sales</h4>
+                  <p>High-pressure pitches and broken promises.</p>
+                </motion.div>
+                <motion.div className="tactic-card" variants={fadeIn}>
+                  <i className="bi bi-lock"></i>
+                  <h4>Exit Barriers</h4>
+                  <p>Contracts that are nearly impossible to cancel.</p>
+                </motion.div>
+              </div>
+            </motion.div>
+
+            {/* Checklist Section */}
+            <motion.div className="checklist-container" variants={fadeIn}>
+              <div className="checklist-grid">
+                <div className="checklist-content">
+                  <h3>Are You in a Timeshare Trap?</h3>
+                  <div className="checklist">
+                    <div className="checklist-item">
+                      <i className="bi bi-circle"></i>
+                      <p>Were you promised value or returns that never came?</p>
+                    </div>
+                    <div className="checklist-item">
+                      <i className="bi bi-circle"></i>
+                      <p>Are your maintenance fees increasing each year?</p>
+                    </div>
+                    <div className="checklist-item">
+                      <i className="bi bi-circle"></i>
+                      <p>Have you been told there's no way to cancel?</p>
+                    </div>
+                    <div className="checklist-item">
+                      <i className="bi bi-circle"></i>
+                      <p>Is reselling or transferring your timeshare nearly impossible?</p>
+                    </div>
+                    <div className="checklist-item">
+                      <i className="bi bi-circle"></i>
+                      <p>Were you pressured into signing on the spot?</p>
+                    </div>
+                  </div>
+                  <p className="checklist-note">If two or more apply, you may be in a timeshare trap.</p>
+                  
+                  <div className="action-buttons">
+                    <Link to="/timeshare-scam-checklist" className="action-button download-btn">
+                      <i className="bi bi-arrow-down-circle"></i>
+                      Download Protection Checklist
+                    </Link>
+                    <Link to="/timeshare-scam" className="action-button report-btn">
+                      <i className="bi bi-arrow-right-circle"></i>
+                      Report Experience
+                    </Link>
+                  </div>
+                </div>
+                <motion.div 
+                  className="checklist-image"
+                  initial={{ opacity: 0, x: 20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.6 }}
+                >
+                  <img 
+                    src="/images/Petition/Checklist-image.avif" 
+                    alt="Timeshare Checklist"
+                    className="trap-image"
+                  />
+                </motion.div>
+              </div>
+            </motion.div>
+
+            {/* Demands Section */}
+            <motion.div className="demands-container" variants={fadeIn}>
+              <h2 className="section-title">What We're Demanding</h2>
+              <div className="demands-grid">
+                <div className="demand-item">
+                  <i className="bi bi-shield-fill-x"></i>
+                  <p>Ban class-action waivers</p>
+                </div>
+                <div className="demand-item">
+                  <i className="bi bi-exclamation-triangle-fill"></i>
+                  <p>Outlaw deceptive sales</p>
+                </div>
+                <div className="demand-item">
+                  <i className="bi bi-door-open-fill"></i>
+                  <p>Create fair, legal exit options</p>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Sign Petition CTA */}
+            <motion.div className="sign-petition-cta" variants={fadeIn}>
+              <h3>Sign the Petition</h3>
+              <p>Your voice can help bring real change.</p>
+              <Link 
+                to="/sign/84dec50d-d877-4f15-9250-f5364124371a"
+                className="sign-button"
+              >
+                <i className="bi bi-pen-fill"></i>
+                Sign here
+              </Link>
             </motion.div>
           </motion.div>
         </div>

@@ -104,23 +104,20 @@ const WhereScamsThrive = () => {
           attributes: {
             NAME: formData.fullName,
             EMAIL: formData.email,
-            SIGNUP_TIME: new Date().toLocaleString('en-US', {
+            SIGNUP_DATE: new Date().toLocaleString('en-US', {
               timeZone: 'America/New_York',
               year: 'numeric',
               month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit',
-              hour12: true
+              day: '2-digit'
             }),
-            SIGNED_UP_PAGE: window.location.origin + '/where-scams-thrive'
+            SIGNUP_SOURCE: "Where Scams Thrive Landing Page"
           },
-          listIds: [13],
-          updateEnabled: true
+          listIds: [17], // Updated to use template ID 17 for newsletter
+          updateEnabled: true,
+          emailBlacklisted: false
         };
 
-        console.log('Adding to newsletter list with data:', newsletterContactData);
+        console.log('Adding/Updating newsletter contact with data:', newsletterContactData);
 
         const newsletterResponse = await fetch('https://api.brevo.com/v3/contacts', {
           method: 'POST',
@@ -132,25 +129,29 @@ const WhereScamsThrive = () => {
           body: JSON.stringify(newsletterContactData)
         });
 
-        let newsletterResult;
-        try {
-          const responseText = await newsletterResponse.text();
-          newsletterResult = responseText ? JSON.parse(responseText) : {};
-          console.log('Newsletter List Addition Response:', newsletterResult);
-        } catch (error) {
-          console.error('Error parsing newsletter list response:', error);
-          newsletterResult = {};
+        if (!newsletterResponse.ok) {
+          // If creating fails, try updating
+          const updateResponse = await fetch(`https://api.brevo.com/v3/contacts/${formData.email}`, {
+            method: 'PUT',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'api-key': import.meta.env.VITE_BREVO_API_KEY
+            },
+            body: JSON.stringify({
+              attributes: newsletterContactData.attributes,
+              listIds: newsletterContactData.listIds,
+              emailBlacklisted: false
+            })
+          });
+
+          if (!updateResponse.ok) {
+            throw new Error('Failed to update newsletter contact');
+          }
         }
 
-        // Send consent email to user
-        const consentEmailParams = {
-          NAME: formData.fullName || 'Subscriber',
-          EMAIL: formData.email
-        };
-
-        console.log('Sending consent email with params:', consentEmailParams);
-
-        const consentResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
+        // Send newsletter welcome email
+        const welcomeEmailResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
           method: 'POST',
           headers: {
             'Accept': 'application/json',
@@ -164,21 +165,28 @@ const WhereScamsThrive = () => {
             },
             to: [{ email: formData.email }],
             templateId: 17,
-            params: consentEmailParams
+            params: {
+              name: formData.fullName,
+              email: formData.email,
+              signup_date: new Date().toLocaleString('en-US', {
+                timeZone: 'America/New_York',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+              }),
+              signup_source: "Where Scams Thrive Landing Page"
+            }
           })
         });
 
-        let consentResult;
-        try {
-          const responseText = await consentResponse.text();
-          consentResult = responseText ? JSON.parse(responseText) : {};
-          console.log('Consent Email API Response:', consentResult);
-        } catch (error) {
-          console.error('Error parsing consent email response:', error);
-          consentResult = {};
+        if (!welcomeEmailResponse.ok) {
+          console.error('Failed to send newsletter welcome email:', await welcomeEmailResponse.json());
         }
+
+        console.log('Newsletter subscription and welcome email processed successfully');
       } catch (error) {
-        console.error('Error in newsletter signup process:', error);
+        console.error('Error managing newsletter subscription:', error);
+        setError('There was an error subscribing to the newsletter. Please try again.');
       }
     }
   };
@@ -190,7 +198,7 @@ const WhereScamsThrive = () => {
 
     try {
       // Basic form validation
-      if (!formData.fullName || !formData.email || !formData.metaDetails.city || !formData.metaDetails.region || !formData.metaDetails.country || !formData.metaDetails.ipAddress || !formData.metaDetails.browser || !formData.metaDetails.deviceType || !formData.metaDetails.screenResolution || !formData.metaDetails.timeZone) {
+      if (!formData.email || !formData.fullName) {
         throw new Error('Please fill in all required fields');
       }
 
@@ -215,104 +223,192 @@ const WhereScamsThrive = () => {
           SCREEN_RESOLUTION: formData.metaDetails.screenResolution,
           TIMEZONE: formData.metaDetails.timeZone,
           LEAD_SOURCE: 'Where Scams Thrive Landing Page'
-        }
+        },
+        listIds: [12],
+        updateEnabled: true,
+        emailBlacklisted: false
       };
 
-      const supabaseData = {
-        full_name: formData.fullName,
-        email: formData.email,
-        newsletter_consent: formData.newsletterConsent,
-        meta_details: {
-          city: formData.metaDetails.city,
-          region: formData.metaDetails.region,
-          country: formData.metaDetails.country,
-          ip_address: formData.metaDetails.ipAddress,
-          browser: formData.metaDetails.browser,
-          device_type: formData.metaDetails.deviceType,
-          screen_resolution: formData.metaDetails.screenResolution,
-          timezone: formData.metaDetails.timeZone
-        }
-      };
-
-      // Add contact to Brevo
-      const brevoApiKey = import.meta.env.VITE_BREVO_API_KEY;
-      if (!brevoApiKey) {
-        throw new Error('Brevo API key is not configured');
-      }
-
-      const brevoResponse = await fetch('https://api.brevo.com/v3/contacts', {
+      // Try to create contact first
+      const contactResponse = await fetch('https://api.brevo.com/v3/contacts', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
-          'api-key': import.meta.env.VITE_BREVO_API_KEY,
+          'api-key': import.meta.env.VITE_BREVO_API_KEY
         },
-        body: JSON.stringify(contactListData),
+        body: JSON.stringify(contactListData)
       });
 
-      if (!brevoResponse.ok) {
-        const brevoError = await brevoResponse.json();
-        throw new Error(`Failed to add contact: ${brevoError.message}`);
+      let contactResult;
+      try {
+        const responseText = await contactResponse.text();
+        contactResult = responseText ? JSON.parse(responseText) : {};
+        console.log('Brevo Contact API Response:', contactResult);
+        
+        // If we get a duplicate contact error, try to update the contact instead
+        if (!contactResponse.ok && contactResult.message?.includes('already exists')) {
+          // Try to update the existing contact
+          const updateResponse = await fetch(`https://api.brevo.com/v3/contacts/${formData.email}`, {
+            method: 'PUT',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'api-key': import.meta.env.VITE_BREVO_API_KEY
+            },
+            body: JSON.stringify({
+              attributes: contactListData.attributes,
+              listIds: contactListData.listIds,
+              emailBlacklisted: false
+            })
+          });
+          
+          if (!updateResponse.ok) {
+            throw new Error('Failed to update existing contact');
+          }
+        } else if (!contactResponse.ok) {
+          throw new Error(contactResult.message || 'Failed to add contact');
+        }
+      } catch (error) {
+        console.error('Error processing contact:', error);
+        throw new Error('Failed to process contact');
       }
 
       // Save to Supabase
       const { error: supabaseError } = await supabase
         .from('where_scams_thrive_submissions')
-        .insert([supabaseData]);
+        .insert([{
+          full_name: formData.fullName,
+          email: formData.email,
+          newsletter_consent: formData.newsletterConsent,
+          meta_details: {
+            city: formData.metaDetails.city,
+            region: formData.metaDetails.region,
+            country: formData.metaDetails.country,
+            ip_address: formData.metaDetails.ipAddress,
+            browser: formData.metaDetails.browser,
+            device_type: formData.metaDetails.deviceType,
+            screen_resolution: formData.metaDetails.screenResolution,
+            timezone: formData.metaDetails.timeZone
+          }
+        }]);
 
       if (supabaseError) {
         throw new Error(`Failed to save submission: ${supabaseError.message}`);
       }
 
-      // Send notification emails
-      const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || 'zasprince007@gmail.com';
-      
-      // Send admin notification
-      await fetch('https://api.brevo.com/v3/smtp/email', {
+      // Send user notification
+      const userResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
-          'api-key': import.meta.env.VITE_BREVO_API_KEY,
+          'api-key': import.meta.env.VITE_BREVO_API_KEY
         },
         body: JSON.stringify({
-          to: [{ email: adminEmail }],
-          subject: 'New "Before You Sign" Form Submission',
-          htmlContent: `
-            <h3>New form submission received:</h3>
-            <p><strong>Name:</strong> ${formData.fullName}</p>
-            <p><strong>Email:</strong> ${formData.email}</p>
-            <p><strong>Newsletter Consent:</strong> ${formData.newsletterConsent ? 'Yes' : 'No'}</p>
-            <p><strong>City:</strong> ${formData.metaDetails.city}</p>
-            <p><strong>Region:</strong> ${formData.metaDetails.region}</p>
-            <p><strong>Country:</strong> ${formData.metaDetails.country}</p>
-            <p><strong>IP Address:</strong> ${formData.metaDetails.ipAddress}</p>
-            <p><strong>Browser:</strong> ${formData.metaDetails.browser}</p>
-            <p><strong>Device Type:</strong> ${formData.metaDetails.deviceType}</p>
-            <p><strong>Screen Resolution:</strong> ${formData.metaDetails.screenResolution}</p>
-            <p><strong>Time Zone:</strong> ${formData.metaDetails.timeZone}</p>
-          `,
-        }),
+          sender: {
+            name: 'ePublic Safety Foundation',
+            email: 'info@epublicsf.org'
+          },
+          to: [{ email: formData.email }],
+          templateId: 10,
+          params: {
+            Name: formData.fullName,
+            Email: formData.email,
+            'Newsletter Consent': formData.newsletterConsent ? 'Yes' : 'No',
+            'Lead Source': 'Where Scams Thrive Landing Page',
+            City: formData.metaDetails.city,
+            Region: formData.metaDetails.region,
+            Country: formData.metaDetails.country,
+            'Ip Address': formData.metaDetails.ipAddress,
+            Browser: formData.metaDetails.browser,
+            'Device Type': formData.metaDetails.deviceType,
+            'Screen Resolution': formData.metaDetails.screenResolution,
+            TimeZone: formData.metaDetails.timeZone
+          }
+        })
       });
 
-      // Send user confirmation
-      await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'api-key': import.meta.env.VITE_BREVO_API_KEY,
-        },
-        body: JSON.stringify({
-          to: [{ email: formData.email }],
-          subject: 'Thank you for your submission',
-          htmlContent: `
-            <h3>Thank you for your submission!</h3>
-            <p>We have received your message and will review it shortly.</p>
-            <p>Best regards,<br>The ePSF Team</p>
-          `,
-        }),
-      });
+      if (!userResponse.ok) {
+        const userResult = await userResponse.json();
+        console.error('Failed to send user notification:', userResult);
+        throw new Error('Failed to send confirmation email');
+      }
+
+      // Send admin notification with better error handling and logging
+      try {
+        const downloadTime = new Date().toLocaleString('en-US', {
+          timeZone: 'America/New_York',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true
+        });
+
+        const adminEmailData = {
+          sender: {
+            name: 'ePublic Safety Foundation',
+            email: 'info@epublicsf.org'
+          },
+          to: [{ email: 'zasprince007@gmail.com' }],
+          templateId: 14,
+          params: {
+            NAME: formData.fullName || '',
+            EMAIL: formData.email || '',
+            DOWNLOAD_TIME: downloadTime,
+            NEWSLETTER_CONSENT: formData.newsletterConsent ? "Yes" : "No",
+            LEAD_SOURCE: "Where Timeshare Scams Thrive",
+            CITY: formData.metaDetails.city || '',
+            REGION: formData.metaDetails.region || '',
+            COUNTRY: formData.metaDetails.country || '',
+            IP_ADDRESS: formData.metaDetails.ipAddress || '',
+            BROWSER: formData.metaDetails.browser || '',
+            DEVICE_TYPE: formData.metaDetails.deviceType || '',
+            SCREEN_RESOLUTION: formData.metaDetails.screenResolution || '',
+            TIMEZONE: formData.metaDetails.timeZone || ''
+          }
+        };
+
+        console.log('Sending admin notification with data:', adminEmailData);
+
+        const adminResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'api-key': import.meta.env.VITE_BREVO_API_KEY
+          },
+          body: JSON.stringify(adminEmailData)
+        });
+
+        let adminResult;
+        try {
+          const responseText = await adminResponse.text();
+          adminResult = responseText ? JSON.parse(responseText) : {};
+          console.log('Admin notification API response:', adminResult);
+          
+          if (!adminResponse.ok) {
+            console.error('Failed to send admin notification:', adminResult);
+            throw new Error(`Failed to send admin notification: ${JSON.stringify(adminResult)}`);
+          }
+        } catch (error) {
+          console.error('Error sending admin notification:', error);
+          throw error;
+        }
+
+        console.log('Admin notification sent successfully');
+      } catch (error) {
+        console.error('Error sending admin notification:', error);
+        if (error instanceof Error) {
+          console.error('Error details:', {
+            message: error.message,
+            stack: error.stack
+          });
+        }
+      }
 
       setFormData({
         fullName: '',
@@ -331,8 +427,9 @@ const WhereScamsThrive = () => {
       });
       setIsSubmitting(false);
       setShowSuccessMessage(true);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (error: any) {
+      console.error('Error:', error);
+      setError(error.message || 'Failed to submit form. Please try again later.');
       setIsSubmitting(false);
     }
   };

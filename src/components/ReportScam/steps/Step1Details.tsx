@@ -559,7 +559,6 @@ const Step1Details: React.FC<Step1DetailsProps> = ({ formData, onChange, onNext,
         <Button
           variant="outlined"
           onClick={onBack}
-          disabled={true}
           sx={{ 
             minWidth: '100px',
             color: 'secondary.main',
