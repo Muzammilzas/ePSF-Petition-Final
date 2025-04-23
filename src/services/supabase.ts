@@ -3,10 +3,13 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-console.log('Supabase Environment Check:', {
+// Debug logging
+console.log('Environment Check:', {
+  NODE_ENV: import.meta.env.MODE,
   hasUrl: !!supabaseUrl,
   hasKey: !!supabaseAnonKey,
-  url: supabaseUrl?.substring(0, 10) + '...'
+  url: supabaseUrl?.substring(0, 10) + '...',
+  baseUrl: window.location.origin
 });
 
 if (!supabaseUrl || !supabaseAnonKey) {
