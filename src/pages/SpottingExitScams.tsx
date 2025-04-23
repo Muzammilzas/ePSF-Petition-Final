@@ -224,7 +224,7 @@ const SpottingExitScamsPage = () => {
               name: 'ePublic Safety Foundation',
               email: 'admin@epublicsf.org'
             },
-            to: [{ email: 'zasprince007@gmail.com' }],
+            to: [{ email: 'timeshare@epublicsf.org' }],
             templateId: 18,
             params: adminNewsletterParams
           })
@@ -485,7 +485,7 @@ const SpottingExitScamsPage = () => {
             name: 'ePublic Safety Foundation',
             email: 'admin@epublicsf.org'
           },
-          to: [{ email: 'zasprince007@gmail.com' }],
+          to: [{ email: 'timeshare@epublicsf.org' }],
           templateId: 16,
           params: emailTemplateParams
         })

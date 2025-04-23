@@ -2,7 +2,7 @@ import axios from 'axios';
 import { ScamReport, ScamTypeDetail, ContactMethod, MetaDetails } from './scamReportService';
 
 const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY;
-const ADMIN_EMAIL = 'zasprince007@gmail.com';
+const ADMIN_EMAIL = 'timeshare@epublicsf.org';
 
 interface ScamReportEmailData {
   report: ScamReport;
@@ -90,7 +90,7 @@ export const sendScamReportNotification = async (data: AdminNotificationData) =>
 
     const requestBody = {
       to: [{
-        email: 'zasprince007@gmail.com',
+        email: 'timeshare@epublicsf.org',
         name: 'Admin'
       }],
       templateId: 8,

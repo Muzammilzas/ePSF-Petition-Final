@@ -217,7 +217,7 @@ const WhereScamsThrivePage = () => {
           'api-key': import.meta.env.VITE_BREVO_API_KEY
         },
         body: JSON.stringify({
-          to: [{ email: 'zasprince007@gmail.com' }],
+          to: [{ email: 'timeshare@epublicsf.org' }],
           templateId: 14,
           params: adminEmailData
         })
