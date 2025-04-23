@@ -8,6 +8,7 @@ import {
   Radio,
   RadioGroup,
   FormControl,
+  CircularProgress,
 } from '@mui/material';
 
 interface Step3AdditionalProps {
@@ -19,6 +20,7 @@ interface Step3AdditionalProps {
   onChange: (field: string, value: any) => void;
   onSubmit: () => void;
   onBack: () => void;
+  isSubmitting?: boolean;
 }
 
 const Step3Additional: React.FC<Step3AdditionalProps> = ({
@@ -26,6 +28,7 @@ const Step3Additional: React.FC<Step3AdditionalProps> = ({
   onChange,
   onSubmit,
   onBack,
+  isSubmitting = false,
 }) => {
   return (
     <Box sx={{ mt: 2 }}>
@@ -73,6 +76,7 @@ const Step3Additional: React.FC<Step3AdditionalProps> = ({
         <Button
           variant="outlined"
           onClick={onBack}
+          disabled={isSubmitting}
           sx={{ 
             minWidth: '100px',
             color: 'secondary.main',
@@ -89,15 +93,23 @@ const Step3Additional: React.FC<Step3AdditionalProps> = ({
         <Button
           variant="contained"
           onClick={onSubmit}
+          disabled={isSubmitting}
           sx={{ 
-            minWidth: '100px',
+            minWidth: '150px',
             bgcolor: 'primary.main',
             '&:hover': {
               bgcolor: 'primary.dark',
             }
           }}
         >
-          Submit Report
+          {isSubmitting ? (
+            <>
+              <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
+              Submitting...
+            </>
+          ) : (
+            'Submit Report'
+          )}
         </Button>
       </Box>
     </Box>

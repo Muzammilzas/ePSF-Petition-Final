@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Typography, Box, Paper, Stepper, Step, StepLabel } from '@mui/material';
+import { Container, Typography, Box, Paper, Stepper, Step, StepLabel, Alert } from '@mui/material';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import Step0Personal from './steps/Step0Personal';
@@ -10,6 +10,7 @@ import SuccessMessage from './SuccessMessage';
 import { submitScamReport, uploadEvidence, ScamReport, ScamTypeDetail, ContactMethod } from '../../services/scamReportService';
 import { sendScamReportNotification, sendReporterConfirmation } from '../../services/emailService';
 import { saveAbandonedForm, markFormCompleted } from '../../services/abandonedFormService';
+import { collectMetaDetails } from '../../utils/metaDetails';
 import { v4 as uuidv4 } from 'uuid';
 
 interface ScamTypeData {
@@ -86,6 +87,8 @@ const steps = ['Your Information', 'Tell Us What Happened', 'Share Any Known Det
 const ReportScamPage: React.FC = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [sessionId, setSessionId] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     // Personal Information
     fullName: '',
@@ -327,29 +330,99 @@ const ReportScamPage: React.FC = () => {
   };
 
   const handleSubmit = async () => {
+    setError(null);
+    setIsSubmitting(true);
+
+    // Validate required fields
+    if (!formData.fullName || !formData.email) {
+      setError('Name and email are required fields.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (!formData.city || !formData.state) {
+      setError('City and state are required fields.');
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
-      // Upload evidence file if it exists
-      let evidenceUrl = '';
-      if (formData.evidence) {
-        const timestamp = new Date().toLocaleString('en-US', {
+      // Log form data for debugging
+      console.log('Submitting form data:', {
+        personalInfo: {
+          name: formData.fullName,
+          email: formData.email,
+          city: formData.city,
+          state: formData.state,
+          ageRange: formData.ageRange,
+          speakWithTeam: formData.speakWithTeam,
+          shareAnonymously: formData.shareAnonymously
+        }
+      });
+
+      // Collect meta details
+      const metaDetails = await collectMetaDetails();
+      console.log('Collected meta details:', metaDetails);
+
+      // Prepare report data
+      const report: ScamReport = {
+        reporter_name: formData.fullName,
+        reporter_email: formData.email,
+        reporter_phone: formData.phone,
+        reporter_city: formData.city,
+        reporter_state: formData.state,
+        reporter_age_range: formData.ageRange || undefined,
+        speak_with_team: formData.speakWithTeam,
+        share_anonymously: formData.shareAnonymously,
+        preferred_contact: formData.preferredContact,
+        money_lost: formData.moneyLost,
+        amount_lost: formData.amountLost ? parseFloat(formData.amountLost) : undefined,
+        date_occurred: formData.dateOccurred || new Date().toLocaleDateString('en-US', {
           timeZone: 'America/New_York',
           year: 'numeric',
           month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: true
-        });
-        const fileName = `${timestamp}-${formData.evidence.name}`;
-        const { success, url, error } = await uploadEvidence(formData.evidence, fileName);
-        if (!success) throw error;
-        evidenceUrl = url || '';
+          day: '2-digit'
+        }),
+        scammer_name: formData.scammerName,
+        company_name: formData.companyName,
+        scammer_phone: formData.scammerPhone,
+        scammer_email: formData.scammerEmail,
+        scammer_website: formData.scammerWebsite,
+        reported_elsewhere: formData.reportedElsewhere,
+        reported_to: formData.reportedTo,
+        want_updates: formData.wantUpdates,
+        evidence_file_url: undefined // We'll update this after upload
+      };
+
+      // Upload evidence file if it exists
+      if (formData.evidence) {
+        try {
+          const timestamp = new Date().toLocaleString('en-US', {
+            timeZone: 'America/New_York',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+          });
+          const fileName = `${timestamp}-${formData.evidence.name}`;
+          const { success: uploadSuccess, url, error: uploadError } = await uploadEvidence(formData.evidence, fileName);
+          if (!uploadSuccess) {
+            console.error('Evidence upload error:', uploadError);
+            throw new Error(uploadError instanceof Error ? uploadError.message : 'Failed to upload evidence file');
+          }
+          report.evidence_file_url = url;
+          console.log('Evidence uploaded successfully:', url);
+        } catch (uploadError) {
+          console.error('Error uploading evidence:', uploadError);
+          // Continue without evidence if upload fails
+        }
       }
 
       // Prepare scam types
       const scamTypes: ScamTypeDetail[] = [];
-      
       if (formData.scamTypes.fakeResale.selected) {
         scamTypes.push({
           scam_type: 'fake_resale',
@@ -392,7 +465,6 @@ const ReportScamPage: React.FC = () => {
 
       // Prepare contact methods
       const contactMethods: ContactMethod[] = [];
-
       if (formData.contactMethods.phone.selected) {
         contactMethods.push({
           method: 'phone',
@@ -425,70 +497,51 @@ const ReportScamPage: React.FC = () => {
         });
       }
 
-      // Prepare main report data
-      const report: ScamReport = {
-        reporter_name: formData.fullName,
-        reporter_email: formData.email,
-        reporter_phone: formData.phone,
-        reporter_city: formData.city,
-        reporter_state: formData.state,
-        reporter_age_range: formData.ageRange || undefined,
-        speak_with_team: formData.speakWithTeam,
-        share_anonymously: formData.shareAnonymously,
-        preferred_contact: formData.preferredContact,
-        money_lost: formData.moneyLost,
-        amount_lost: formData.amountLost ? parseFloat(formData.amountLost) : undefined,
-        date_occurred: formData.dateOccurred || new Date().toLocaleDateString('en-US', {
-          timeZone: 'America/New_York',
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit'
-        }),
-        scammer_name: formData.scammerName,
-        company_name: formData.companyName,
-        scammer_phone: formData.scammerPhone,
-        scammer_email: formData.scammerEmail,
-        scammer_website: formData.scammerWebsite,
-        reported_elsewhere: formData.reportedElsewhere,
-        reported_to: formData.reportedTo,
-        want_updates: formData.wantUpdates,
-        evidence_file_url: evidenceUrl || undefined
-      };
+      console.log('Submitting report to database:', { report, scamTypes, contactMethods });
 
       // Submit the report
-      const { success, error } = await submitScamReport(report, scamTypes, contactMethods);
-      if (!success) throw error;
+      const { success: submitSuccess, error: submitError, data: reportData } = await submitScamReport(report, scamTypes, contactMethods, metaDetails);
+      
+      if (!submitSuccess || !reportData) {
+        console.error('Report submission failed:', submitError);
+        throw new Error(submitError instanceof Error ? submitError.message : 'Failed to submit report');
+      }
+
+      console.log('Report submitted successfully:', reportData);
 
       // Send email notifications
       try {
-        // Send notification to admin
         await sendScamReportNotification({
-          report,
+          report: { ...report, id: reportData.id },
           scamTypes,
-          contactMethods
+          contactMethods,
+          metaDetails
         });
+        console.log('Admin notification sent successfully');
 
-        // Send confirmation to reporter if they want updates
         if (report.want_updates && report.reporter_email) {
-          await sendReporterConfirmation(report);
+          await sendReporterConfirmation({ ...report, id: reportData.id });
+          console.log('Reporter confirmation sent successfully');
         }
       } catch (emailError) {
         console.error('Error sending email notifications:', emailError);
-        // Don't throw error here, as the report was successfully submitted
+        // Continue even if email fails
       }
 
-      // Mark form as completed and clean up session
+      // Mark form as completed
       if (sessionId) {
         await markFormCompleted(sessionId);
         localStorage.removeItem('scam_report_session_id');
       }
 
       // Navigate to thank you page
-      navigate('/report-scam/thank-you');
+      console.log('Navigating to thank you page...');
+      navigate('/report-scam/thank-you', { replace: true });
     } catch (error: any) {
       console.error('Error submitting form:', error);
-      // Show detailed error message to user
-      alert(error?.message || 'There was an error submitting your report. Please try again.');
+      setError(error?.message || 'There was an error submitting your report. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -538,6 +591,7 @@ const ReportScamPage: React.FC = () => {
             onChange={handleFormChange}
             onSubmit={handleSubmit}
             onBack={handleBack}
+            isSubmitting={isSubmitting}
           />
         );
       default:
@@ -562,6 +616,11 @@ const ReportScamPage: React.FC = () => {
     >
       <Container maxWidth="md">
         <Paper elevation={3} sx={{ p: { xs: 2, md: 4 }, borderRadius: 2 }}>
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
           <Typography variant="h3" component="h1" align="center" gutterBottom color="primary">
             Have You Been Targeted by a Timeshare Scam?
           </Typography>

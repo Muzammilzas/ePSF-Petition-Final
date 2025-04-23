@@ -56,12 +56,33 @@ export interface ContactMethod {
   evidence_file_url?: string;
 }
 
+export interface MetaDetails {
+  browser: string;
+  device_type: string;
+  screen_resolution: string;
+  user_agent: string;
+  timezone: string;
+  language: string;
+  ip_address: string;
+  city: string;
+  region: string;
+  country: string;
+  latitude: number | null;
+  longitude: number | null;
+}
+
 export const submitScamReport = async (
   report: ScamReport,
   scamTypes: ScamTypeDetail[],
-  contactMethods: ContactMethod[]
+  contactMethods: ContactMethod[],
+  metaDetails: MetaDetails
 ) => {
   try {
+    // Validate required fields
+    if (!report.reporter_name || !report.reporter_email) {
+      throw new Error('Name and email are required fields');
+    }
+
     // Start a transaction
     const { data: reportData, error: reportError } = await supabase
       .from('scam_reports')
@@ -69,7 +90,10 @@ export const submitScamReport = async (
       .select()
       .single();
 
-    if (reportError) throw reportError;
+    if (reportError) {
+      console.error('Error inserting scam report:', reportError);
+      throw new Error(`Failed to submit report: ${reportError.message}`);
+    }
 
     // Insert scam types
     const scamTypesWithReportId = scamTypes.map(type => ({
@@ -81,7 +105,10 @@ export const submitScamReport = async (
       .from('scam_types')
       .insert(scamTypesWithReportId);
 
-    if (scamTypesError) throw scamTypesError;
+    if (scamTypesError) {
+      console.error('Error inserting scam types:', scamTypesError);
+      throw new Error(`Failed to save scam types: ${scamTypesError.message}`);
+    }
 
     // Insert contact methods
     const contactMethodsWithReportId = contactMethods.map(method => ({
@@ -93,12 +120,36 @@ export const submitScamReport = async (
       .from('contact_methods')
       .insert(contactMethodsWithReportId);
 
-    if (contactMethodsError) throw contactMethodsError;
+    if (contactMethodsError) {
+      console.error('Error inserting contact methods:', contactMethodsError);
+      throw new Error(`Failed to save contact methods: ${contactMethodsError.message}`);
+    }
+
+    // Insert meta details
+    const { error: metaError } = await supabase
+      .from('scam_report_metadata')
+      .insert({
+        report_id: reportData.id,
+        ...metaDetails
+      });
+
+    if (metaError) {
+      console.error('Error inserting meta details:', metaError);
+      throw new Error(`Failed to save meta details: ${metaError.message}`);
+    }
 
     return { success: true, data: reportData };
-  } catch (error) {
-    console.error('Error submitting scam report:', error);
-    return { success: false, error };
+  } catch (error: any) {
+    console.error('Error submitting scam report:', {
+      error,
+      message: error.message,
+      details: error?.details,
+      hint: error?.hint
+    });
+    return { 
+      success: false, 
+      error: error.message || 'An unexpected error occurred while submitting your report. Please try again.'
+    };
   }
 };
 

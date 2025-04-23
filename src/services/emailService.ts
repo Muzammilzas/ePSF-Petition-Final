@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ScamReport, ScamTypeDetail, ContactMethod } from './scamReportService';
+import { ScamReport, ScamTypeDetail, ContactMethod, MetaDetails } from './scamReportService';
 
 const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY;
 const ADMIN_EMAIL = 'zasprince007@gmail.com';
@@ -8,6 +8,13 @@ interface ScamReportEmailData {
   report: ScamReport;
   scamTypes: ScamTypeDetail[];
   contactMethods: ContactMethod[];
+}
+
+export interface AdminNotificationData {
+  report: ScamReport;
+  scamTypes: ScamTypeDetail[];
+  contactMethods: ContactMethod[];
+  metaDetails: MetaDetails;
 }
 
 const formatScamTypes = (scamTypes: ScamTypeDetail[]): string => {
@@ -36,102 +43,113 @@ const formatContactMethods = (contactMethods: ContactMethod[]): string => {
   }).join('\n\n');
 };
 
-export const sendScamReportNotification = async (data: ScamReportEmailData) => {
-  if (!BREVO_API_KEY) {
-    console.error('Brevo API key is not configured');
-    return { success: false, error: 'Email service not configured' };
-  }
+export const sendScamReportNotification = async (data: AdminNotificationData) => {
+  const {
+    report,
+    scamTypes,
+    contactMethods,
+    metaDetails
+  } = data;
 
   try {
-    console.log('Starting scam report notification process...');
-    console.log('Admin email recipient:', ADMIN_EMAIL);
+    console.log('Sending scam report notification to admin...');
 
-    const { report, scamTypes, contactMethods } = data;
+    // Format scam types for email
+    const formattedScamTypes = scamTypes.map(type => {
+      switch(type.scam_type) {
+        case 'fake_resale':
+          return `Fake Resale - Claimed Amount: ${type.claimed_sale_amount || 'Not provided'}`;
+        case 'upfront_fees':
+          return `Upfront Fees - Amount: ${type.amount || 'Not provided'}, Services: ${type.promised_services || 'Not provided'}`;
+        case 'high_pressure':
+          return `High Pressure - Tactics: ${type.tactics || 'Not provided'}, Limited Time/Threat: ${type.limited_time_or_threat ? 'Yes' : 'No'}`;
+        case 'refund_exit':
+          return `Refund/Exit - Promised: ${type.promised_refund || 'Not provided'}, After Other Company: ${type.contacted_after_other_company ? 'Yes' : 'No'}`;
+        case 'other':
+          return `Other - ${type.description || 'Not provided'}`;
+        default:
+          return 'Unknown scam type';
+      }
+    }).join('\\n');
 
-    // Format money lost amount
-    const moneyLostAmount = report.amount_lost 
-      ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(report.amount_lost)
-      : 'N/A';
-
-    // Format scam types for template
-    const formattedScamTypes = scamTypes.reduce((acc, type) => {
-      acc[`${type.scam_type}_selected`] = true;
-      if (type.claimed_sale_amount) acc[`${type.scam_type}_amount`] = type.claimed_sale_amount;
-      if (type.amount) acc[`${type.scam_type}_amount`] = type.amount;
-      if (type.promised_services) acc[`${type.scam_type}_services`] = type.promised_services;
-      if (type.tactics) acc[`${type.scam_type}_tactics`] = type.tactics;
-      if (type.limited_time_or_threat !== undefined) acc[`${type.scam_type}_threat`] = type.limited_time_or_threat;
-      if (type.promised_refund) acc[`${type.scam_type}_promise`] = type.promised_refund;
-      if (type.contacted_after_other_company !== undefined) acc[`${type.scam_type}_contacted`] = type.contacted_after_other_company;
-      if (type.description) acc[`${type.scam_type}_description`] = type.description;
-      return acc;
-    }, {} as Record<string, any>);
-
-    console.log('Formatted scam types:', formattedScamTypes);
-
-    // Format contact methods for template
-    const formattedContactMethods = contactMethods.reduce((acc, method) => {
-      acc[`${method.method}_contact_selected`] = true;
-      if (method.phone_number) acc.contact_phone_number = method.phone_number;
-      if (method.email_address) acc.contact_email_address = method.email_address;
-      if (method.evidence_file_url) acc.contact_email_evidence = method.evidence_file_url;
-      if (method.social_media_platform) acc.social_media_platform = method.social_media_platform;
-      if (method.social_media_profile) acc.social_media_profile = method.social_media_profile;
-      if (method.location) acc.in_person_location = method.location;
-      if (method.event_type) acc.in_person_event = method.event_type;
-      return acc;
-    }, {} as Record<string, any>);
-
-    console.log('Formatted contact methods:', formattedContactMethods);
+    // Format contact methods for email
+    const formattedContactMethods = contactMethods.map(method => {
+      switch(method.method) {
+        case 'phone':
+          return `Phone: ${method.phone_number}`;
+        case 'email':
+          return `Email: ${method.email_address}${method.evidence_file_url ? ' (Evidence attached)' : ''}`;
+        case 'social_media':
+          return `Social Media: ${method.social_media_platform} - ${method.social_media_profile}`;
+        case 'in_person':
+          return `In Person: ${method.location} - ${method.event_type}`;
+        default:
+          return 'Unknown contact method';
+      }
+    }).join('\\n');
 
     const requestBody = {
-      sender: {
-        name: 'ePublic Safety Foundation',
-        email: 'info@epublicsf.org'
-      },
       to: [{
-        email: ADMIN_EMAIL,
-        name: 'ePSF Admin'
+        email: 'zasprince007@gmail.com',
+        name: 'Admin'
       }],
-      templateId: 7,
+      templateId: 8,
       params: {
         reporter_name: report.reporter_name,
-        reporter_email: report.reporter_email || 'Not provided',
-        reporter_phone: report.reporter_phone || 'Not provided',
+        reporter_email: report.reporter_email,
+        reporter_phone: report.reporter_phone,
         reporter_city: report.reporter_city,
         reporter_state: report.reporter_state,
         reporter_age_range: report.reporter_age_range || 'Not provided',
-        preferred_contact: report.preferred_contact,
         speak_with_team: report.speak_with_team ? 'Yes' : 'No',
         share_anonymously: report.share_anonymously ? 'Yes' : 'No',
-        
+        preferred_contact: report.preferred_contact,
+        money_lost: report.money_lost ? 'Yes' : 'No',
+        amount_lost: report.amount_lost ? `$${report.amount_lost}` : 'Not provided',
         date_occurred: new Date(report.date_occurred).toLocaleDateString('en-US', {
           timeZone: 'America/New_York',
           year: 'numeric',
           month: '2-digit',
           day: '2-digit'
         }),
-        money_lost: report.money_lost ? 'Yes' : 'No',
-        amount_lost: moneyLostAmount,
         scammer_name: report.scammer_name || 'Not provided',
         company_name: report.company_name || 'Not provided',
         scammer_phone: report.scammer_phone || 'Not provided',
         scammer_email: report.scammer_email || 'Not provided',
         scammer_website: report.scammer_website || 'Not provided',
-        
         reported_elsewhere: report.reported_elsewhere ? 'Yes' : 'No',
-        reported_to: report.reported_to || 'N/A',
+        reported_to: report.reported_to || 'Not provided',
         want_updates: report.want_updates ? 'Yes' : 'No',
-        evidence_file_url: report.evidence_file_url || '',
-        
-        admin_url: `${window.location.origin}/admin/scam-reports`,
-        
-        ...formattedScamTypes,
-        ...formattedContactMethods
+        evidence_file_url: report.evidence_file_url || 'No evidence attached',
+        scam_types: formattedScamTypes,
+        contact_methods: formattedContactMethods,
+        // Meta details
+        browser: metaDetails.browser,
+        device_type: metaDetails.device_type,
+        screen_resolution: metaDetails.screen_resolution,
+        user_agent: metaDetails.user_agent,
+        timezone: metaDetails.timezone,
+        language: metaDetails.language,
+        ip_address: metaDetails.ip_address,
+        meta_city: metaDetails.city,
+        meta_region: metaDetails.region,
+        meta_country: metaDetails.country,
+        meta_location: metaDetails.latitude && metaDetails.longitude ? 
+          `${metaDetails.latitude}, ${metaDetails.longitude}` : 'Not available',
+        submission_time: new Date().toLocaleString('en-US', {
+          timeZone: 'America/New_York',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true
+        })
       }
     };
 
-    console.log('Preparing to send email with request body:', JSON.stringify(requestBody, null, 2));
+    console.log('Sending request to Brevo with:', JSON.stringify(requestBody, null, 2));
 
     const response = await axios.post(
       'https://api.brevo.com/v3/smtp/email',
@@ -139,36 +157,22 @@ export const sendScamReportNotification = async (data: ScamReportEmailData) => {
       {
         headers: {
           'accept': 'application/json',
-          'api-key': BREVO_API_KEY,
+          'api-key': import.meta.env.VITE_BREVO_API_KEY,
           'content-type': 'application/json'
         }
       }
     );
 
-    console.log('Email API Response:', {
-      status: response.status,
-      statusText: response.statusText,
-      data: response.data
-    });
-
-    return { success: true, data: response.data };
+    console.log('Admin notification sent successfully:', response.data);
+    return response.data;
   } catch (error: any) {
-    console.error('Detailed error sending notification:', {
+    console.error('Error sending admin notification:', {
       message: error.message,
       status: error?.response?.status,
       statusText: error?.response?.statusText,
-      data: error?.response?.data,
-      headers: error?.response?.headers,
-      config: {
-        url: error?.config?.url,
-        method: error?.config?.method,
-        headers: error?.config?.headers
-      }
+      data: error?.response?.data
     });
-    return { 
-      success: false, 
-      error: error?.response?.data?.message || error.message 
-    };
+    throw error;
   }
 };
 

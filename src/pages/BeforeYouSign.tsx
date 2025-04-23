@@ -17,6 +17,7 @@ import {
 import { motion } from 'framer-motion';
 import { fadeInUp, staggerContainer } from '../components/Home/common/animations';
 import { supabase } from '../supabase';
+import { GoogleReCaptchaProvider, useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 
 const getBrowserInfo = () => {
   const userAgent = navigator.userAgent;
@@ -39,7 +40,7 @@ const getDeviceType = () => {
   return 'Desktop';
 };
 
-const BeforeYouSign = () => {
+const BeforeYouSignPage = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [formData, setFormData] = useState({
@@ -50,6 +51,8 @@ const BeforeYouSign = () => {
   const [locationData, setLocationData] = useState<any>(null);
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { executeRecaptcha } = useGoogleReCaptcha();
 
   useEffect(() => {
     const getGeolocationData = async () => {
@@ -191,12 +194,30 @@ const BeforeYouSign = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.email || !formData.fullName) {
-      setError('Please fill in all required fields');
+    setIsSubmitting(true);
+    setError('');
+
+    if (!executeRecaptcha) {
+      console.error('reCAPTCHA not initialized');
+      setError('Form validation not yet available. Please try again.');
+      setIsSubmitting(false);
       return;
     }
 
     try {
+      console.log('Executing reCAPTCHA...');
+      const token = await executeRecaptcha('download_guide');
+      console.log('reCAPTCHA token received:', !!token);
+      
+      if (!token) {
+        throw new Error('Failed to execute reCAPTCHA');
+      }
+
+      if (!formData.email || !formData.fullName) {
+        setError('Please fill in all required fields');
+        return;
+      }
+
       console.log('Form Data being submitted:', formData);
       console.log('Location Data:', locationData);
 
@@ -406,9 +427,11 @@ const BeforeYouSign = () => {
         email: '',
         newsletterConsent: false
       });
-    } catch (error) {
-      console.error('Main Error:', error);
-      setError('Failed to submit form. Please check the console for details.');
+    } catch (error: any) {
+      console.error('Form submission error:', error);
+      setError(error.message || 'Failed to process your request. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -684,6 +707,36 @@ const BeforeYouSign = () => {
         </Alert>
       </Snackbar>
     </Box>
+  );
+};
+
+const BeforeYouSign: React.FC = () => {
+  const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '';
+  
+  console.log('Initializing reCAPTCHA with site key:', !!recaptchaSiteKey);
+  
+  if (!recaptchaSiteKey) {
+    console.error('reCAPTCHA site key is missing');
+    return (
+      <Container maxWidth="md">
+        <Alert severity="error">
+          Form is temporarily unavailable. Please try again later.
+        </Alert>
+      </Container>
+    );
+  }
+
+  return (
+    <GoogleReCaptchaProvider
+      reCaptchaKey={recaptchaSiteKey}
+      scriptProps={{
+        async: true,
+        defer: true,
+        appendTo: 'head',
+      }}
+    >
+      <BeforeYouSignPage />
+    </GoogleReCaptchaProvider>
   );
 };
 

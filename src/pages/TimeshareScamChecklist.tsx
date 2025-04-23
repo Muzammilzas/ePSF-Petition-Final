@@ -17,8 +17,9 @@ import {
 import { motion } from 'framer-motion';
 import { fadeInUp, staggerContainer } from '../components/Home/common/animations';
 import { supabase } from '../supabase';
+import { GoogleReCaptchaProvider, useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 
-const TimeshareScamChecklist = () => {
+const TimeshareScamChecklistPage = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [formData, setFormData] = useState({
@@ -38,6 +39,8 @@ const TimeshareScamChecklist = () => {
   });
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { executeRecaptcha } = useGoogleReCaptcha();
 
   useEffect(() => {
     const getMetaDetails = async () => {
@@ -232,12 +235,30 @@ const TimeshareScamChecklist = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.email || !formData.fullName) {
-      setError('Please fill in all required fields');
+    setIsSubmitting(true);
+    setError('');
+
+    if (!executeRecaptcha) {
+      console.error('reCAPTCHA not initialized');
+      setError('Form validation not yet available. Please try again.');
+      setIsSubmitting(false);
       return;
     }
 
     try {
+      console.log('Executing reCAPTCHA...');
+      const token = await executeRecaptcha('download_guide');
+      console.log('reCAPTCHA token received:', !!token);
+      
+      if (!token) {
+        throw new Error('Failed to execute reCAPTCHA');
+      }
+
+      if (!formData.email || !formData.fullName) {
+        setError('Please fill in all required fields');
+        return;
+      }
+
       // Format current time in EST
       const downloadTime = new Date().toLocaleString('en-US', {
         timeZone: 'America/New_York',
@@ -414,273 +435,320 @@ const TimeshareScamChecklist = () => {
         } 
       });
     } catch (error: any) {
-      console.error('Error:', error);
-      setError(error.message || 'Failed to submit form. Please try again later.');
+      console.error('Form submission error:', error);
+      setError(error.message || 'Failed to process your request. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
-        color: 'white',
-        position: 'relative',
-        overflow: 'hidden',
-        '&::before': {
-          content: '""',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
+    <>
+      <Box
+        sx={{
+          position: 'fixed',
           bottom: 0,
-          background: 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%)',
-          zIndex: 1
-        }
-      }}
-    >
-      <Container 
-        maxWidth="lg" 
-        sx={{ 
-          flex: 1,
+          right: 0,
+          zIndex: 9999999,
+          '& .grecaptcha-badge': {
+            position: 'static !important',
+            margin: '0 24px 24px 0',
+            boxShadow: 'rgba(0, 0, 0, 0.1) 0px 4px 12px !important'
+          }
+        }}
+      />
+      <Box
+        sx={{
+          minHeight: '100vh',
           display: 'flex',
           flexDirection: 'column',
-          py: { xs: 4, md: 6 },
+          background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
+          color: 'white',
           position: 'relative',
-          zIndex: 2
+          overflow: 'hidden',
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%)',
+            zIndex: 1
+          }
         }}
       >
-        <Grid 
-          container 
-          spacing={4}
-          sx={{
+        <Container 
+          maxWidth="lg" 
+          sx={{ 
             flex: 1,
-            alignItems: 'center'
+            display: 'flex',
+            flexDirection: 'column',
+            py: { xs: 4, md: 6 },
+            position: 'relative',
+            zIndex: 2
           }}
         >
-          <Grid item xs={12} md={6}>
-            <motion.div
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-              variants={staggerContainer}
-            >
-              <motion.div variants={fadeInUp}>
-                <Typography
-                  variant="h1"
-                  component="h1"
-                  sx={{
-                    fontWeight: 800,
-                    mb: 3,
-                    fontSize: { xs: '2.5rem', sm: '3rem', md: '3.5rem' },
-                    background: 'linear-gradient(45deg, #FFFFFF 30%, rgba(255,255,255,0.8) 90%)',
-                    backgroundClip: 'text',
-                    WebkitBackgroundClip: 'text',
-                    textFillColor: 'transparent',
-                    WebkitTextFillColor: 'transparent'
-                  }}
-                >
-                  Your First Step to Freedom from Timeshare Scams
-                </Typography>
-
-                <Typography
-                  variant="h4"
-                  sx={{
-                    mb: 3,
-                    color: 'rgba(255, 255, 255, 0.9)',
-                    fontSize: { xs: '1.5rem', md: '1.75rem' }
-                  }}
-                >
-                  Protect yourself before you sign. Avoid hidden fees, false promises, and fake exit companies.
-                </Typography>
-
-                <Box 
-                  component="ul" 
-                  sx={{ 
-                    pl: 3,
-                    mb: 4,
-                    '& li': {
-                      mb: 2,
-                      fontSize: '1.1rem',
-                      color: 'rgba(255, 255, 255, 0.9)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      '&::before': {
-                        content: '"✓"',
-                        color: theme.palette.secondary.main,
-                        mr: 2,
-                        fontWeight: 'bold'
-                      }
-                    }
-                  }}
-                >
-                  <Typography component="li">
-                    What to ask before attending a sales pitch
-                  </Typography>
-                  <Typography component="li">
-                    Red flags buried in contracts and resale terms
-                  </Typography>
-                  <Typography component="li">
-                    How to know if an exit company is a scam
-                  </Typography>
-                  <Typography component="li">
-                    What to do if you're already trapped
-                  </Typography>
-                </Box>
-
-                <Typography
-                  sx={{
-                    fontSize: '1.1rem',
-                    color: 'rgba(255, 255, 255, 0.8)',
-                    lineHeight: 1.8,
-                    fontStyle: 'italic'
-                  }}
-                >
-                  💡 Most people don't realize they've been scammed — until it's too late.
-                  This checklist helps make sure you won't be one of them.
-                </Typography>
-              </motion.div>
-            </motion.div>
-          </Grid>
-
-          <Grid item xs={12} md={6}>
-            <motion.div
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-              variants={fadeInUp}
-            >
-              <Paper
-                elevation={3}
-                sx={{
-                  p: 4,
-                  borderRadius: 4,
-                  background: 'rgba(255, 255, 255, 0.95)',
-                  backdropFilter: 'blur(10px)',
-                  boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
-                  transform: isMobile ? 'none' : 'translateY(-20px)',
-                  transition: 'all 0.3s ease'
-                }}
+          <Grid 
+            container 
+            spacing={4}
+            sx={{
+              flex: 1,
+              alignItems: 'center'
+            }}
+          >
+            <Grid item xs={12} md={6}>
+              <motion.div
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                variants={staggerContainer}
               >
-                <Typography
-                  variant="h3"
-                  sx={{
-                    fontWeight: 600,
-                    mb: 3,
-                    color: theme.palette.primary.main,
-                    fontSize: { xs: '1.75rem', md: '2rem' }
-                  }}
-                >
-                  Get Your Free Checklist
-                </Typography>
-
-                <Typography
-                  sx={{
-                    mb: 4,
-                    color: 'text.secondary'
-                  }}
-                >
-                  Enter your email below to get instant access.
-                  We'll send the checklist straight to your inbox.
-                </Typography>
-
-                <form onSubmit={handleSubmit}>
-                  <TextField
-                    fullWidth
-                    label="Full Name"
-                    name="fullName"
-                    value={formData.fullName}
-                    onChange={handleChange}
-                    required
-                    sx={{ mb: 3 }}
-                  />
-
-                  <TextField
-                    fullWidth
-                    label="Email"
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                    sx={{ mb: 3 }}
-                  />
-
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        name="newsletterConsent"
-                        checked={formData.newsletterConsent}
-                        onChange={handleChange}
-                        color="primary"
-                      />
-                    }
-                    label="Get scam alerts and tips straight to your inbox—no spam, just protection."
-                    sx={{ mb: 4 }}
-                  />
-
-                  {error && (
-                    <Alert severity="error" sx={{ mb: 3 }}>
-                      {error}
-                    </Alert>
-                  )}
-
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    size="large"
-                    fullWidth
+                <motion.div variants={fadeInUp}>
+                  <Typography
+                    variant="h1"
+                    component="h1"
                     sx={{
-                      py: 2,
-                      fontSize: '1.1rem',
-                      fontWeight: 600,
-                      textTransform: 'none',
-                      borderRadius: 2,
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                      '&:hover': {
-                        transform: 'translateY(-2px)',
-                        boxShadow: '0 6px 20px rgba(0,0,0,0.2)'
-                      },
-                      transition: 'all 0.3s ease'
+                      fontWeight: 800,
+                      mb: 3,
+                      fontSize: { xs: '2.5rem', sm: '3rem', md: '3.5rem' },
+                      background: 'linear-gradient(45deg, #FFFFFF 30%, rgba(255,255,255,0.8) 90%)',
+                      backgroundClip: 'text',
+                      WebkitBackgroundClip: 'text',
+                      textFillColor: 'transparent',
+                      WebkitTextFillColor: 'transparent'
                     }}
                   >
-                    Get My Free Checklist
-                  </Button>
-                </form>
+                    Your First Step to Freedom from Timeshare Scams
+                  </Typography>
 
-                <Typography
+                  <Typography
+                    variant="h4"
+                    sx={{
+                      mb: 3,
+                      color: 'rgba(255, 255, 255, 0.9)',
+                      fontSize: { xs: '1.5rem', md: '1.75rem' }
+                    }}
+                  >
+                    Protect yourself before you sign. Avoid hidden fees, false promises, and fake exit companies.
+                  </Typography>
+
+                  <Box 
+                    component="ul" 
+                    sx={{ 
+                      pl: 3,
+                      mb: 4,
+                      '& li': {
+                        mb: 2,
+                        fontSize: '1.1rem',
+                        color: 'rgba(255, 255, 255, 0.9)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        '&::before': {
+                          content: '"✓"',
+                          color: theme.palette.secondary.main,
+                          mr: 2,
+                          fontWeight: 'bold'
+                        }
+                      }
+                    }}
+                  >
+                    <Typography component="li">
+                      What to ask before attending a sales pitch
+                    </Typography>
+                    <Typography component="li">
+                      Red flags buried in contracts and resale terms
+                    </Typography>
+                    <Typography component="li">
+                      How to know if an exit company is a scam
+                    </Typography>
+                    <Typography component="li">
+                      What to do if you're already trapped
+                    </Typography>
+                  </Box>
+
+                  <Typography
+                    sx={{
+                      fontSize: '1.1rem',
+                      color: 'rgba(255, 255, 255, 0.8)',
+                      lineHeight: 1.8,
+                      fontStyle: 'italic'
+                    }}
+                  >
+                    💡 Most people don't realize they've been scammed — until it's too late.
+                    This checklist helps make sure you won't be one of them.
+                  </Typography>
+                </motion.div>
+              </motion.div>
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <motion.div
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                variants={fadeInUp}
+              >
+                <Paper
+                  elevation={3}
                   sx={{
-                    mt: 3,
-                    fontSize: '0.9rem',
-                    color: 'text.secondary',
-                    textAlign: 'center'
+                    p: 4,
+                    borderRadius: 4,
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+                    transform: isMobile ? 'none' : 'translateY(-20px)',
+                    transition: 'all 0.3s ease'
                   }}
                 >
-                  👉 It's free. No strings attached. Just protection you can actually use.
-                </Typography>
-              </Paper>
-            </motion.div>
-          </Grid>
-        </Grid>
-      </Container>
+                  <Typography
+                    variant="h3"
+                    sx={{
+                      fontWeight: 600,
+                      mb: 3,
+                      color: theme.palette.primary.main,
+                      fontSize: { xs: '1.75rem', md: '2rem' }
+                    }}
+                  >
+                    Get Your Free Checklist
+                  </Typography>
 
-      <Snackbar
-        open={openSnackbar}
-        autoHideDuration={6000}
-        onClose={() => setOpenSnackbar(false)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert
+                  <Typography
+                    sx={{
+                      mb: 4,
+                      color: 'text.secondary'
+                    }}
+                  >
+                    Enter your email below to get instant access.
+                    We'll send the checklist straight to your inbox.
+                  </Typography>
+
+                  <form onSubmit={handleSubmit}>
+                    <TextField
+                      fullWidth
+                      label="Full Name"
+                      name="fullName"
+                      value={formData.fullName}
+                      onChange={handleChange}
+                      required
+                      sx={{ mb: 3 }}
+                    />
+
+                    <TextField
+                      fullWidth
+                      label="Email"
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      required
+                      sx={{ mb: 3 }}
+                    />
+
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          name="newsletterConsent"
+                          checked={formData.newsletterConsent}
+                          onChange={handleChange}
+                          color="primary"
+                        />
+                      }
+                      label="Get scam alerts and tips straight to your inbox—no spam, just protection."
+                      sx={{ mb: 4 }}
+                    />
+
+                    {error && (
+                      <Alert severity="error" sx={{ mb: 3 }}>
+                        {error}
+                      </Alert>
+                    )}
+
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      size="large"
+                      fullWidth
+                      sx={{
+                        py: 2,
+                        fontSize: '1.1rem',
+                        fontWeight: 600,
+                        textTransform: 'none',
+                        borderRadius: 2,
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                        '&:hover': {
+                          transform: 'translateY(-2px)',
+                          boxShadow: '0 6px 20px rgba(0,0,0,0.2)'
+                        },
+                        transition: 'all 0.3s ease'
+                      }}
+                    >
+                      Get My Free Checklist
+                    </Button>
+                  </form>
+
+                  <Typography
+                    sx={{
+                      mt: 3,
+                      fontSize: '0.9rem',
+                      color: 'text.secondary',
+                      textAlign: 'center'
+                    }}
+                  >
+                    👉 It's free. No strings attached. Just protection you can actually use.
+                  </Typography>
+                </Paper>
+              </motion.div>
+            </Grid>
+          </Grid>
+        </Container>
+
+        <Snackbar
+          open={openSnackbar}
+          autoHideDuration={6000}
           onClose={() => setOpenSnackbar(false)}
-          severity="success"
-          sx={{ width: '100%' }}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         >
-          Thank you! Your checklist has been sent to your email.
+          <Alert
+            onClose={() => setOpenSnackbar(false)}
+            severity="success"
+            sx={{ width: '100%' }}
+          >
+            Thank you! Your checklist has been sent to your email.
+          </Alert>
+        </Snackbar>
+      </Box>
+    </>
+  );
+};
+
+const TimeshareScamChecklist: React.FC = () => {
+  const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '';
+  
+  console.log('Initializing reCAPTCHA with site key:', !!recaptchaSiteKey);
+  
+  if (!recaptchaSiteKey) {
+    console.error('reCAPTCHA site key is missing');
+    return (
+      <Container maxWidth="md">
+        <Alert severity="error">
+          Form is temporarily unavailable. Please try again later.
         </Alert>
-      </Snackbar>
-    </Box>
+      </Container>
+    );
+  }
+
+  return (
+    <GoogleReCaptchaProvider
+      reCaptchaKey={recaptchaSiteKey}
+      scriptProps={{
+        async: true,
+        defer: true,
+        appendTo: 'head',
+      }}
+    >
+      <TimeshareScamChecklistPage />
+    </GoogleReCaptchaProvider>
   );
 };
 

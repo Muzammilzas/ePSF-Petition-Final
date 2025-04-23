@@ -10,20 +10,24 @@ console.log('Supabase Environment Check:', {
 });
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables. Please check your configuration.');
-  // Instead of throwing an error, provide a fallback or default values
-  // This prevents the app from crashing completely
+  throw new Error('Missing Supabase environment variables. Please check your .env file and ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set.');
 }
 
-export const supabase = createClient(
-  supabaseUrl || 'https://lbqhvgvvxvrrooalywhz.supabase.co',
-  supabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxicWh2Z3Z2eHZycm9vYWx5d2h6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEzNzc0NzEsImV4cCI6MjA1Njk1MzQ3MX0.LxFzvKRAnhRwTE52BiNPqq8APmSCFU6hW7avGWw43Xs'
-);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  },
+  db: {
+    schema: 'public'
+  }
+});
 
 // Test the connection and log detailed errors
 (async () => {
   try {
-    const { data, error } = await supabase.from('petitions').select('count').single();
+    const { data, error } = await supabase.from('scam_reports').select('count').single();
     if (error) {
       console.error('Supabase connection error:', {
         message: error.message,
@@ -36,6 +40,22 @@ export const supabase = createClient(
     }
   } catch (error: unknown) {
     console.error('Unexpected Supabase error:', error);
+  }
+})();
+
+// Update RLS policies to allow anonymous inserts
+(async () => {
+  try {
+    const { error } = await supabase.rpc('update_rls_policies', {
+      table_name: 'scam_reports',
+      policy_name: 'Enable anonymous inserts',
+      policy_definition: 'true'
+    });
+    if (error) {
+      console.error('Error updating RLS policies:', error);
+    }
+  } catch (error) {
+    console.error('Failed to update RLS policies:', error);
   }
 })();
 

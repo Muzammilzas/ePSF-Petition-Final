@@ -18,6 +18,7 @@ import {
 import { motion } from 'framer-motion';
 import { fadeInUp, staggerContainer } from '../components/Home/common/animations';
 import { supabase } from '../supabase';
+import { GoogleReCaptchaProvider, useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 
 const getBrowserInfo = () => {
   const userAgent = navigator.userAgent;
@@ -40,7 +41,7 @@ const getDeviceType = () => {
   return 'Desktop';
 };
 
-const SpottingExitScams = () => {
+const SpottingExitScamsPage = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [formData, setFormData] = useState({
@@ -52,6 +53,7 @@ const SpottingExitScams = () => {
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { executeRecaptcha } = useGoogleReCaptcha();
 
   useEffect(() => {
     const getGeolocationData = async () => {
@@ -281,14 +283,30 @@ const SpottingExitScams = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.email || !formData.fullName) {
-      setError('Please fill in all required fields');
+    setIsSubmitting(true);
+    setError('');
+
+    if (!executeRecaptcha) {
+      console.error('reCAPTCHA not initialized');
+      setError('Form validation not yet available. Please try again.');
+      setIsSubmitting(false);
       return;
     }
 
-    setIsSubmitting(true);
-    setError('');
     try {
+      console.log('Executing reCAPTCHA...');
+      const token = await executeRecaptcha('download_guide');
+      console.log('reCAPTCHA token received:', !!token);
+      
+      if (!token) {
+        throw new Error('Failed to execute reCAPTCHA');
+      }
+
+      if (!formData.email || !formData.fullName) {
+        setError('Please fill in all required fields');
+        return;
+      }
+
       console.log('Form Data being submitted:', formData);
       console.log('Location Data:', locationData);
 
@@ -518,276 +536,321 @@ const SpottingExitScams = () => {
         email: '',
         newsletterConsent: false
       });
-    } catch (error) {
-      console.error('Error:', error);
-      setError('Failed to submit form. Please try again later.');
+    } catch (error: any) {
+      console.error('Form submission error:', error);
+      setError(error.message || 'Failed to process your request. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
-        color: 'white',
-        position: 'relative',
-        overflow: 'hidden',
-        '&::before': {
-          content: '""',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
+    <>
+      <Box
+        sx={{
+          position: 'fixed',
           bottom: 0,
-          background: 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%)',
-          zIndex: 1
-        }
-      }}
-    >
-      <Container 
-        maxWidth="lg" 
-        sx={{ 
-          flex: 1,
+          right: 0,
+          zIndex: 9999999,
+          '& .grecaptcha-badge': {
+            position: 'static !important',
+            margin: '0 24px 24px 0',
+            boxShadow: 'rgba(0, 0, 0, 0.1) 0px 4px 12px !important'
+          }
+        }}
+      />
+      <Box
+        sx={{
+          minHeight: '100vh',
           display: 'flex',
           flexDirection: 'column',
-          py: { xs: 4, md: 6 },
+          background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
+          color: 'white',
           position: 'relative',
-          zIndex: 2
+          overflow: 'hidden',
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%)',
+            zIndex: 1
+          }
         }}
       >
-        <Grid 
-          container 
-          spacing={4}
-          sx={{
+        <Container 
+          maxWidth="lg" 
+          sx={{ 
             flex: 1,
-            alignItems: 'center'
+            display: 'flex',
+            flexDirection: 'column',
+            py: { xs: 4, md: 6 },
+            position: 'relative',
+            zIndex: 2
           }}
         >
-          <Grid item xs={12} md={6}>
-            <motion.div
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-              variants={staggerContainer}
-            >
-              <motion.div variants={fadeInUp}>
-                <Typography
-                  variant="h1"
-                  component="h1"
-                  sx={{
-                    fontWeight: 800,
-                    mb: 3,
-                    fontSize: { xs: '2.5rem', sm: '3rem', md: '3.5rem' },
-                    background: 'linear-gradient(45deg, #FFFFFF 30%, rgba(255,255,255,0.8) 90%)',
-                    backgroundClip: 'text',
-                    WebkitBackgroundClip: 'text',
-                    textFillColor: 'transparent',
-                    WebkitTextFillColor: 'transparent'
-                  }}
-                >
-                  Spotting Exit Scams Guide
-                </Typography>
+          <Grid 
+            container 
+            spacing={4}
+            sx={{
+              flex: 1,
+              alignItems: 'center'
+            }}
+          >
+            <Grid item xs={12} md={6}>
+              <motion.div
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                variants={staggerContainer}
+              >
+                <motion.div variants={fadeInUp}>
+                  <Typography
+                    variant="h1"
+                    component="h1"
+                    sx={{
+                      fontWeight: 800,
+                      mb: 3,
+                      fontSize: { xs: '2.5rem', sm: '3rem', md: '3.5rem' },
+                      background: 'linear-gradient(45deg, #FFFFFF 30%, rgba(255,255,255,0.8) 90%)',
+                      backgroundClip: 'text',
+                      WebkitBackgroundClip: 'text',
+                      textFillColor: 'transparent',
+                      WebkitTextFillColor: 'transparent'
+                    }}
+                  >
+                    Spotting Exit Scams Guide
+                  </Typography>
 
-                <Typography
-                  variant="h4"
-                  sx={{
-                    mb: 3,
-                    color: 'rgba(255, 255, 255, 0.9)',
-                    fontSize: { xs: '1.5rem', md: '1.75rem' }
-                  }}
-                >
-                  Learn how to identify and avoid exit scams before they happen.
-                </Typography>
+                  <Typography
+                    variant="h4"
+                    sx={{
+                      mb: 3,
+                      color: 'rgba(255, 255, 255, 0.9)',
+                      fontSize: { xs: '1.5rem', md: '1.75rem' }
+                    }}
+                  >
+                    Learn how to identify and avoid exit scams before they happen.
+                  </Typography>
 
-                <Typography
-                  sx={{
-                    mb: 4,
-                    fontSize: '1.1rem',
-                    color: 'rgba(255, 255, 255, 0.9)',
-                    lineHeight: 1.8
-                  }}
-                >
-                  This comprehensive guide will help you recognize the warning signs and protect yourself from exit scams.
-                </Typography>
-
-                <Box 
-                  component="ul" 
-                  sx={{ 
-                    pl: 3,
-                    mb: 4,
-                    '& li': {
-                      mb: 2,
+                  <Typography
+                    sx={{
+                      mb: 4,
                       fontSize: '1.1rem',
                       color: 'rgba(255, 255, 255, 0.9)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      '&::before': {
-                        content: '"✓"',
-                        color: theme.palette.secondary.main,
-                        mr: 2,
-                        fontWeight: 'bold'
-                      }
-                    }
-                  }}
-                >
-                  <Typography component="li">
-                    Common exit scam patterns
-                  </Typography>
-                  <Typography component="li">
-                    Warning signs to watch for
-                  </Typography>
-                  <Typography component="li">
-                    How to protect yourself
-                  </Typography>
-                  <Typography component="li">
-                    What to do if you're a victim
-                  </Typography>
-                </Box>
-
-                <Typography
-                  sx={{
-                    fontSize: '1.1rem',
-                    color: 'rgba(255, 255, 255, 0.8)',
-                    lineHeight: 1.8,
-                    fontStyle: 'italic'
-                  }}
-                >
-                  Get this free guide to protect yourself from exit scams.
-                </Typography>
-              </motion.div>
-            </motion.div>
-          </Grid>
-
-          <Grid item xs={12} md={6}>
-            <motion.div
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-              variants={fadeInUp}
-            >
-              <Paper
-                elevation={3}
-                sx={{
-                  p: 4,
-                  borderRadius: 4,
-                  background: 'rgba(255, 255, 255, 0.95)',
-                  backdropFilter: 'blur(10px)',
-                  boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
-                  transform: isMobile ? 'none' : 'translateY(-20px)',
-                  transition: 'all 0.3s ease'
-                }}
-              >
-                <Typography
-                  variant="h3"
-                  sx={{
-                    fontWeight: 600,
-                    mb: 3,
-                    color: theme.palette.primary.main,
-                    fontSize: { xs: '1.75rem', md: '2rem' }
-                  }}
-                >
-                  Get Your Free Fact Sheet
-                </Typography>
-
-                <Typography
-                  sx={{
-                    mb: 4,
-                    color: 'text.secondary'
-                  }}
-                >
-                  Enter your email to get the guide instantly.
-                  No spam — just essential information to protect yourself.
-                </Typography>
-
-                <form onSubmit={handleSubmit}>
-                  <TextField
-                    fullWidth
-                    label="Full Name"
-                    name="fullName"
-                    value={formData.fullName}
-                    onChange={handleChange}
-                    required
-                    sx={{ mb: 3 }}
-                  />
-
-                  <TextField
-                    fullWidth
-                    label="Email"
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                    sx={{ mb: 3 }}
-                  />
-
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={formData.newsletterConsent}
-                        onChange={handleChange}
-                        name="newsletterConsent"
-                        color="primary"
-                      />
-                    }
-                    label="Get scam alerts and tips straight to your inbox—no spam, just protection."
-                    sx={{ mb: 3 }}
-                  />
-
-                  {error && (
-                    <Alert severity="error" sx={{ mb: 3 }}>
-                      {error}
-                    </Alert>
-                  )}
-
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    color="primary"
-                    size="large"
-                    fullWidth
-                    disabled={isSubmitting}
-                    sx={{ mt: 2 }}
+                      lineHeight: 1.8
+                    }}
                   >
-                    {isSubmitting ? 'Submitting...' : 'Get My Free Fact Sheet'}
-                  </Button>
-                </form>
+                    This comprehensive guide will help you recognize the warning signs and protect yourself from exit scams.
+                  </Typography>
 
-                <Typography
+                  <Box 
+                    component="ul" 
+                    sx={{ 
+                      pl: 3,
+                      mb: 4,
+                      '& li': {
+                        mb: 2,
+                        fontSize: '1.1rem',
+                        color: 'rgba(255, 255, 255, 0.9)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        '&::before': {
+                          content: '"✓"',
+                          color: theme.palette.secondary.main,
+                          mr: 2,
+                          fontWeight: 'bold'
+                        }
+                      }
+                    }}
+                  >
+                    <Typography component="li">
+                      Common exit scam patterns
+                    </Typography>
+                    <Typography component="li">
+                      Warning signs to watch for
+                    </Typography>
+                    <Typography component="li">
+                      How to protect yourself
+                    </Typography>
+                    <Typography component="li">
+                      What to do if you're a victim
+                    </Typography>
+                  </Box>
+
+                  <Typography
+                    sx={{
+                      fontSize: '1.1rem',
+                      color: 'rgba(255, 255, 255, 0.8)',
+                      lineHeight: 1.8,
+                      fontStyle: 'italic'
+                    }}
+                  >
+                    Get this free guide to protect yourself from exit scams.
+                  </Typography>
+                </motion.div>
+              </motion.div>
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <motion.div
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                variants={fadeInUp}
+              >
+                <Paper
+                  elevation={3}
                   sx={{
-                    mt: 3,
-                    fontSize: '0.9rem',
-                    color: 'text.secondary',
-                    textAlign: 'center'
+                    p: 4,
+                    borderRadius: 4,
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+                    transform: isMobile ? 'none' : 'translateY(-20px)',
+                    transition: 'all 0.3s ease'
                   }}
                 >
-                  👉 It's free. No strings attached. Just protection you can actually use.
-                </Typography>
-              </Paper>
-            </motion.div>
-          </Grid>
-        </Grid>
-      </Container>
+                  <Typography
+                    variant="h3"
+                    sx={{
+                      fontWeight: 600,
+                      mb: 3,
+                      color: theme.palette.primary.main,
+                      fontSize: { xs: '1.75rem', md: '2rem' }
+                    }}
+                  >
+                    Get Your Free Fact Sheet
+                  </Typography>
 
-      <Snackbar
-        open={openSnackbar}
-        autoHideDuration={6000}
-        onClose={() => setOpenSnackbar(false)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert
+                  <Typography
+                    sx={{
+                      mb: 4,
+                      color: 'text.secondary'
+                    }}
+                  >
+                    Enter your email to get the guide instantly.
+                    No spam — just essential information to protect yourself.
+                  </Typography>
+
+                  <form onSubmit={handleSubmit}>
+                    <TextField
+                      fullWidth
+                      label="Full Name"
+                      name="fullName"
+                      value={formData.fullName}
+                      onChange={handleChange}
+                      required
+                      sx={{ mb: 3 }}
+                    />
+
+                    <TextField
+                      fullWidth
+                      label="Email"
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      required
+                      sx={{ mb: 3 }}
+                    />
+
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={formData.newsletterConsent}
+                          onChange={handleChange}
+                          name="newsletterConsent"
+                          color="primary"
+                        />
+                      }
+                      label="Get scam alerts and tips straight to your inbox—no spam, just protection."
+                      sx={{ mb: 3 }}
+                    />
+
+                    {error && (
+                      <Alert severity="error" sx={{ mb: 3 }}>
+                        {error}
+                      </Alert>
+                    )}
+
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      color="primary"
+                      size="large"
+                      fullWidth
+                      disabled={isSubmitting}
+                      sx={{ mt: 2 }}
+                    >
+                      {isSubmitting ? 'Submitting...' : 'Get My Free Fact Sheet'}
+                    </Button>
+                  </form>
+
+                  <Typography
+                    sx={{
+                      mt: 3,
+                      fontSize: '0.9rem',
+                      color: 'text.secondary',
+                      textAlign: 'center'
+                    }}
+                  >
+                    👉 It's free. No strings attached. Just protection you can actually use.
+                  </Typography>
+                </Paper>
+              </motion.div>
+            </Grid>
+          </Grid>
+        </Container>
+
+        <Snackbar
+          open={openSnackbar}
+          autoHideDuration={6000}
           onClose={() => setOpenSnackbar(false)}
-          severity="success"
-          sx={{ width: '100%' }}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         >
-          Thank you! Your guide has been sent to your email.
+          <Alert
+            onClose={() => setOpenSnackbar(false)}
+            severity="success"
+            sx={{ width: '100%' }}
+          >
+            Thank you! Your guide has been sent to your email.
+          </Alert>
+        </Snackbar>
+      </Box>
+    </>
+  );
+};
+
+const SpottingExitScams: React.FC = () => {
+  const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '';
+  
+  console.log('Initializing reCAPTCHA with site key:', !!recaptchaSiteKey);
+  
+  if (!recaptchaSiteKey) {
+    console.error('reCAPTCHA site key is missing');
+    return (
+      <Container maxWidth="md">
+        <Alert severity="error">
+          Form is temporarily unavailable. Please try again later.
         </Alert>
-      </Snackbar>
-    </Box>
+      </Container>
+    );
+  }
+
+  return (
+    <GoogleReCaptchaProvider
+      reCaptchaKey={recaptchaSiteKey}
+      scriptProps={{
+        async: true,
+        defer: true,
+        appendTo: 'head',
+      }}
+    >
+      <SpottingExitScamsPage />
+    </GoogleReCaptchaProvider>
   );
 };
 

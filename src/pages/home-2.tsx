@@ -16,7 +16,7 @@ import {
   useMediaQuery
 } from '@mui/material';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { fadeInUp, staggerContainer } from '../components/Home/common/animations';
 
 // Icons
@@ -545,6 +545,11 @@ const WhoWeAreSection = () => {
 
 const SignPetitionSection = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
+
+  const handleSignPetition = () => {
+    navigate('/petition');
+  };
   
   return (
     <Box 
@@ -660,8 +665,7 @@ const SignPetitionSection = () => {
 
                     <Box sx={{ textAlign: 'center' }}>
                       <Button
-                        component={Link}
-                        to="/petition"
+                        onClick={handleSignPetition}
                         variant="contained"
                         size="large"
                         sx={{
@@ -853,7 +857,12 @@ const KnowYourRightsSection = () => {
 
 const ReportScamSection = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
   
+  const handleReportClick = () => {
+    navigate('/timeshare-scam');
+  };
+
   const features = [
     "Report what happened",
     "Share your experience anonymously (if you choose)",
@@ -989,8 +998,7 @@ const ReportScamSection = () => {
                   </Box>
 
                   <Button
-                    component={Link}
-                    to="/timeshare-scam"
+                    onClick={handleReportClick}
                     variant="contained"
                     size="large"
                     startIcon={<ReportProblemIcon />}
