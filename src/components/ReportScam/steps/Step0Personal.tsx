@@ -62,9 +62,21 @@ const Step0Personal: React.FC<Step0PersonalProps> = ({ formData, onChange, onNex
   const isValid = () => {
     // Basic validation
     if (!formData.fullName.trim()) return false;
+    if (!formData.preferredContact) return false;
     
-    // Email validation
-    if (!formData.email.trim()) return false;
+    // Email validation if email is preferred contact
+    if (['Email', 'Either'].includes(formData.preferredContact) && !formData.email.trim()) return false;
+    
+    // Phone validation if phone is preferred contact
+    if (['Phone', 'Either'].includes(formData.preferredContact)) {
+      try {
+        if (!formData.phone.trim()) return false;
+        const phoneNumber = parsePhoneNumber(formData.phone, formData.countryCode as CountryCode);
+        if (!phoneNumber || !phoneNumber.isValid()) return false;
+      } catch {
+        return false;
+      }
+    }
     
     // City and state are required
     if (!formData.city.trim() || !formData.state.trim()) return false;
@@ -104,41 +116,94 @@ const Step0Personal: React.FC<Step0PersonalProps> = ({ formData, onChange, onNex
         Your Information
       </Typography>
 
-      <Typography variant="subtitle1" gutterBottom>
-        Your Full Name *
-      </Typography>
       <TextField
         fullWidth
+        label="Your Full Name"
         value={formData.fullName}
         onChange={(e) => onChange('fullName', e.target.value)}
-        required
-        error={!formData.fullName.trim()}
-        helperText={!formData.fullName.trim() ? 'Full name is required' : ''}
         sx={{ mb: 3 }}
+        required
       />
 
-      <Typography variant="subtitle1" gutterBottom>
-        Email *
-      </Typography>
-      <TextField
-        fullWidth
-        type="email"
-        value={formData.email}
-        onChange={(e) => onChange('email', e.target.value)}
-        required
-        error={!formData.email.trim()}
-        helperText={!formData.email.trim() ? 'Email is required' : ''}
-        sx={{ mb: 3 }}
-      />
+      <FormControl fullWidth sx={{ mb: 3 }} required>
+        <InputLabel>Preferred Contact Method</InputLabel>
+        <Select
+          value={formData.preferredContact}
+          label="Preferred Contact Method"
+          onChange={(e) => onChange('preferredContact', e.target.value)}
+        >
+          <MenuItem value="Email">Email</MenuItem>
+          <MenuItem value="Phone">Phone</MenuItem>
+          <MenuItem value="Either">Either</MenuItem>
+          <MenuItem value="None">Prefer Not to Be Contacted</MenuItem>
+        </Select>
+      </FormControl>
 
-      <Grid container spacing={2}>
-        <Grid item xs={12} sm={6}>
+      {['Email', 'Either'].includes(formData.preferredContact) && (
+        <TextField
+          fullWidth
+          type="email"
+          label="Email Address"
+          value={formData.email}
+          onChange={(e) => onChange('email', e.target.value)}
+          sx={{ mb: 3 }}
+          required={['Email', 'Either'].includes(formData.preferredContact)}
+          error={['Email', 'Either'].includes(formData.preferredContact) && !formData.email}
+          helperText={['Email', 'Either'].includes(formData.preferredContact) && !formData.email ? 'Email is required for your preferred contact method' : ''}
+        />
+      )}
+
+      {['Phone', 'Either'].includes(formData.preferredContact) && (
+        <Box sx={{ mb: 3 }}>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={4}>
+              <FormControl fullWidth>
+                <InputLabel>Country</InputLabel>
+                <Select
+                  value={formData.countryCode || 'US'}
+                  label="Country"
+                  onChange={(e) => {
+                    onChange('countryCode', e.target.value);
+                    onChange('phone', ''); // Reset phone when country changes
+                  }}
+                >
+                  {COUNTRY_LIST.map(country => (
+                    <MenuItem key={country.code} value={country.code}>
+                      {country.name} (+{country.callingCode})
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={8}>
+              <TextField
+                fullWidth
+                label="Phone Number"
+                value={formData.phone}
+                onChange={(e) => handlePhoneChange(e.target.value)}
+                required={['Phone', 'Either'].includes(formData.preferredContact)}
+                error={['Phone', 'Either'].includes(formData.preferredContact) && formData.phone && !validatePhoneNumber(formData.phone, formData.countryCode) || undefined}
+                helperText={(() => {
+                  if (!['Phone', 'Either'].includes(formData.preferredContact)) return '';
+                  if (!formData.phone) return 'Phone number is required for your preferred contact method';
+                  if (!formData.countryCode) return 'Please select a country';
+                  return validatePhoneNumber(formData.phone, formData.countryCode) ? '' : 'Invalid phone number for selected country';
+                })()}
+              />
+            </Grid>
+          </Grid>
+        </Box>
+      )}
+
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={5}>
           <TextField
             fullWidth
             label="City"
             value={formData.city}
             onChange={(e) => onChange('city', e.target.value)}
-            sx={{ mb: 3 }}
+            required
+            placeholder="Enter your city"
           />
         </Grid>
         <Grid item xs={12} sm={3}>
@@ -151,7 +216,7 @@ const Step0Personal: React.FC<Step0PersonalProps> = ({ formData, onChange, onNex
             placeholder="Enter your state"
           />
         </Grid>
-        <Grid item xs={12} sm={3}>
+        <Grid item xs={12} sm={4}>
           <FormControl fullWidth>
             <InputLabel>Age Range (Optional)</InputLabel>
             <Select

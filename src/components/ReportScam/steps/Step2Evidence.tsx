@@ -125,61 +125,44 @@ const Step2Evidence: React.FC<Step2EvidenceProps> = ({
       <Typography variant="subtitle1" gutterBottom>
         Phone Number Used by the Scammer
       </Typography>
-      <TextField
-        fullWidth
-        inputProps={{
-          pattern: '[0-9]*',
-          inputMode: 'numeric',
-          maxLength: 15
-        }}
-        placeholder="Enter the phone number"
-        value={formData.scammerPhone}
-        onChange={(e) => {
-          const value = e.target.value;
-          if (value === '' || /^[0-9]+$/.test(value)) {
-            onChange('scammerPhone', value);
-          }
-        }}
-        onKeyDown={(e) => {
-          // Allow: backspace, delete, tab, escape, enter
-          if ([46, 8, 9, 27, 13].indexOf(e.keyCode) !== -1 ||
-            // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
-            (e.keyCode === 65 && e.ctrlKey === true) ||
-            (e.keyCode === 67 && e.ctrlKey === true) ||
-            (e.keyCode === 86 && e.ctrlKey === true) ||
-            (e.keyCode === 88 && e.ctrlKey === true) ||
-            // Allow: home, end, left, right
-            (e.keyCode >= 35 && e.keyCode <= 39)) {
-            return;
-          }
-          // Block any non-number
-          if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) &&
-            (e.keyCode < 96 || e.keyCode > 105)) {
-            e.preventDefault();
-          }
-        }}
-        sx={{
-          mb: 3,
-          '& .MuiOutlinedInput-root': {
-            '& fieldset': {
-              borderColor: '#E0E0E0',
-            },
-            '&:hover fieldset': {
-              borderColor: '#E0E0E0',
-            },
-            '&.Mui-focused fieldset': {
-              borderColor: '#E0E0E0',
-            }
-          },
-          '& .MuiInputBase-input': {
-            padding: '12px 16px',
-            '&::placeholder': {
-              color: '#757575',
-              opacity: 1
-            }
-          }
-        }}
-      />
+      <Box sx={{ mb: 3 }}>
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={4}>
+            <FormControl fullWidth>
+              <InputLabel>Country</InputLabel>
+              <Select
+                value={formData.scammerPhoneCountryCode || 'US'}
+                label="Country"
+                onChange={(e) => {
+                  onChange('scammerPhoneCountryCode', e.target.value);
+                  onChange('scammerPhone', ''); // Reset phone when country changes
+                }}
+              >
+                {COUNTRY_LIST.map(country => (
+                  <MenuItem key={country.code} value={country.code}>
+                    {country.name} (+{country.callingCode})
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={8}>
+            <TextField
+              fullWidth
+              type="tel"
+              placeholder="Enter the phone number"
+              value={formData.scammerPhone}
+              onChange={(e) => handlePhoneChange(e.target.value)}
+              error={formData.scammerPhone && !validatePhoneNumber(formData.scammerPhone, formData.scammerPhoneCountryCode) || undefined}
+              helperText={(() => {
+                if (!formData.scammerPhone) return '';
+                if (!formData.scammerPhoneCountryCode) return 'Please select a country';
+                return validatePhoneNumber(formData.scammerPhone, formData.scammerPhoneCountryCode) ? '' : 'Invalid phone number for selected country';
+              })()}
+            />
+          </Grid>
+        </Grid>
+      </Box>
 
       <Typography variant="subtitle1" gutterBottom>
         Email Address Used by the Scammer (Optional)
@@ -201,17 +184,7 @@ const Step2Evidence: React.FC<Step2EvidenceProps> = ({
         type="url"
         placeholder="If you were sent to a website or link, please share it here"
         value={formData.scammerWebsite}
-        onChange={(e) => {
-          let url = e.target.value.trim();
-          // Add https:// if no protocol is specified
-          if (url && !url.match(/^https?:\/\//)) {
-            url = 'https://' + url;
-          }
-          onChange('scammerWebsite', url);
-        }}
-        error={!!formData.scammerWebsite && !formData.scammerWebsite.match(/^(https?:\/\/)?[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,}(\/\S*)?$/)}
-        helperText={formData.scammerWebsite && !formData.scammerWebsite.match(/^(https?:\/\/)?[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,}(\/\S*)?$/) ? 
-          "Please enter a valid website URL (e.g., https://example.com)" : ""}
+        onChange={(e) => onChange('scammerWebsite', e.target.value)}
         sx={{ mb: 3 }}
       />
 

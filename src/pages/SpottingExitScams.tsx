@@ -98,7 +98,7 @@ const SpottingExitScamsPage = () => {
             throw new Error('Geolocation failed');
           }
         } catch (geoError) {
-          console.error('Error getting location data:', geoError);
+          console.log('Fallback to basic location data due to:', geoError);
           // Fallback to basic data if geolocation fails
           setLocationData({
             ip_address: ipData.ip,
@@ -116,7 +116,7 @@ const SpottingExitScamsPage = () => {
           });
         }
       } catch (error) {
-        console.error('Error getting IP address:', error);
+        console.log('Using default data due to error:', error);
         // If everything fails, use basic device info
         setLocationData({
           ip_address: 'Not Available',
@@ -293,6 +293,10 @@ const SpottingExitScamsPage = () => {
       return;
     }
 
+<<<<<<< HEAD
+=======
+    setIsSubmitting(true);
+>>>>>>> parent of a0c92a95 (updated.)
     try {
       console.log('Executing reCAPTCHA...');
       const token = await executeRecaptcha('download_guide');
@@ -338,8 +342,7 @@ const SpottingExitScamsPage = () => {
           TIMEZONE: locationData?.timezone || 'Not Available'
         },
         listIds: [12],
-        updateEnabled: true,
-        emailBlacklisted: false
+        updateEnabled: true
       };
 
       console.log('Contact List Data being sent to Brevo:', contactListData);
@@ -359,33 +362,9 @@ const SpottingExitScamsPage = () => {
         const responseText = await contactResponse.text();
         contactResult = responseText ? JSON.parse(responseText) : {};
         console.log('Brevo Contact API Response:', contactResult);
-        
-        // If we get a duplicate contact error, try to update the contact instead
-        if (!contactResponse.ok && contactResult.message?.includes('already exists')) {
-          // Try to update the existing contact
-          const updateResponse = await fetch(`https://api.brevo.com/v3/contacts/${formData.email}`, {
-            method: 'PUT',
-            headers: {
-              'Accept': 'application/json',
-              'Content-Type': 'application/json',
-              'api-key': import.meta.env.VITE_BREVO_API_KEY
-            },
-            body: JSON.stringify({
-              attributes: contactListData.attributes,
-              listIds: contactListData.listIds,
-              emailBlacklisted: false
-            })
-          });
-          
-          if (!updateResponse.ok) {
-            throw new Error('Failed to update existing contact');
-          }
-        } else if (!contactResponse.ok) {
-          throw new Error(contactResult.message || 'Failed to add contact');
-        }
       } catch (error) {
         console.error('Error parsing Brevo response:', error);
-        throw new Error('Failed to process contact');
+        contactResult = {};
       }
 
       // Save to Supabase
@@ -447,9 +426,9 @@ const SpottingExitScamsPage = () => {
 
       // Send admin notification
       const emailTemplateParams = {
-        name: formData.fullName,
-        email: formData.email,
-        downloadTime: new Date().toLocaleString('en-US', {
+        NAME: formData.fullName,
+        EMAIL: formData.email,
+        DOWNLOAD_TIME: new Date().toLocaleString('en-US', {
           timeZone: 'America/New_York',
           year: 'numeric',
           month: '2-digit',
@@ -459,16 +438,19 @@ const SpottingExitScamsPage = () => {
           second: '2-digit',
           hour12: true
         }),
-        newsletterConsent: formData.newsletterConsent ? "Yes" : "No",
-        leadSource: 'Spotting Exit Scams',
-        city: locationData?.city || 'Not Available',
-        region: locationData?.region || 'Not Available',
-        country: locationData?.country || 'Not Available',
-        ipAddress: locationData?.ip_address || 'Not Available',
-        browser: locationData?.browser || 'Not Available',
-        deviceType: locationData?.device_type || 'Not Available',
-        screenResolution: locationData?.screen_resolution || 'Not Available',
-        timeZone: locationData?.timezone || 'Not Available'
+        NEWSLETTER_CONSENT: formData.newsletterConsent ? "Yes" : "No",
+        LEAD_SOURCE: 'Spotting Exit Scams Guide',
+        CITY: locationData?.city || 'Not Available',
+        REGION: locationData?.region || 'Not Available',
+        COUNTRY: locationData?.country || 'Not Available',
+        IP_ADDRESS: locationData?.ip_address || 'Not Available',
+        BROWSER: locationData?.browser || 'Not Available',
+        DEVICE_TYPE: locationData?.device_type || 'Not Available',
+        SCREEN_RESOLUTION: locationData?.screen_resolution || 'Not Available',
+        TIMEZONE: locationData?.timezone || 'Not Available',
+        params: {
+          NEWSLETTER_CONSENT: formData.newsletterConsent ? "Yes" : "No"
+        }
       };
 
       console.log('Email Template Params:', emailTemplateParams);

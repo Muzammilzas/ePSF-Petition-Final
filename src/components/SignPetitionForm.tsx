@@ -228,7 +228,7 @@ const SignPetitionFormContent: React.FC = () => {
               ...signatureData[0],
               metadata,
               created_at: new Date().toISOString()
-            }, id!);
+            });
             console.log('Email notification sent successfully');
           } catch (emailError) {
             console.error('Error sending email notification:', emailError);

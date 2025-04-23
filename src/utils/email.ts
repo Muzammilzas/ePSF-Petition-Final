@@ -157,7 +157,7 @@ export const testEmailNotification = async () => {
   }
 };
 
-export const sendSignatureNotification = async (signatureData: SignatureData, petitionId: string) => {
+export const sendSignatureNotification = async (signatureData: SignatureData) => {
   const {
     first_name,
     last_name,
@@ -170,24 +170,13 @@ export const sendSignatureNotification = async (signatureData: SignatureData, pe
   try {
     console.log('Sending signature notification email...');
     
-    // Get current signature count and goal from Supabase
+    // Get current signature count from Supabase
     const { data: signatures, error: countError } = await supabase
       .from('signatures')
       .select('id', { count: 'exact' });
     
-    const { data: petitionData, error: petitionError } = await supabase
-      .from('petitions')
-      .select('goal')
-      .eq('id', petitionId)
-      .single();
-
-    if (petitionError) {
-      console.error('Error fetching petition data:', petitionError);
-      throw petitionError;
-    }
-
     const currentCount = signatures?.length || 0;
-    const signatureGoal = petitionData?.goal || 2000; // Fallback to 2000 if goal not found
+    const signatureGoal = 2000;
     const progressPercentage = ((currentCount / signatureGoal) * 100).toFixed(2);
 
     const requestBody = {

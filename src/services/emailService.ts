@@ -2,7 +2,11 @@ import axios from 'axios';
 import { ScamReport, ScamTypeDetail, ContactMethod, MetaDetails } from './scamReportService';
 
 const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY;
+<<<<<<< HEAD
 const ADMIN_EMAIL = 'timeshare@epublicsf.org';
+=======
+const ADMIN_EMAIL = 'info@epublicsf.org';
+>>>>>>> parent of a0c92a95 (updated.)
 
 interface ScamReportEmailData {
   report: ScamReport;
@@ -186,25 +190,30 @@ export const sendReporterConfirmation = async (report: ScamReport) => {
     console.log('Sending confirmation to reporter...');
 
     const requestBody = {
-      sender: {
-        name: 'ePublic Safety Foundation',
-        email: 'info@epublicsf.org'
-      },
       to: [{
         email: report.reporter_email,
         name: report.reporter_name
       }],
-      templateId: 17,
+      templateId: 7, // Updated to use template ID 7
       params: {
-        NAME: report.reporter_name,
-        EMAIL: report.reporter_email,
-        SIGNUP_DATE: new Date().toLocaleDateString('en-US', {
+        REPORTER_NAME: report.reporter_name,
+        DATE_OCCURRED: new Date(report.date_occurred).toLocaleDateString('en-US', {
           timeZone: 'America/New_York',
           year: 'numeric',
           month: '2-digit',
           day: '2-digit'
         }),
-        SIGNUP_SOURCE: 'Scam Report Form'
+        REPORT_DATE: new Date().toLocaleDateString('en-US', {
+          timeZone: 'America/New_York',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        }),
+        COMPANY_NAME: report.company_name || 'the company',
+        MONEY_LOST: report.money_lost ? 'Yes' : 'No',
+        AMOUNT_LOST: report.amount_lost 
+          ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(report.amount_lost)
+          : 'N/A'
       }
     };
 

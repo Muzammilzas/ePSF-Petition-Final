@@ -54,11 +54,6 @@ const ThankYou: React.FC = () => {
     }
   };
 
-  // Add number formatting function
-  const formatNumber = (num: number) => {
-    return num.toLocaleString();
-  };
-
   useEffect(() => {
     // Count signatures for this petition to get an accurate count
     const countSignatures = async () => {
@@ -98,14 +93,13 @@ const ThankYou: React.FC = () => {
         const { data, error } = await supabase
           .from('petitions')
           .select('*')
-          .eq('id', id)
-          .single();
+          .eq('id', id);
 
         if (error) throw error;
         
-        if (data) {
-          console.log('Received petition data:', data);
-          setCurrentPetition(data);
+        if (data && data.length > 0) {
+          console.log('Received petition data:', data[0]);
+          setCurrentPetition(data[0]);
           
           // If we have a latest signature, use its position as the signature number
           if (latestSignature && latestSignature.length > 0) {
@@ -157,7 +151,7 @@ const ThankYou: React.FC = () => {
 
   // Update the display logic
   const displaySignatureNumber = signatureCount || currentPetition?.signature_count || 0;
-  const progress = currentPetition ? (displaySignatureNumber / currentPetition.goal) * 100 : 0;
+  const progress = currentPetition ? (displaySignatureNumber / (currentPetition.goal || 2000)) * 100 : 0;
 
   return (
     <Container maxWidth="md">
@@ -191,7 +185,7 @@ const ThankYou: React.FC = () => {
 
         <Box sx={{ mt: 4, mb: 4 }}>
           <Typography variant="h6" gutterBottom align="center">
-            {formatNumber(displaySignatureNumber)} of {formatNumber(currentPetition.goal)} signatures collected
+            {signatureCount} of {currentPetition?.goal || 2000} signatures collected
           </Typography>
           <LinearProgress 
             variant="determinate" 
