@@ -29,7 +29,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import CloseIcon from '@mui/icons-material/Close';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
-import { supabase } from '../../../utils/supabase';
+import { supabase } from '../../../services/supabase';
 
 interface FormSubmission {
   id: string;

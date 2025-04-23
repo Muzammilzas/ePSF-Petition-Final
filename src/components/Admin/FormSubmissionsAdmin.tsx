@@ -18,7 +18,7 @@ import {
   IconButton,
   Tooltip
 } from '@mui/material';
-import { supabase } from '../../utils/supabase';
+import { supabase } from '../../services/supabase';
 import { Visibility, GetApp } from '@mui/icons-material';
 import { saveAs } from 'file-saver';
 
