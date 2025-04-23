@@ -114,7 +114,7 @@ const DataDeletionRequest: React.FC = () => {
 
         <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
           If you have any questions about this process, please contact us at{' '}
-          <a href="mailto:privacy@epublicsf.org">privacy@epublicsf.org</a>
+          <a href="mailto:timeshare@epublicsf.org">timeshare@epublicsf.org</a>
         </Typography>
       </Paper>
     </Container>

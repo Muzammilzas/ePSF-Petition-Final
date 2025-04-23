@@ -152,7 +152,7 @@ const PrivacyPolicy: React.FC = () => {
           If you have any questions about this Privacy Policy or wish to exercise your rights under GDPR, please contact us at:
         </Typography>
         <Typography>
-          Email: privacy@epublicsf.org
+          Email: timeshare@epublicsf.org
         </Typography>
 
         <Divider sx={{ my: 4 }} />
