@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import {
   Box,
   Typography,
@@ -27,11 +26,9 @@ import {
 import SearchIcon from '@mui/icons-material/Search';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { supabase } from '../services/supabase';
+import { Visibility, GetApp } from '@mui/icons-material';
+import { saveAs } from 'file-saver';
 
 const FormSubmissionsAdmin: React.FC = () => {
   const [abandonedForms, setAbandonedForms] = useState<any[]>([]);
