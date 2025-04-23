@@ -9,7 +9,7 @@ import {
   Alert,
   CircularProgress,
 } from '@mui/material';
-import { supabase } from '../supabase';
+import { supabase } from '../services/supabase';
 
 const DataDeletionRequest: React.FC = () => {
   const [email, setEmail] = useState('');

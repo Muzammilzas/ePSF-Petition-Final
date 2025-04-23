@@ -16,7 +16,7 @@ import {
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import { fadeInUp, staggerContainer } from '../components/Home/common/animations';
-import { supabase } from '../supabase';
+import { supabase } from '../services/supabase';
 import { GoogleReCaptchaProvider, useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 
 const getBrowserInfo = () => {

@@ -5,7 +5,7 @@ import { GoogleReCaptchaProvider, useGoogleReCaptcha } from 'react-google-recapt
 import { collectMetaDetails } from '../utils/metaDetails';
 import { motion } from 'framer-motion';
 import { fadeInUp, staggerContainer } from '../components/Home/common/animations';
-import { supabase } from '../supabase';
+import { supabase } from '../services/supabase';
 
 const WhereScamsThrivePage = () => {
   const theme = useTheme();
