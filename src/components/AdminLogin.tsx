@@ -11,7 +11,6 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../services/supabase';
 
 const AdminLogin: React.FC = () => {
   const { signIn } = useAuth();
@@ -21,50 +20,21 @@ const AdminLogin: React.FC = () => {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const navigate = useNavigate();
 
-  const checkAdminStatus = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('admins')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (error) throw error;
-      return !!data; // Returns true if admin record exists
-    } catch (error) {
-      console.error('Error checking admin status:', error);
-      return false;
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoggingIn(true);
     setError(null);
 
     try {
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { error: signInError } = await signIn(email, password);
       
       if (signInError) {
         setError(signInError.message);
-        setIsLoggingIn(false);
         return;
       }
 
-      if (data?.user) {
-        const isAdmin = await checkAdminStatus(data.user.id);
-        
-        if (isAdmin) {
-          navigate('/admin/dashboard', { replace: true });
-        } else {
-          setError('Access denied. Please verify your admin credentials.');
-          // Sign out if not admin
-          await supabase.auth.signOut();
-        }
-      }
+      // If sign in was successful, navigate to dashboard
+      navigate('/admin/dashboard', { replace: true });
     } catch (err: any) {
       setError(err.message || 'An error occurred during login');
     } finally {
