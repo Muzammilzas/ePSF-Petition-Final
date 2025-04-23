@@ -1,18 +1,30 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+// Fallback values for development - DO NOT USE THESE IN PRODUCTION
+const FALLBACK_URL = 'https://lbqhvgvvxvrrooalywhz.supabase.co';
+
+// More detailed environment checking
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || FALLBACK_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Debug logging
-console.log('Environment Check:', {
-  NODE_ENV: import.meta.env.MODE,
+console.log('Supabase Environment Check:', {
+  MODE: import.meta.env.MODE,
+  PROD: import.meta.env.PROD,
   hasUrl: !!supabaseUrl,
+  urlValue: supabaseUrl,
   hasKey: !!supabaseAnonKey,
-  url: supabaseUrl?.substring(0, 10) + '...',
+  keyLength: supabaseAnonKey?.length || 0,
+  envKeys: Object.keys(import.meta.env).filter(key => key.startsWith('VITE_')),
   baseUrl: window.location.origin
 });
 
 if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Missing Supabase environment variables:', {
+    url: !!supabaseUrl,
+    key: !!supabaseAnonKey,
+    mode: import.meta.env.MODE
+  });
   throw new Error('Missing Supabase environment variables. Please check your .env file and ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set.');
 }
 
@@ -30,7 +42,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 // Test the connection and log detailed errors
 (async () => {
   try {
-    const { data, error } = await supabase.from('scam_reports').select('count').single();
+    const { data, error } = await supabase.from('petitions').select('count').single();
     if (error) {
       console.error('Supabase connection error:', {
         message: error.message,

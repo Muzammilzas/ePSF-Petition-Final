@@ -269,8 +269,77 @@ const TimeshareScamChecklistPage = () => {
         minute: '2-digit',
         second: '2-digit',
         hour12: true,
-        timeZoneName: 'short' // This will add EST/EDT as appropriate
+        timeZoneName: 'short'
       });
+
+      // First, try to add or update contact in Brevo
+      const contactData = {
+        email: formData.email,
+        attributes: {
+          FIRSTNAME: formData.fullName.split(' ')[0],
+          LASTNAME: formData.fullName.split(' ').slice(1).join(' '),
+          EMAIL: formData.email,
+          NEWSLETTER_CONSENT: formData.newsletterConsent,
+          DOWNLOAD_TIME: downloadTime,
+          LEAD_SOURCE: 'Timeshare Checklist Landing Page',
+          CITY: formData.metaDetails.city,
+          REGION: formData.metaDetails.region,
+          COUNTRY: formData.metaDetails.country,
+          IP_ADDRESS: formData.metaDetails.ipAddress,
+          BROWSER: formData.metaDetails.browser,
+          DEVICE_TYPE: formData.metaDetails.deviceType,
+          SCREEN_RESOLUTION: formData.metaDetails.screenResolution,
+          TIMEZONE: 'America/New_York'
+        },
+        listIds: [9],
+        updateEnabled: true,
+        emailBlacklisted: false
+      };
+
+      // Try to create contact first
+      const contactResponse = await fetch('https://api.brevo.com/v3/contacts', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'api-key': import.meta.env.VITE_BREVO_API_KEY
+        },
+        body: JSON.stringify(contactData)
+      });
+
+      let contactResult;
+      try {
+        const responseText = await contactResponse.text();
+        contactResult = responseText ? JSON.parse(responseText) : {};
+        console.log('Brevo Contact API Response:', contactResult);
+        
+        // If we get a duplicate contact error, try to update the contact instead
+        if (!contactResponse.ok && contactResult.message?.includes('already exists')) {
+          // Try to update the existing contact
+          const updateResponse = await fetch(`https://api.brevo.com/v3/contacts/${formData.email}`, {
+            method: 'PUT',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'api-key': import.meta.env.VITE_BREVO_API_KEY
+            },
+            body: JSON.stringify({
+              attributes: contactData.attributes,
+              listIds: contactData.listIds,
+              emailBlacklisted: false
+            })
+          });
+          
+          if (!updateResponse.ok) {
+            throw new Error('Failed to update existing contact');
+          }
+        } else if (!contactResponse.ok) {
+          throw new Error(contactResult.message || 'Failed to add contact');
+        }
+      } catch (error) {
+        console.error('Error processing contact:', error);
+        throw new Error('Failed to process contact');
+      }
 
       // Save to Supabase with meta_details as JSONB
       const { data: mainData, error: mainError } = await supabase
@@ -283,14 +352,14 @@ const TimeshareScamChecklistPage = () => {
             user_info: {
               name: formData.fullName,
               email: formData.email,
-              download_time: downloadTime, // Now includes EST/EDT indicator
+              download_time: downloadTime,
               newsletter_consent: formData.newsletterConsent
             },
             device: {
               browser: formData.metaDetails.browser,
               device_type: formData.metaDetails.deviceType,
               screen_resolution: formData.metaDetails.screenResolution,
-              timezone: 'America/New_York', // Set to EST explicitly
+              timezone: 'America/New_York',
               language: navigator.language,
               user_agent: navigator.userAgent
             },
@@ -310,110 +379,7 @@ const TimeshareScamChecklistPage = () => {
         throw new Error('Failed to save submission');
       }
 
-      // Update newsletter signup time format
-      const signupTime = new Date().toLocaleString('en-US', {
-        timeZone: 'America/New_York',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true,
-        timeZoneName: 'short'
-      });
-
-      // Test Brevo API first
-      console.log('Testing Brevo API...');
-      const testResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'api-key': import.meta.env.VITE_BREVO_API_KEY
-        },
-        body: JSON.stringify({
-          sender: {
-            name: 'ePublic Safety Foundation',
-            email: 'admin@epublicsf.org'
-          },
-          to: [{ email: 'info@epublicsf.org' }],
-          templateId: 13,
-          params: {
-            Name: formData.fullName,
-            Email: formData.email,
-            'Download Time': downloadTime,
-            'Newsletter Consent': formData.newsletterConsent ? 'Yes' : 'No',
-            'Lead Source': 'Timeshare Checklist Landing Page',
-            City: formData.metaDetails.city,
-            Region: formData.metaDetails.region,
-            Country: formData.metaDetails.country,
-            'Ip Address': formData.metaDetails.ipAddress,
-            Browser: formData.metaDetails.browser,
-            'Device Type': formData.metaDetails.deviceType,
-            'Screen Resolution': formData.metaDetails.screenResolution,
-            TimeZone: 'America/New_York'
-          }
-        })
-      });
-
-      const testResult = await testResponse.json();
-      console.log('Brevo API Test Result:', testResult);
-
-      if (!testResponse.ok) {
-        throw new Error(`Brevo API test failed: ${testResult.message || 'Unknown error'}`);
-      }
-
-      // First, add contact to list
-      console.log('Adding contact to list...', {
-        email: formData.email,
-        listId: 9,
-        attributes: {
-          FIRSTNAME: formData.fullName.split(' ')[0],
-          LASTNAME: formData.fullName.split(' ').slice(1).join(' '),
-          EMAIL: formData.email,
-          NEWSLETTER_CONSENT: formData.newsletterConsent
-        }
-      });
-
-      const contactResponse = await fetch('https://api.brevo.com/v3/contacts', {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'api-key': import.meta.env.VITE_BREVO_API_KEY
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          listIds: [9],
-          attributes: {
-            FIRSTNAME: formData.fullName.split(' ')[0],
-            LASTNAME: formData.fullName.split(' ').slice(1).join(' '),
-            EMAIL: formData.email,
-            NEWSLETTER_CONSENT: formData.newsletterConsent
-          }
-        })
-      });
-
-      const contactResult = await contactResponse.json();
-      console.log('Contact add response:', contactResult);
-
-      if (!contactResponse.ok) {
-        console.error('Failed to add contact:', contactResult);
-      }
-
       // Send user notification
-      console.log('Sending user notification...', {
-        to: formData.email,
-        templateId: 9,
-        params: {
-          fullName: formData.fullName,
-          email: formData.email,
-          newsletterConsent: formData.newsletterConsent,
-          ...formData.metaDetails
-        }
-      });
-
       const userResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
         headers: {
@@ -446,12 +412,10 @@ const TimeshareScamChecklistPage = () => {
         })
       });
 
-      const userResult = await userResponse.json();
-      console.log('User notification response:', userResult);
-
       if (!userResponse.ok) {
-        console.error('Timeshare Scam Checklist - User notification error:', userResult);
-        throw new Error(`Failed to send user notification: ${userResult.message || 'Unknown error'}`);
+        const userResult = await userResponse.json();
+        console.error('Failed to send user notification:', userResult);
+        throw new Error('Failed to send confirmation email');
       }
 
       setOpenSnackbar(true);
@@ -470,17 +434,11 @@ const TimeshareScamChecklistPage = () => {
           timeZone: '' 
         } 
       });
-<<<<<<< HEAD
     } catch (error: any) {
       console.error('Form submission error:', error);
       setError(error.message || 'Failed to process your request. Please try again.');
     } finally {
       setIsSubmitting(false);
-=======
-    } catch (error) {
-      console.error('Error:', error);
-      setError('Failed to submit form. Please try again later.');
->>>>>>> parent of a0c92a95 (updated.)
     }
   };
 

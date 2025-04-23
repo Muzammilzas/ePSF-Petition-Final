@@ -2,11 +2,7 @@ import axios from 'axios';
 import { ScamReport, ScamTypeDetail, ContactMethod, MetaDetails } from './scamReportService';
 
 const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY;
-<<<<<<< HEAD
 const ADMIN_EMAIL = 'timeshare@epublicsf.org';
-=======
-const ADMIN_EMAIL = 'info@epublicsf.org';
->>>>>>> parent of a0c92a95 (updated.)
 
 interface ScamReportEmailData {
   report: ScamReport;
