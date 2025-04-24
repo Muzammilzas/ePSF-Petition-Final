@@ -598,12 +598,13 @@ const SignPetitionSection = () => {
                 <motion.div variants={fadeInUp}>
                   <Box 
                     component="img"
-                    src="/images/home-page/Sign the Petition- home.avif"
+                    src="/images/home-page/sign-petition.avif"
                     alt="Sign the Petition"
                     sx={{
                       width: '100%',
                       height: '400px',
-                      objectFit: 'cover',
+                      objectFit: 'contain',
+                      objectPosition: 'center',
                       borderRadius: '20px',
                       boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
                       transform: 'perspective(1000px) rotateY(-5deg)',

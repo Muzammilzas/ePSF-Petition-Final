@@ -43,10 +43,7 @@ interface ScamType {
 interface FormData {
   // Personal Information
   fullName: string;
-  preferredContact: 'Email' | 'Phone' | 'Either' | 'None';
   email: string;
-  phone: string;
-  countryCode: string;
   city: string;
   state: string;
   ageRange: 'Under 30' | '30–45' | '46–60' | '61+' | '';
@@ -92,10 +89,7 @@ const ReportScamPage: React.FC = () => {
   const [formData, setFormData] = useState<FormData>({
     // Personal Information
     fullName: '',
-    preferredContact: 'Either',
     email: '',
-    phone: '',
-    countryCode: '+1',
     city: '',
     state: '',
     ageRange: '',
@@ -129,26 +123,10 @@ const ReportScamPage: React.FC = () => {
       }
     },
     contactMethods: {
-      phone: {
-        selected: false,
-        number: '',
-        countryCode: '+1',
-      },
-      email: {
-        selected: false,
-        address: '',
-        evidence: null,
-      },
-      socialMedia: {
-        selected: false,
-        platform: '',
-        profileName: '',
-      },
-      inPerson: {
-        selected: false,
-        location: '',
-        eventType: '',
-      }
+      phone: { selected: false, number: '', countryCode: '+1' },
+      email: { selected: false, address: '', evidence: null },
+      socialMedia: { selected: false, platform: '', profileName: '' },
+      inPerson: { selected: false, location: '', eventType: '' }
     },
     moneyLost: false,
     amountLost: '',
@@ -172,17 +150,14 @@ const ReportScamPage: React.FC = () => {
     // Consider any form interaction as potentially abandoned
     const hasPersonalInfo = !!(
       formData.fullName ||
-      formData.email ||
-      formData.phone ||
       formData.city ||
       formData.state ||
       formData.ageRange ||
-      formData.preferredContact !== 'None'
+      formData.speakWithTeam ||
+      formData.shareAnonymously
     );
 
     const hasScamTypes = Object.values(formData.scamTypes).some(type => type.selected);
-    
-    const hasContactMethods = Object.values(formData.contactMethods).some(method => method.selected);
     
     const hasScammerInfo = !!(
       formData.scammerName ||
@@ -202,7 +177,7 @@ const ReportScamPage: React.FC = () => {
     );
 
     // Return true if ANY section has data
-    return hasPersonalInfo || hasScamTypes || hasContactMethods || hasScammerInfo || hasIncidentDetails;
+    return hasPersonalInfo || hasScamTypes || hasScammerInfo || hasIncidentDetails;
   };
 
   // Initialize session ID
@@ -231,10 +206,8 @@ const ReportScamPage: React.FC = () => {
             console.log('Form data changed, saving...', {
               sessionId,
               currentStep: activeStep,
-              hasPersonalInfo: !!(formData.fullName || formData.email || formData.phone),
-              hasLocation: !!(formData.city || formData.state),
+              hasPersonalInfo: !!(formData.fullName || formData.city || formData.state),
               hasScamTypes: Object.values(formData.scamTypes).some(type => type.selected),
-              hasContactMethods: Object.values(formData.contactMethods).some(method => method.selected),
               hasScammerInfo: !!(formData.scammerName || formData.companyName),
               step: activeStep,
               timestamp: new Date().toLocaleString('en-US', {
@@ -330,96 +303,19 @@ const ReportScamPage: React.FC = () => {
   };
 
   const handleSubmit = async () => {
-    setError(null);
     setIsSubmitting(true);
-
-    // Validate required fields
-    if (!formData.fullName || !formData.email) {
-      setError('Name and email are required fields.');
-      setIsSubmitting(false);
-      return;
-    }
-
-    if (!formData.city || !formData.state) {
-      setError('City and state are required fields.');
-      setIsSubmitting(false);
-      return;
-    }
+    setError(null);
 
     try {
-      // Log form data for debugging
-      console.log('Submitting form data:', {
-        personalInfo: {
-          name: formData.fullName,
-          email: formData.email,
-          city: formData.city,
-          state: formData.state,
-          ageRange: formData.ageRange,
-          speakWithTeam: formData.speakWithTeam,
-          shareAnonymously: formData.shareAnonymously
-        }
-      });
+      // Validate required fields
+      if (!formData.fullName || !formData.city || !formData.state) {
+        setError('Name, city, and state are required fields.');
+        setIsSubmitting(false);
+        return;
+      }
 
       // Collect meta details
       const metaDetails = await collectMetaDetails();
-      console.log('Collected meta details:', metaDetails);
-
-      // Prepare report data
-      const report: ScamReport = {
-        reporter_name: formData.fullName,
-        reporter_email: formData.email,
-        reporter_phone: formData.phone,
-        reporter_city: formData.city,
-        reporter_state: formData.state,
-        reporter_age_range: formData.ageRange || undefined,
-        speak_with_team: formData.speakWithTeam,
-        share_anonymously: formData.shareAnonymously,
-        preferred_contact: formData.preferredContact,
-        money_lost: formData.moneyLost,
-        amount_lost: formData.amountLost ? parseFloat(formData.amountLost) : undefined,
-        date_occurred: formData.dateOccurred || new Date().toLocaleDateString('en-US', {
-          timeZone: 'America/New_York',
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit'
-        }),
-        scammer_name: formData.scammerName,
-        company_name: formData.companyName,
-        scammer_phone: formData.scammerPhone,
-        scammer_email: formData.scammerEmail,
-        scammer_website: formData.scammerWebsite,
-        reported_elsewhere: formData.reportedElsewhere,
-        reported_to: formData.reportedTo,
-        want_updates: formData.wantUpdates,
-        evidence_file_url: undefined // We'll update this after upload
-      };
-
-      // Upload evidence file if it exists
-      if (formData.evidence) {
-        try {
-          const timestamp = new Date().toLocaleString('en-US', {
-            timeZone: 'America/New_York',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: true
-          });
-          const fileName = `${timestamp}-${formData.evidence.name}`;
-          const { success: uploadSuccess, url, error: uploadError } = await uploadEvidence(formData.evidence, fileName);
-          if (!uploadSuccess) {
-            console.error('Evidence upload error:', uploadError);
-            throw new Error(uploadError instanceof Error ? uploadError.message : 'Failed to upload evidence file');
-          }
-          report.evidence_file_url = url;
-          console.log('Evidence uploaded successfully:', url);
-        } catch (uploadError) {
-          console.error('Error uploading evidence:', uploadError);
-          // Continue without evidence if upload fails
-        }
-      }
 
       // Prepare scam types
       const scamTypes: ScamTypeDetail[] = [];
@@ -463,44 +359,61 @@ const ReportScamPage: React.FC = () => {
         });
       }
 
-      // Prepare contact methods
-      const contactMethods: ContactMethod[] = [];
-      if (formData.contactMethods.phone.selected) {
-        contactMethods.push({
-          method: 'phone',
-          phone_number: formData.contactMethods.phone.number
-        });
+      // Prepare report data
+      const report: ScamReport = {
+        reporter_name: formData.fullName,
+        reporter_city: formData.city,
+        reporter_state: formData.state,
+        reporter_age_range: formData.ageRange || undefined,
+        speak_with_team: formData.speakWithTeam,
+        share_anonymously: formData.shareAnonymously,
+        money_lost: formData.moneyLost,
+        amount_lost: formData.amountLost ? parseFloat(formData.amountLost) : undefined,
+        date_occurred: formData.dateOccurred,
+        scammer_name: formData.scammerName,
+        company_name: formData.companyName,
+        scammer_phone: formData.scammerPhone,
+        scammer_email: formData.scammerEmail,
+        scammer_website: formData.scammerWebsite,
+        reported_elsewhere: formData.reportedElsewhere,
+        reported_to: formData.reportedTo,
+        want_updates: formData.wantUpdates,
+        evidence_file_url: undefined // We'll update this after upload
+      };
+
+      // Upload evidence file if it exists
+      if (formData.evidence) {
+        try {
+          const timestamp = new Date().toLocaleString('en-US', {
+            timeZone: 'America/New_York',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+          });
+          const fileName = `${timestamp}-${formData.evidence.name}`;
+          const { success: uploadSuccess, url, error: uploadError } = await uploadEvidence(formData.evidence, fileName);
+          if (!uploadSuccess) {
+            console.error('Evidence upload error:', uploadError);
+            throw new Error(uploadError instanceof Error ? uploadError.message : 'Failed to upload evidence file');
+          }
+          report.evidence_file_url = url;
+          console.log('Evidence uploaded successfully:', url);
+        } catch (error) {
+          console.error('Failed to upload evidence:', error);
+          setError('Failed to upload evidence file. Please try again.');
+          setIsSubmitting(false);
+          return;
+        }
       }
 
-      if (formData.contactMethods.email.selected) {
-        contactMethods.push({
-          method: 'email',
-          email_address: formData.contactMethods.email.address,
-          evidence_file_url: formData.contactMethods.email.evidence ? 
-            `${Date.now()}-${formData.contactMethods.email.evidence.name}` : undefined
-        });
-      }
-
-      if (formData.contactMethods.socialMedia.selected) {
-        contactMethods.push({
-          method: 'social_media',
-          social_media_platform: formData.contactMethods.socialMedia.platform,
-          social_media_profile: formData.contactMethods.socialMedia.profileName
-        });
-      }
-
-      if (formData.contactMethods.inPerson.selected) {
-        contactMethods.push({
-          method: 'in_person',
-          location: formData.contactMethods.inPerson.location,
-          event_type: formData.contactMethods.inPerson.eventType
-        });
-      }
-
-      console.log('Submitting report to database:', { report, scamTypes, contactMethods });
+      console.log('Submitting report to database:', { report, scamTypes });
 
       // Submit the report
-      const { success: submitSuccess, error: submitError, data: reportData } = await submitScamReport(report, scamTypes, contactMethods, metaDetails);
+      const { success: submitSuccess, error: submitError, data: reportData } = await submitScamReport(report, scamTypes, [], metaDetails);
       
       if (!submitSuccess || !reportData) {
         console.error('Report submission failed:', submitError);
@@ -512,35 +425,34 @@ const ReportScamPage: React.FC = () => {
       // Send email notifications
       try {
         await sendScamReportNotification({
-          report: { ...report, id: reportData.id },
+          report: reportData,
           scamTypes,
-          contactMethods,
+          contactMethods: [],
           metaDetails
         });
         console.log('Admin notification sent successfully');
 
-        if (report.want_updates && report.reporter_email) {
-          await sendReporterConfirmation({ ...report, id: reportData.id });
+        if (formData.wantUpdates) {
+          await sendReporterConfirmation({
+            report: reportData,
+            scamTypes,
+            contactMethods: []
+          });
           console.log('Reporter confirmation sent successfully');
         }
-      } catch (emailError) {
-        console.error('Error sending email notifications:', emailError);
-        // Continue even if email fails
+      } catch (error) {
+        console.error('Failed to send notifications:', error);
+        // Don't fail the submission if notifications fail
       }
 
-      // Mark form as completed
-      if (sessionId) {
-        await markFormCompleted(sessionId);
-        localStorage.removeItem('scam_report_session_id');
-      }
-
-      // Navigate to thank you page
-      console.log('Navigating to thank you page...');
-      navigate('/report-scam/thank-you', { replace: true });
-    } catch (error: any) {
-      console.error('Error submitting form:', error);
-      setError(error?.message || 'There was an error submitting your report. Please try again.');
-    } finally {
+      // Mark form as completed and clear abandoned form data
+      await markFormCompleted(sessionId);
+      
+      // Navigate to success page
+      navigate('/report-scam/thank-you');
+    } catch (error) {
+      console.error('Form submission error:', error);
+      setError(error instanceof Error ? error.message : 'An error occurred while submitting your report');
       setIsSubmitting(false);
     }
   };

@@ -5,14 +5,13 @@ export interface ScamReport {
   created_at?: string;
   // Reporter Information
   reporter_name: string;
-  reporter_email: string;
-  reporter_phone: string;
+  reporter_email?: string;
   reporter_city: string;
   reporter_state: string;
   reporter_age_range?: string;
   speak_with_team: boolean;
   share_anonymously: boolean;
-  preferred_contact: 'Email' | 'Phone' | 'Either' | 'None';
+  preferred_contact?: 'Email' | 'Phone' | 'Either' | 'None';
 
   // Scam Information
   money_lost: boolean;

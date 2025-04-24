@@ -13,15 +13,11 @@ import {
   InputLabel,
   Grid,
 } from '@mui/material';
-import { parsePhoneNumber, AsYouType, getCountries, CountryCode, getCountryCallingCode } from 'libphonenumber-js';
 
 interface Step0PersonalProps {
   formData: {
     fullName: string;
-    preferredContact: 'Email' | 'Phone' | 'Either' | 'None';
     email: string;
-    phone: string;
-    countryCode: string;
     city: string;
     state: string;
     ageRange: 'Under 30' | '30–45' | '46–60' | '61+' | '';
@@ -41,73 +37,15 @@ const US_STATES = [
   'DC', 'PR', 'VI', 'GU', 'MP', 'AS'
 ];
 
-const COUNTRY_LIST = getCountries().map(country => {
-  try {
-    const callingCode = getCountryCallingCode(country as CountryCode);
-    return {
-      code: country,
-      name: new Intl.DisplayNames(['en'], { type: 'region' }).of(country) || country,
-      callingCode: callingCode
-    };
-  } catch {
-    return {
-      code: country,
-      name: new Intl.DisplayNames(['en'], { type: 'region' }).of(country) || country,
-      callingCode: '0'
-    };
-  }
-}).sort((a, b) => a.name.localeCompare(b.name));
-
 const Step0Personal: React.FC<Step0PersonalProps> = ({ formData, onChange, onNext }) => {
   const isValid = () => {
     // Basic validation
     if (!formData.fullName.trim()) return false;
-    if (!formData.preferredContact) return false;
-    
-    // Email validation if email is preferred contact
-    if (['Email', 'Either'].includes(formData.preferredContact) && !formData.email.trim()) return false;
-    
-    // Phone validation if phone is preferred contact
-    if (['Phone', 'Either'].includes(formData.preferredContact)) {
-      try {
-        if (!formData.phone.trim()) return false;
-        const phoneNumber = parsePhoneNumber(formData.phone, formData.countryCode as CountryCode);
-        if (!phoneNumber || !phoneNumber.isValid()) return false;
-      } catch {
-        return false;
-      }
-    }
     
     // City and state are required
     if (!formData.city.trim() || !formData.state.trim()) return false;
     
     return true;
-  };
-
-  const handlePhoneChange = (value: string) => {
-    try {
-      if (!formData.countryCode) {
-        onChange('phone', value);
-        return;
-      }
-      const formatter = new AsYouType(formData.countryCode as CountryCode);
-      const formattedNumber = formatter.input(value);
-      onChange('phone', formattedNumber);
-    } catch (error) {
-      // If formatting fails, just use the raw value
-      onChange('phone', value);
-    }
-  };
-
-  const validatePhoneNumber = (phone: string, countryCode: string) => {
-    if (!phone.trim()) return false;
-    if (!countryCode) return false;
-    try {
-      const phoneNumber = parsePhoneNumber(phone, countryCode as CountryCode);
-      return phoneNumber?.isValid() || false;
-    } catch {
-      return false;
-    }
   };
 
   return (
@@ -125,75 +63,15 @@ const Step0Personal: React.FC<Step0PersonalProps> = ({ formData, onChange, onNex
         required
       />
 
-      <FormControl fullWidth sx={{ mb: 3 }} required>
-        <InputLabel>Preferred Contact Method</InputLabel>
-        <Select
-          value={formData.preferredContact}
-          label="Preferred Contact Method"
-          onChange={(e) => onChange('preferredContact', e.target.value)}
-        >
-          <MenuItem value="Email">Email</MenuItem>
-          <MenuItem value="Phone">Phone</MenuItem>
-          <MenuItem value="Either">Either</MenuItem>
-          <MenuItem value="None">Prefer Not to Be Contacted</MenuItem>
-        </Select>
-      </FormControl>
-
-      {['Email', 'Either'].includes(formData.preferredContact) && (
-        <TextField
-          fullWidth
-          type="email"
-          label="Email Address"
-          value={formData.email}
-          onChange={(e) => onChange('email', e.target.value)}
-          sx={{ mb: 3 }}
-          required={['Email', 'Either'].includes(formData.preferredContact)}
-          error={['Email', 'Either'].includes(formData.preferredContact) && !formData.email}
-          helperText={['Email', 'Either'].includes(formData.preferredContact) && !formData.email ? 'Email is required for your preferred contact method' : ''}
-        />
-      )}
-
-      {['Phone', 'Either'].includes(formData.preferredContact) && (
-        <Box sx={{ mb: 3 }}>
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={4}>
-              <FormControl fullWidth>
-                <InputLabel>Country</InputLabel>
-                <Select
-                  value={formData.countryCode || 'US'}
-                  label="Country"
-                  onChange={(e) => {
-                    onChange('countryCode', e.target.value);
-                    onChange('phone', ''); // Reset phone when country changes
-                  }}
-                >
-                  {COUNTRY_LIST.map(country => (
-                    <MenuItem key={country.code} value={country.code}>
-                      {country.name} (+{country.callingCode})
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={8}>
-              <TextField
-                fullWidth
-                label="Phone Number"
-                value={formData.phone}
-                onChange={(e) => handlePhoneChange(e.target.value)}
-                required={['Phone', 'Either'].includes(formData.preferredContact)}
-                error={['Phone', 'Either'].includes(formData.preferredContact) && formData.phone && !validatePhoneNumber(formData.phone, formData.countryCode) || undefined}
-                helperText={(() => {
-                  if (!['Phone', 'Either'].includes(formData.preferredContact)) return '';
-                  if (!formData.phone) return 'Phone number is required for your preferred contact method';
-                  if (!formData.countryCode) return 'Please select a country';
-                  return validatePhoneNumber(formData.phone, formData.countryCode) ? '' : 'Invalid phone number for selected country';
-                })()}
-              />
-            </Grid>
-          </Grid>
-        </Box>
-      )}
+      <TextField
+        fullWidth
+        label="Email"
+        type="email"
+        value={formData.email}
+        onChange={(e) => onChange('email', e.target.value)}
+        sx={{ mb: 3 }}
+        required
+      />
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={5}>

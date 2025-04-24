@@ -10,24 +10,53 @@ interface ScamReportEmailData {
   contactMethods: ContactMethod[];
 }
 
-export interface AdminNotificationData {
-  report: ScamReport;
-  scamTypes: ScamTypeDetail[];
-  contactMethods: ContactMethod[];
+interface AdminNotificationData extends ScamReportEmailData {
   metaDetails: MetaDetails;
 }
 
-const formatScamTypes = (scamTypes: ScamTypeDetail[]): string => {
+const formatScamTypes = (scamTypes: any[]) => {
   return scamTypes.map(type => {
-    let details = `- ${type.scam_type.replace(/_/g, ' ').toUpperCase()}`;
-    if (type.claimed_sale_amount) details += `\n  Claimed Amount: $${type.claimed_sale_amount}`;
-    if (type.amount) details += `\n  Amount: $${type.amount}`;
-    if (type.promised_services) details += `\n  Promised Services: ${type.promised_services}`;
-    if (type.tactics) details += `\n  Tactics: ${type.tactics}`;
-    if (type.promised_refund) details += `\n  Promised Refund: ${type.promised_refund}`;
-    if (type.description) details += `\n  Description: ${type.description}`;
-    return details;
-  }).join('\n\n');
+    switch(type.scam_type) {
+      case 'fake_resale':
+        return `Fake Resale - Claimed Amount: ${type.claimed_sale_amount || 'Not provided'}`;
+      case 'upfront_fees':
+        return `Upfront Fees - Amount: ${type.amount || 'Not provided'}, Services: ${type.promised_services || 'Not provided'}`;
+      case 'high_pressure':
+        return `High Pressure - Tactics: ${type.tactics || 'Not provided'}, Limited Time/Threat: ${type.limited_time_or_threat ? 'Yes' : 'No'}`;
+      case 'refund_exit':
+        return `Refund/Exit - Promised: ${type.promised_refund || 'Not provided'}, After Other Company: ${type.contacted_after_other_company ? 'Yes' : 'No'}`;
+      case 'other':
+        return `Other - ${type.description || 'Not provided'}`;
+      default:
+        return 'Unknown scam type';
+    }
+  }).join('\n');
+};
+
+const formatMetaDetails = (metaDetails: any) => {
+  return `
+Browser: ${metaDetails.browser}
+Device Type: ${metaDetails.device_type}
+Screen Resolution: ${metaDetails.screen_resolution}
+User Agent: ${metaDetails.user_agent}
+Timezone: ${metaDetails.timezone}
+Language: ${metaDetails.language}
+IP Address: ${metaDetails.ip_address}
+City: ${metaDetails.city}
+Region: ${metaDetails.region}
+Country: ${metaDetails.country}
+Location: ${metaDetails.latitude && metaDetails.longitude ? `${metaDetails.latitude}, ${metaDetails.longitude}` : 'Not available'}
+Submission Time: ${new Date().toLocaleString('en-US', {
+  timeZone: 'America/New_York',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: true
+})}
+`.trim();
 };
 
 const formatContactMethods = (contactMethods: ContactMethod[]): string => {
@@ -44,141 +73,66 @@ const formatContactMethods = (contactMethods: ContactMethod[]): string => {
 };
 
 export const sendScamReportNotification = async (data: AdminNotificationData) => {
-  const {
-    report,
-    scamTypes,
-    contactMethods,
-    metaDetails
-  } = data;
-
   try {
-    console.log('Sending scam report notification to admin...');
-
-    // Format scam types for email
-    const formattedScamTypes = scamTypes.map(type => {
-      switch(type.scam_type) {
-        case 'fake_resale':
-          return `Fake Resale - Claimed Amount: ${type.claimed_sale_amount || 'Not provided'}`;
-        case 'upfront_fees':
-          return `Upfront Fees - Amount: ${type.amount || 'Not provided'}, Services: ${type.promised_services || 'Not provided'}`;
-        case 'high_pressure':
-          return `High Pressure - Tactics: ${type.tactics || 'Not provided'}, Limited Time/Threat: ${type.limited_time_or_threat ? 'Yes' : 'No'}`;
-        case 'refund_exit':
-          return `Refund/Exit - Promised: ${type.promised_refund || 'Not provided'}, After Other Company: ${type.contacted_after_other_company ? 'Yes' : 'No'}`;
-        case 'other':
-          return `Other - ${type.description || 'Not provided'}`;
-        default:
-          return 'Unknown scam type';
-      }
-    }).join('\\n');
-
-    // Format contact methods for email
-    const formattedContactMethods = contactMethods.map(method => {
-      switch(method.method) {
-        case 'phone':
-          return `Phone: ${method.phone_number}`;
-        case 'email':
-          return `Email: ${method.email_address}${method.evidence_file_url ? ' (Evidence attached)' : ''}`;
-        case 'social_media':
-          return `Social Media: ${method.social_media_platform} - ${method.social_media_profile}`;
-        case 'in_person':
-          return `In Person: ${method.location} - ${method.event_type}`;
-        default:
-          return 'Unknown contact method';
-      }
-    }).join('\\n');
+    if (!BREVO_API_KEY) {
+      return { success: false, error: 'Email service not configured' };
+    }
 
     const requestBody = {
       to: [{
-        email: 'timeshare@epublicsf.org',
-        name: 'Admin'
+        email: ADMIN_EMAIL,
+        name: 'ePSF Admin'
       }],
-      templateId: 8,
+      templateId: 6,
       params: {
-        reporter_name: report.reporter_name,
-        reporter_email: report.reporter_email,
-        reporter_phone: report.reporter_phone,
-        reporter_city: report.reporter_city,
-        reporter_state: report.reporter_state,
-        reporter_age_range: report.reporter_age_range || 'Not provided',
-        speak_with_team: report.speak_with_team ? 'Yes' : 'No',
-        share_anonymously: report.share_anonymously ? 'Yes' : 'No',
-        preferred_contact: report.preferred_contact,
-        money_lost: report.money_lost ? 'Yes' : 'No',
-        amount_lost: report.amount_lost ? `$${report.amount_lost}` : 'Not provided',
-        date_occurred: new Date(report.date_occurred).toLocaleDateString('en-US', {
+        REPORTER_NAME: data.report.reporter_name,
+        REPORTER_CITY: data.report.reporter_city,
+        REPORTER_STATE: data.report.reporter_state,
+        REPORTER_AGE_RANGE: data.report.reporter_age_range || 'Not provided',
+        REPORTER_EMAIL: data.report.reporter_email || 'Not provided',
+        SPEAK_WITH_TEAM: data.report.speak_with_team ? 'Yes' : 'No',
+        SHARE_ANONYMOUSLY: data.report.share_anonymously ? 'Yes' : 'No',
+        MONEY_LOST: data.report.money_lost ? 'Yes' : 'No',
+        AMOUNT_LOST: data.report.amount_lost 
+          ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(data.report.amount_lost)
+          : 'N/A',
+        DATE_OCCURRED: new Date(data.report.date_occurred).toLocaleDateString('en-US', {
           timeZone: 'America/New_York',
           year: 'numeric',
-          month: '2-digit',
+          month: 'long',
           day: '2-digit'
         }),
-        scammer_name: report.scammer_name || 'Not provided',
-        company_name: report.company_name || 'Not provided',
-        scammer_phone: report.scammer_phone || 'Not provided',
-        scammer_email: report.scammer_email || 'Not provided',
-        scammer_website: report.scammer_website || 'Not provided',
-        reported_elsewhere: report.reported_elsewhere ? 'Yes' : 'No',
-        reported_to: report.reported_to || 'Not provided',
-        want_updates: report.want_updates ? 'Yes' : 'No',
-        evidence_file_url: report.evidence_file_url || 'No evidence attached',
-        scam_types: formattedScamTypes,
-        contact_methods: formattedContactMethods,
-        // Meta details
-        browser: metaDetails.browser,
-        device_type: metaDetails.device_type,
-        screen_resolution: metaDetails.screen_resolution,
-        user_agent: metaDetails.user_agent,
-        timezone: metaDetails.timezone,
-        language: metaDetails.language,
-        ip_address: metaDetails.ip_address,
-        meta_city: metaDetails.city,
-        meta_region: metaDetails.region,
-        meta_country: metaDetails.country,
-        meta_location: metaDetails.latitude && metaDetails.longitude ? 
-          `${metaDetails.latitude}, ${metaDetails.longitude}` : 'Not available',
-        submission_time: new Date().toLocaleString('en-US', {
-          timeZone: 'America/New_York',
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: true
-        })
+        SCAMMER_NAME: data.report.scammer_name || 'Not provided',
+        COMPANY_NAME: data.report.company_name || 'Not provided',
+        SCAMMER_PHONE: data.report.scammer_phone || 'Not provided',
+        SCAMMER_EMAIL: data.report.scammer_email || 'Not provided',
+        SCAMMER_WEBSITE: data.report.scammer_website || 'Not provided',
+        REPORTED_ELSEWHERE: data.report.reported_elsewhere ? 'Yes' : 'No',
+        REPORTED_TO: data.report.reported_to || 'N/A',
+        WANT_UPDATES: data.report.want_updates ? 'Yes' : 'No',
+        EVIDENCE_FILE_URL: data.report.evidence_file_url || 'No evidence file uploaded',
+        SCAM_TYPES: formatScamTypes(data.scamTypes),
+        META_DETAILS: formatMetaDetails(data.metaDetails)
       }
     };
 
-    console.log('Sending request to Brevo with:', JSON.stringify(requestBody, null, 2));
-
-    const response = await axios.post(
-      'https://api.brevo.com/v3/smtp/email',
-      requestBody,
-      {
-        headers: {
-          'accept': 'application/json',
-          'api-key': import.meta.env.VITE_BREVO_API_KEY,
-          'content-type': 'application/json'
-        }
+    const response = await axios.post('https://api.brevo.com/v3/smtp/email', requestBody, {
+      headers: {
+        'api-key': BREVO_API_KEY,
+        'Content-Type': 'application/json'
       }
-    );
-
-    console.log('Admin notification sent successfully:', response.data);
-    return response.data;
-  } catch (error: any) {
-    console.error('Error sending admin notification:', {
-      message: error.message,
-      status: error?.response?.status,
-      statusText: error?.response?.statusText,
-      data: error?.response?.data
     });
+
+    return { success: true, data: response.data };
+  } catch (error) {
+    console.error('Error sending admin notification:', error);
     throw error;
   }
 };
 
 // Send confirmation email to the reporter if they want updates
-export const sendReporterConfirmation = async (report: ScamReport) => {
-  if (!BREVO_API_KEY || !report.want_updates || !report.reporter_email) {
+export const sendReporterConfirmation = async (data: ScamReportEmailData) => {
+  if (!BREVO_API_KEY || !data.report.want_updates || !data.report.reporter_email) {
     return { success: false, error: 'Email service not configured or reporter does not want updates' };
   }
 
@@ -187,13 +141,13 @@ export const sendReporterConfirmation = async (report: ScamReport) => {
 
     const requestBody = {
       to: [{
-        email: report.reporter_email,
-        name: report.reporter_name
+        email: data.report.reporter_email,
+        name: data.report.reporter_name
       }],
       templateId: 7, // Updated to use template ID 7
       params: {
-        REPORTER_NAME: report.reporter_name,
-        DATE_OCCURRED: new Date(report.date_occurred).toLocaleDateString('en-US', {
+        REPORTER_NAME: data.report.reporter_name,
+        DATE_OCCURRED: new Date(data.report.date_occurred).toLocaleDateString('en-US', {
           timeZone: 'America/New_York',
           year: 'numeric',
           month: '2-digit',
@@ -205,10 +159,10 @@ export const sendReporterConfirmation = async (report: ScamReport) => {
           month: '2-digit',
           day: '2-digit'
         }),
-        COMPANY_NAME: report.company_name || 'the company',
-        MONEY_LOST: report.money_lost ? 'Yes' : 'No',
-        AMOUNT_LOST: report.amount_lost 
-          ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(report.amount_lost)
+        COMPANY_NAME: data.report.company_name || 'the company',
+        MONEY_LOST: data.report.money_lost ? 'Yes' : 'No',
+        AMOUNT_LOST: data.report.amount_lost 
+          ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(data.report.amount_lost)
           : 'N/A'
       }
     };
