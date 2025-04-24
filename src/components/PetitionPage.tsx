@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import '../styles/landing-page.css';
 import { motion, useAnimation, useInView } from 'framer-motion';
+import { Avatar } from '@mui/material';
 
 // Animation variants
 const fadeIn = {
@@ -73,7 +74,31 @@ const CountingNumber: React.FC<CountingNumberProps> = ({ value, prefix = '', suf
   );
 };
 
-const PetitionPage: React.FC = () => {
+// Testimonials data
+const testimonials = [
+  {
+    name: "Priya Mehra",
+    image: "/images/home-page/testimonials/Priya Mehra.avif",
+    quote: "I didn't know I was signing my life away.",
+    story: "It sounded like a dream. A guaranteed vacation spot, every year. But after the first year, the fees went up... and up. And we could never book when we wanted. We tried to cancel, but it felt like hitting a wall. Signing this petition was the first time I felt like maybe someone was finally listening."
+  },
+  {
+    name: "Sofia Bennett",
+    image: "/images/home-page/testimonials/Sofia Bennett.avif",
+    quote: "We were threatened when we tried to leave.",
+    story: "When we called to cancel, they told us we'd ruin our credit, that we'd be sued, that there was no way out. We felt bullied. And honestly, we backed down. This petition is a chance to stand up — not just for us, but for every family they've scared into silence."
+  },
+  {
+    name: "Daniel Wu",
+    image: "/images/home-page/testimonials/Daniel Wu.avif",
+    quote: "We trusted them. That was the mistake.",
+    story: "They made it sound so simple. Three days to cancel. But there were hidden clauses we didn't even know existed. By the time we figured it out, it was too late. I'm speaking up now because I don't want anyone else to go through what we did. This petition matters."
+  }
+];
+
+interface PetitionPageProps {}
+
+const PetitionPage: React.FC<PetitionPageProps> = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [signatureCount, setSignatureCount] = useState(3427);
   const signatureGoal = 10000;
@@ -139,6 +164,37 @@ const PetitionPage: React.FC = () => {
                   </div>
                 </div>
               </motion.div>
+              <motion.div variants={fadeIn} style={{ marginTop: '2rem' }}>
+                <Link 
+                  to="/sign/84dec50d-d877-4f15-9250-f5364124371a"
+                  className="cta-button"
+                  style={{
+                    display: 'inline-block',
+                    padding: '1rem 2rem',
+                    fontSize: '1.2rem',
+                    fontWeight: 600,
+                    backgroundColor: '#E0AC3F',
+                    color: 'white',
+                    borderRadius: '8px',
+                    textDecoration: 'none',
+                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                    transition: 'all 0.3s ease',
+                    cursor: 'pointer',
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 6px 12px rgba(0, 0, 0, 0.15)';
+                    e.currentTarget.style.backgroundColor = '#c99b38';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+                    e.currentTarget.style.backgroundColor = '#E0AC3F';
+                  }}
+                >
+                  Sign the Petition Now
+                </Link>
+              </motion.div>
             </motion.div>
             <motion.div 
               className="hero-image-wrapper"
@@ -152,7 +208,6 @@ const PetitionPage: React.FC = () => {
                 alt="Timeshare contract with scam stamp"
                 className="hero-img"
               />
-              <span className="image-tag">End the Nightmare</span>
             </motion.div>
           </div>
         </div>
@@ -217,6 +272,93 @@ const PetitionPage: React.FC = () => {
             <motion.div className="stat-item" variants={scaleIn}>
               <CountingNumber value="22" prefix="$" suffix="K" />
               <span className="stat-label">Average Loss</span>
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
+      <section className="testimonials-section" style={{ backgroundColor: '#f5f5f5', padding: '4rem 0' }}>
+        <div className="container">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={staggerContainer}
+          >
+            <motion.h2
+              className="section-title"
+              variants={fadeIn}
+              style={{
+                textAlign: 'center',
+                marginBottom: '2rem',
+                color: '#01BD9B'
+              }}
+            >
+              Real Stories. Real Impact.
+            </motion.h2>
+            <motion.p
+              variants={fadeIn}
+              style={{
+                textAlign: 'center',
+                fontSize: '1.2rem',
+                color: '#666',
+                maxWidth: '800px',
+                margin: '0 auto 3rem'
+              }}
+            >
+              These are just a few of the thousands of stories we've heard. Each one represents a family that deserved better.
+            </motion.p>
+
+            <motion.div
+              variants={staggerContainer}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+                gap: '2rem',
+                padding: '0 1rem'
+              }}
+            >
+              {testimonials.map((testimonial, index) => (
+                <motion.div
+                  key={index}
+                  variants={fadeIn}
+                  style={{
+                    backgroundColor: 'white',
+                    borderRadius: '12px',
+                    padding: '2rem',
+                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                    transition: 'transform 0.3s ease',
+                  }}
+                  whileHover={{
+                    transform: 'translateY(-8px)',
+                    boxShadow: '0 6px 12px rgba(0, 0, 0, 0.15)'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+                    <Avatar
+                      src={testimonial.image}
+                      alt={testimonial.name}
+                      style={{
+                        width: '64px',
+                        height: '64px',
+                        border: '2px solid #01BD9B'
+                      }}
+                    />
+                    <div>
+                      <h3 style={{ margin: '0', fontSize: '1.2rem', fontWeight: '600' }}>
+                        {testimonial.name}
+                      </h3>
+                      <p style={{ margin: '0.5rem 0 0', color: '#01BD9B', fontStyle: 'italic' }}>
+                        {testimonial.quote}
+                      </p>
+                    </div>
+                  </div>
+                  <p style={{ margin: '0', color: '#666', lineHeight: '1.6' }}>
+                    {testimonial.story}
+                  </p>
+                </motion.div>
+              ))}
             </motion.div>
           </motion.div>
         </div>
