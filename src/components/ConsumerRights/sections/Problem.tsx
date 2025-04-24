@@ -181,7 +181,7 @@ const Problem: React.FC = () => {
           >
             <Box
               component="img"
-              src="/images/sec-section2.webp"
+              src="/images/home-page/Timeshare Owners Denied Their Rights.avif"
               alt="Timeshare rights denied"
               sx={{
                 width: '100%',

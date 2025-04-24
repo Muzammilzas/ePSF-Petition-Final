@@ -238,25 +238,26 @@ const TimeshareScamChecklistPage = () => {
     setIsSubmitting(true);
     setError('');
 
-    if (!executeRecaptcha) {
-      console.error('reCAPTCHA not initialized');
-      setError('Form validation not yet available. Please try again.');
-      setIsSubmitting(false);
-      return;
-    }
-
     try {
+      if (!executeRecaptcha) {
+        console.error('reCAPTCHA not initialized');
+        setError('Please wait a moment while we initialize the form security...');
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (!formData.email || !formData.fullName) {
+        setError('Please fill in all required fields');
+        setIsSubmitting(false);
+        return;
+      }
+
       console.log('Executing reCAPTCHA...');
       const token = await executeRecaptcha('download_guide');
       console.log('reCAPTCHA token received:', !!token);
       
       if (!token) {
-        throw new Error('Failed to execute reCAPTCHA');
-      }
-
-      if (!formData.email || !formData.fullName) {
-        setError('Please fill in all required fields');
-        return;
+        throw new Error('Security verification failed. Please try again.');
       }
 
       // Format current time in EST
@@ -723,16 +724,16 @@ const TimeshareScamChecklistPage = () => {
 };
 
 const TimeshareScamChecklist: React.FC = () => {
-  const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '';
+  const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
   
-  console.log('Initializing reCAPTCHA with site key:', !!recaptchaSiteKey);
+  console.log('Initializing reCAPTCHA with site key available:', !!recaptchaSiteKey);
   
   if (!recaptchaSiteKey) {
     console.error('reCAPTCHA site key is missing');
     return (
-      <Container maxWidth="md">
+      <Container maxWidth="md" sx={{ mt: 4 }}>
         <Alert severity="error">
-          Form is temporarily unavailable. Please try again later.
+          Form is temporarily unavailable. Please try again later or contact support if the issue persists.
         </Alert>
       </Container>
     );
@@ -745,6 +746,11 @@ const TimeshareScamChecklist: React.FC = () => {
         async: true,
         defer: true,
         appendTo: 'head',
+      }}
+      container={{
+        parameters: {
+          badge: 'bottomright',
+        },
       }}
     >
       <TimeshareScamChecklistPage />

@@ -919,16 +919,19 @@ const ReportScamSection = () => {
               <motion.div variants={fadeInUp}>
                 <Box 
                   component="img"
-                  src="/images/home-page/Timeshare-report-a-scam .avif"
+                  src="/images/home-page/Timeshare-report-a-scam-2.avif"
                   alt="Report a Scam"
                   sx={{
                     width: '100%',
                     height: '400px',
-                    objectFit: 'cover',
+                    objectFit: 'contain',
+                    objectPosition: 'center',
                     borderRadius: '20px',
                     boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
                     transform: 'perspective(1000px) rotateY(-5deg)',
                     transition: 'transform 0.3s ease-in-out',
+                    bgcolor: 'background.paper',
+                    p: 2,
                     '&:hover': {
                       transform: 'perspective(1000px) rotateY(0deg) translateY(-10px)'
                     }

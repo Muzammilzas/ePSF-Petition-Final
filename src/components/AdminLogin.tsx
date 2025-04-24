@@ -26,15 +26,19 @@ const AdminLogin: React.FC = () => {
     setError(null);
 
     try {
-      const { error: signInError } = await signIn(email, password);
+      const { error: signInError, isAdmin } = await signIn(email, password);
       
       if (signInError) {
         setError(signInError.message);
         return;
       }
 
-      // If sign in was successful, navigate to dashboard
-      navigate('/admin/dashboard', { replace: true });
+      // Only redirect if the user is an admin
+      if (isAdmin) {
+        navigate('/admin/dashboard', { replace: true });
+      } else {
+        setError('Access denied. This area is restricted to administrators only.');
+      }
     } catch (err: any) {
       setError(err.message || 'An error occurred during login');
     } finally {

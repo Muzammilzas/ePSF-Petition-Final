@@ -6,7 +6,7 @@ interface AuthContextType {
   session: Session | null;
   user: User | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: any | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: any | null; isAdmin?: boolean }>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
   forceRefreshAuth: () => void;
@@ -147,9 +147,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         localStorage.setItem('isAdmin', isUserAdmin.toString());
         setSession(data.session);
         setUser(data.user);
+        
+        return { error: null, isAdmin: isUserAdmin };
       }
       
-      return { error: null };
+      return { error: null, isAdmin: false };
     } catch (error) {
       console.error('Error signing in:', error);
       return { error };

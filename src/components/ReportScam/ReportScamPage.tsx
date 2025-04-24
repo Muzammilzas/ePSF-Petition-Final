@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Typography, Box, Paper, Stepper, Step, StepLabel, Alert } from '@mui/material';
+import { Container, Typography, Box, Paper, Stepper, Step, StepLabel, Alert, LinearProgress, Tooltip, IconButton } from '@mui/material';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import Step0Personal from './steps/Step0Personal';
@@ -12,6 +12,7 @@ import { sendScamReportNotification, sendReporterConfirmation } from '../../serv
 import { saveAbandonedForm, markFormCompleted } from '../../services/abandonedFormService';
 import { collectMetaDetails } from '../../utils/metaDetails';
 import { v4 as uuidv4 } from 'uuid';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 
 interface ScamTypeData {
   selected: boolean;
@@ -82,7 +83,19 @@ interface FormData {
   wantUpdates: boolean;
 }
 
-const steps = ['Your Information', 'Tell Us What Happened', 'Share Any Known Details', 'Make Your Report Go Further'];
+const steps = [
+  'Your Information',
+  'Tell Us What Happened',
+  'Share Any Known Details',
+  'Make Your Report Go Further',
+];
+
+const stepDescriptions = {
+  '0': 'We'll keep your information confidential and only use it to follow up if needed.',
+  '1': 'Help us understand what type of scam you encountered.',
+  '2': 'Share any details you have about the scammer to help protect others.',
+  '3': 'Your report can make a difference in preventing future scams.',
+} as const;
 
 const ReportScamPage: React.FC = () => {
   const [activeStep, setActiveStep] = useState(0);
@@ -599,6 +612,63 @@ const ReportScamPage: React.FC = () => {
     }
   };
 
+  // Calculate form completion percentage
+  const calculateProgress = () => {
+    let totalFields = 0;
+    let completedFields = 0;
+
+    // Personal Information
+    const personalFields = ['fullName', 'city', 'state', 'ageRange'];
+    totalFields += personalFields.length;
+    completedFields += personalFields.filter(field => formData[field]?.toString().trim()).length;
+
+    // Contact Method
+    if (formData.preferredContact === 'Email' || formData.preferredContact === 'Either') {
+      totalFields++;
+      if (formData.email) completedFields++;
+    }
+    if (formData.preferredContact === 'Phone' || formData.preferredContact === 'Either') {
+      totalFields++;
+      if (formData.phone) completedFields++;
+    }
+
+    // Scam Types
+    const selectedScamTypes = Object.values(formData.scamTypes).filter(type => type.selected);
+    if (selectedScamTypes.length > 0) {
+      totalFields += selectedScamTypes.length;
+      completedFields += selectedScamTypes.filter(type => {
+        const details = Object.entries(type)
+          .filter(([key]) => key !== 'selected')
+          .every(([_, value]) => {
+            if (typeof value === 'boolean') return true;
+            return value.toString().trim() !== '';
+          });
+        return details;
+      }).length;
+    }
+
+    // Contact Methods
+    const selectedContactMethods = Object.values(formData.contactMethods).filter(method => method.selected);
+    if (selectedContactMethods.length > 0) {
+      totalFields += selectedContactMethods.length;
+      completedFields += selectedContactMethods.filter(method => {
+        return Object.entries(method)
+          .filter(([key]) => key !== 'selected' && key !== 'evidence')
+          .every(([_, value]) => value.toString().trim() !== '');
+      }).length;
+    }
+
+    // Additional Information
+    if (formData.moneyLost) {
+      totalFields++;
+      if (formData.amountLost) completedFields++;
+    }
+    if (formData.dateOccurred) completedFields++;
+    totalFields++;
+
+    return Math.round((completedFields / totalFields) * 100);
+  };
+
   if (activeStep >= steps.length) {
     return <SuccessMessage />;
   }
@@ -633,6 +703,31 @@ const ReportScamPage: React.FC = () => {
             warn others, and protect more people just like you.
           </Typography>
 
+          <Box sx={{ mb: 4 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+              <Typography variant="body2" color="text.secondary">
+                Form Completion: {calculateProgress()}%
+              </Typography>
+              <Tooltip title={stepDescriptions[activeStep]} placement="left">
+                <IconButton size="small">
+                  <HelpOutlineIcon />
+                </IconButton>
+              </Tooltip>
+            </Box>
+            <LinearProgress 
+              variant="determinate" 
+              value={calculateProgress()} 
+              sx={{ 
+                height: 8, 
+                borderRadius: 4,
+                backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                '& .MuiLinearProgress-bar': {
+                  borderRadius: 4,
+                }
+              }} 
+            />
+          </Box>
+
           <Typography variant="h4" align="center" gutterBottom sx={{ mb: 4 }} color="primary">
             Report the Scam
           </Typography>
@@ -641,10 +736,26 @@ const ReportScamPage: React.FC = () => {
           </Typography>
 
           {activeStep < steps.length && (
-            <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
-              {steps.map((label) => (
+            <Stepper 
+              activeStep={activeStep} 
+              sx={{ 
+                mb: 4,
+                '& .MuiStepLabel-root': {
+                  cursor: 'pointer',
+                },
+                '& .MuiStepLabel-label': {
+                  fontSize: '0.875rem',
+                  '@media (min-width: 600px)': {
+                    fontSize: '1rem',
+                  },
+                },
+              }}
+            >
+              {steps.map((label, index) => (
                 <Step key={label}>
-                  <StepLabel>{label}</StepLabel>
+                  <Tooltip title={stepDescriptions[index]} placement="top">
+                    <StepLabel>{label}</StepLabel>
+                  </Tooltip>
                 </Step>
               ))}
             </Stepper>
