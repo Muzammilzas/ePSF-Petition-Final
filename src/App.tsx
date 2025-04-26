@@ -38,6 +38,8 @@ import BeforeYouSign from './pages/BeforeYouSign';
 import SpottingExitScams from './pages/SpottingExitScams';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import DataDeletionRequest from './pages/DataDeletionRequest';
+import TimeshareScams from './pages/TimeshareScams';
+import TimeshareScamAwareness from './pages/TimeshareScamAwareness';
 
 const theme = createTheme({
   palette: {
@@ -135,6 +137,8 @@ const App: React.FC = () => {
                   <Route path="/spotting-exit-scams" element={<SpottingExitScams />} />
                   <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                   <Route path="/data-deletion-request" element={<DataDeletionRequest />} />
+                  <Route path="/how-timeshare-scams-work" element={<TimeshareScams />} />
+                  <Route path="/timeshare-scam-awareness" element={<TimeshareScamAwareness />} />
                   
                   {/* Authentication Routes */}
                   <Route path="/admin/login" element={<AdminLogin />} />
