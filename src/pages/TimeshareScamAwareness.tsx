@@ -118,34 +118,26 @@ const TimeshareScamAwareness: React.FC = () => {
             flex: 1,
             position: 'relative',
             overflow: 'hidden',
+            bgcolor: '#01BD9B',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            p: 4,
           }}
         >
           <Box
             component="img"
-            src="https://images.unsplash.com/photo-1562664377-709f2c337eb2?auto=format&fit=crop&w=1200&q=80"
-            alt="Vacation warning"
+            src="/images/timeshare-scam-awareness/hero-section.avif"
+            alt="Timeshare scam awareness"
             sx={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              filter: 'brightness(0.8)',
+              width: '80%',
+              maxHeight: '80%',
+              objectFit: 'contain',
+              objectPosition: 'center',
+              display: 'block',
+              margin: 'auto',
             }}
           />
-          <Box
-            sx={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'linear-gradient(45deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <WarningIcon sx={{ fontSize: '120px', color: 'white', opacity: 0.8 }} />
-          </Box>
         </Box>
       </Box>
 

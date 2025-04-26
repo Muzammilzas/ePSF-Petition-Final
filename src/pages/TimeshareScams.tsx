@@ -104,40 +104,23 @@ const DreamVacationSection = () => {
               initial="hidden"
               animate="visible"
               sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 2
+                position: 'relative',
+                height: { xs: '300px', md: '500px' },
+                overflow: 'hidden',
+                borderRadius: 2,
               }}
             >
-              <Paper
-                elevation={3}
+              <Box
+                component="img"
+                src="/images/how-timeshare-scams-work/hero-section-2.avif"
+                alt="Protect your dream vacation"
                 sx={{
-                  p: 4,
-                  bgcolor: 'error.light',
-                  color: 'error.contrastText',
-                  position: 'relative',
-                  overflow: 'hidden'
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                  objectPosition: 'top',
                 }}
-              >
-                <Box sx={{ position: 'relative', zIndex: 1 }}>
-                  <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
-                    Don't Let Your Dream Become a Nightmare
-                  </Typography>
-                  <Typography sx={{ mb: 2 }}>
-                    Timeshare scams can turn your dream into a nightmare. Learn how to protect yourself before it's too late.
-                  </Typography>
-                </Box>
-                <BeachAccessIcon 
-                  sx={{ 
-                    position: 'absolute',
-                    right: -20,
-                    bottom: -20,
-                    fontSize: 120,
-                    opacity: 0.2,
-                    transform: 'rotate(-15deg)'
-                  }} 
-                />
-              </Paper>
+              />
             </Box>
           </Grid>
         </Grid>
@@ -268,47 +251,24 @@ const ScamTrapSection = () => {
                 minHeight: 500,
                 borderRadius: 2,
                 overflow: 'hidden',
-                position: 'relative'
+                position: 'relative',
+                bgcolor: '#01BD9B',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
               <Box
                 component="img"
-                src="https://images.unsplash.com/photo-1562664377-709f2c337eb2?auto=format&fit=crop&w=800&q=80"
-                alt="Warning about timeshare scams"
+                src="/images/how-timeshare-scams-work/Timeshare Scam Trap.avif"
+                alt="Timeshare Scam Trap"
                 sx={{
                   width: '100%',
                   height: '100%',
-                  objectFit: 'cover',
+                  objectFit: 'contain',
                   objectPosition: 'center',
-                  minHeight: 500
                 }}
               />
-              <Box
-                sx={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  background: `linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.7) 100%)`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: 3
-                }}
-              >
-                <Typography
-                  variant="h4"
-                  sx={{
-                    color: 'white',
-                    textAlign: 'center',
-                    fontWeight: 600,
-                    textShadow: '2px 2px 4px rgba(0,0,0,0.5)'
-                  }}
-                >
-                  Don't Let Your Dream Vacation Turn Into a Nightmare
-                </Typography>
-              </Box>
             </Box>
           </Grid>
         </Grid>
