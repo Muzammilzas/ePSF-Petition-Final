@@ -65,6 +65,18 @@ const Navigation: React.FC = () => {
           }
         },
         {
+          text: 'ANALYTICS',
+          link: '/admin/analytics',
+          variant: 'text',
+          sx: {
+            color: '#01BD9B',
+            fontSize: '0.9rem',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            width: isMobile ? '100%' : 'auto',
+          }
+        },
+        {
           text: 'SCAM REPORTS',
           link: '/admin/scam-reports',
           variant: 'text',
