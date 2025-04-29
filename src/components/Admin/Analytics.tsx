@@ -27,6 +27,7 @@ import {
   Tooltip,
   useTheme,
   useMediaQuery,
+  Chip,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../services/supabase';
@@ -48,7 +49,7 @@ import {
   Speed as SpeedIcon,
   ArrowUpward as ArrowUpwardIcon,
   ArrowDownward as ArrowDownwardIcon,
-  Description as DescriptionIcon,
+  Event as EventIcon,
 } from '@mui/icons-material';
 import { 
   BarChart, 
@@ -79,27 +80,32 @@ interface AnalyticsData {
     location: string;
     device: string;
     visited_at: string;
-    city?: string;
-    country?: string;
-    region?: string;
+    events: Array<{
+      name: string;
+      timestamp: string;
+      properties?: Record<string, any>;
+    }>;
   }>;
   pageViews: Array<{ page: string; views: number }>;
   referrers: Array<{ source: string; count: number }>;
   browsers: Array<{ browser: string; count: number }>;
   timeOnSite: number;
   bounceRate: number;
-  formSubmissions: Array<{
-    form_id: string;
-    form_name: string;
+  events: Array<{
+    name: string;
     count: number;
-    last_submission: string;
+    uniqueUsers: number;
   }>;
   previousPeriodData?: {
     totalVisitors: number;
     uniqueVisitors: number;
     timeOnSite: number;
     bounceRate: number;
-    formSubmissions: number;
+    events: Array<{
+      name: string;
+      count: number;
+      uniqueUsers: number;
+    }>;
   };
 }
 
@@ -142,6 +148,19 @@ const formatInEST = (date: Date | string) => {
   return new Date(date).toLocaleTimeString('en-US', options);
 };
 
+// Add utility function for formatting location
+const formatLocation = (location: string) => {
+  if (!location || location === 'Unknown') return 'Unknown Location';
+  try {
+    // Try to parse the location if it's a JSON string
+    const parsed = JSON.parse(location);
+    return `${parsed.city || ''}, ${parsed.country || ''}`.trim() || 'Unknown Location';
+  } catch {
+    // If it's not JSON, return as is
+    return location || 'Unknown Location';
+  }
+};
+
 const Analytics: React.FC = () => {
   const navigate = useNavigate();
   const theme = useTheme();
@@ -162,13 +181,13 @@ const Analytics: React.FC = () => {
     browsers: [],
     timeOnSite: 0,
     bounceRate: 0,
-    formSubmissions: [],
+    events: [],
     previousPeriodData: {
       totalVisitors: 0,
       uniqueVisitors: 0,
       timeOnSite: 0,
       bounceRate: 0,
-      formSubmissions: 0
+      events: []
     }
   });
 
@@ -207,7 +226,7 @@ const Analytics: React.FC = () => {
           startDate.setDate(estNow.getDate() - 90);
           break;
         default:
-          startDate.setDate(estNow.getDate() - 7); // Default to 7 days
+          startDate.setDate(estNow.getDate() - 7);
       }
       
       // Convert EST dates to UTC for database query
@@ -227,57 +246,29 @@ const Analytics: React.FC = () => {
 
       if (visitorsError) throw visitorsError;
 
+      // Try to fetch events data, but don't throw if table doesn't exist
+      let eventsData: any[] = [];
+      try {
+        const { data: events, error: eventsError } = await supabase
+          .from('analytics_events')
+          .select('*')
+          .gte('timestamp', startDateStr)
+          .lte('timestamp', endDateStr);
+        
+        if (!eventsError && events) {
+          eventsData = events;
+        }
+      } catch (error) {
+        console.log('Analytics events table not available yet');
+      }
+
       // Process the data
       const totalVisitors = visitorsData.length;
       const uniqueVisitors = new Set(visitorsData.map(v => v.ip_address)).size;
-
-      // Fetch form submissions
-      let formData: any[] = [];
-      try {
-        const { data: formSubmissions, error: formError } = await supabase
-          .from('form_submissions')
-          .select('*')
-          .gte('submitted_at', startDateStr)
-          .lte('submitted_at', endDateStr);
-
-        if (formError) {
-          console.warn('Error fetching form submissions:', formError);
-        } else {
-          formData = formSubmissions || [];
-        }
-      } catch (error) {
-        console.warn('Error accessing form submissions:', error);
-      }
-
-      // Process form submissions
-      const formSubmissions = formData.reduce((acc: any, curr) => {
-        if (!acc[curr.form_id]) {
-          acc[curr.form_id] = {
-            form_id: curr.form_id,
-            form_name: curr.form_name || 'Unknown Form',
-            count: 0,
-            last_submission: curr.submitted_at
-          };
-        }
-        acc[curr.form_id].count++;
-        if (new Date(curr.submitted_at) > new Date(acc[curr.form_id].last_submission)) {
-          acc[curr.form_id].last_submission = curr.submitted_at;
-        }
-        return acc;
-      }, {});
-
-      // Process location data with better fallback
+      
+      // Get top locations with proper formatting
       const locationCounts = visitorsData.reduce((acc: any, curr) => {
-        let location = 'Unknown Location';
-        
-        if (curr.city && curr.country) {
-          location = `${curr.city}, ${curr.country}`;
-        } else if (curr.region && curr.country) {
-          location = `${curr.region}, ${curr.country}`;
-        } else if (curr.location) {
-          location = curr.location;
-        }
-        
+        const location = formatLocation(curr.location);
         acc[location] = (acc[location] || 0) + 1;
         return acc;
       }, {});
@@ -285,33 +276,27 @@ const Analytics: React.FC = () => {
       const topLocations = Object.entries(locationCounts)
         .map(([location, count]) => ({ location, count: count as number }))
         .sort((a, b) => b.count - a.count)
-        .slice(0, 10);
+        .slice(0, 5);
 
-      // Get device statistics
-      const deviceCounts = visitorsData.reduce((acc: any, curr) => {
-        acc[curr.device] = (acc[curr.device] || 0) + 1;
-        return acc;
-      }, {});
+      // Process events if available
+      const processedEvents = eventsData.length > 0 ? 
+        Object.entries(eventsData.reduce((acc: any, event) => {
+          if (!acc[event.name]) {
+            acc[event.name] = {
+              count: 0,
+              users: new Set()
+            };
+          }
+          acc[event.name].count++;
+          acc[event.name].users.add(event.ip_address);
+          return acc;
+        }, {})).map(([name, data]: [string, any]) => ({
+          name,
+          count: data.count,
+          uniqueUsers: data.users.size
+        })).sort((a, b) => b.count - a.count) : [];
 
-      const deviceStats = Object.entries(deviceCounts)
-        .map(([device, count]) => ({ device, count: count as number }))
-        .sort((a, b) => b.count - a.count);
-
-      // Get hourly statistics
-      const hourlyCounts = visitorsData.reduce((acc: any, curr) => {
-        const date = new Date(curr.visited_at);
-        const estDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-        const hour = estDate.getHours();
-        acc[hour] = (acc[hour] || 0) + 1;
-        return acc;
-      }, {});
-
-      const hourlyStats = Array.from({ length: 24 }, (_, i) => ({
-        hour: i,
-        count: hourlyCounts[i] || 0,
-      }));
-
-      // Get recent visitors
+      // Get recent visitors with their events
       const recentVisitors = visitorsData
         .sort((a, b) => {
           const dateA = new Date(a.visited_at);
@@ -320,7 +305,11 @@ const Analytics: React.FC = () => {
           const estDateB = new Date(dateB.toLocaleString('en-US', { timeZone: 'America/New_York' }));
           return estDateB.getTime() - estDateA.getTime();
         })
-        .slice(0, 10);
+        .slice(0, 10)
+        .map(visitor => ({
+          ...visitor,
+          events: eventsData.filter(event => event.ip_address === visitor.ip_address)
+        }));
       
       // Get page views
       const pageViewCounts = visitorsData.reduce((acc: any, curr) => {
@@ -351,25 +340,30 @@ const Analytics: React.FC = () => {
         .sort((a, b) => b.count - a.count)
         .slice(0, 10);
       
-      // Get browser statistics
-      const browserCounts = visitorsData.reduce((acc: any, curr) => {
-        const userAgent = curr.user_agent || '';
-        let browser = 'Other';
-        
-        if (userAgent.includes('Chrome')) browser = 'Chrome';
-        else if (userAgent.includes('Firefox')) browser = 'Firefox';
-        else if (userAgent.includes('Safari')) browser = 'Safari';
-        else if (userAgent.includes('Edge')) browser = 'Edge';
-        else if (userAgent.includes('MSIE') || userAgent.includes('Trident/')) browser = 'Internet Explorer';
-        
-        acc[browser] = (acc[browser] || 0) + 1;
+      // Get device statistics
+      const deviceCounts = visitorsData.reduce((acc: any, curr) => {
+        acc[curr.device] = (acc[curr.device] || 0) + 1;
         return acc;
       }, {});
       
-      const browsers = Object.entries(browserCounts)
-        .map(([browser, count]) => ({ browser, count: count as number }))
+      const deviceStats = Object.entries(deviceCounts)
+        .map(([device, count]) => ({ device, count: count as number }))
         .sort((a, b) => b.count - a.count);
-      
+
+      // Get hourly statistics
+      const hourlyCounts = visitorsData.reduce((acc: any, curr) => {
+        const date = new Date(curr.visited_at);
+        const estDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+        const hour = estDate.getHours();
+        acc[hour] = (acc[hour] || 0) + 1;
+        return acc;
+      }, {});
+
+      const hourlyStats = Array.from({ length: 24 }, (_, i) => ({
+        hour: i,
+        count: hourlyCounts[i] || 0,
+      }));
+
       // Calculate time on site (average)
       const timeOnSite = visitorsData.reduce((acc, curr) => {
         return acc + (curr.session_duration || 0);
@@ -394,6 +388,9 @@ const Analytics: React.FC = () => {
         .gte('visited_at', previousStartDate.toISOString())
         .lte('visited_at', previousEndDate.toISOString());
 
+      const previousTotalVisitors = previousVisitorsData?.length || 0;
+      const previousUniqueVisitors = previousVisitorsData ? new Set(previousVisitorsData.map(v => v.ip_address)).size : 0;
+      
       const previousTimeOnSite = previousVisitorsData ? 
         previousVisitorsData.reduce((acc, curr) => acc + (curr.session_duration || 0), 0) / (previousVisitorsData.length || 1) : 0;
       
@@ -412,37 +409,23 @@ const Analytics: React.FC = () => {
         topLocations,
         deviceStats,
         hourlyStats,
-        recentVisitors: recentVisitors.map(visitor => {
-          let location = 'Unknown Location';
-          
-          if (visitor.city && visitor.country) {
-            location = `${visitor.city}, ${visitor.country}`;
-          } else if (visitor.region && visitor.country) {
-            location = `${visitor.region}, ${visitor.country}`;
-          } else if (visitor.location) {
-            location = visitor.location;
-          }
-          
-          return {
-            ...visitor,
-            location
-          };
-        }),
+        recentVisitors,
         pageViews,
         referrers,
-        browsers,
+        browsers: [],
         timeOnSite,
         bounceRate,
-        formSubmissions: Object.values(formSubmissions),
+        events: processedEvents,
         previousPeriodData: {
-          totalVisitors: previousVisitorsData?.length || 0,
-          uniqueVisitors: previousVisitorsData ? new Set(previousVisitorsData.map(v => v.ip_address)).size : 0,
+          totalVisitors: previousTotalVisitors,
+          uniqueVisitors: previousUniqueVisitors,
           timeOnSite: previousTimeOnSite,
           bounceRate: previousBounceRate,
-          formSubmissions: formData.length
+          events: []
         }
       });
     } catch (error: any) {
+      console.error('Analytics error:', error);
       setError(error.message || 'Failed to fetch analytics data');
     } finally {
       setLoading(false);
@@ -658,6 +641,21 @@ const Analytics: React.FC = () => {
               </CardContent>
             </Card>
           </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                  <EventIcon sx={{ color: '#0088FE', mr: 1 }} />
+                  <Typography variant="h6">Total Events</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'baseline' }}>
+                  <Typography variant="h4">
+                    {analyticsData.events.reduce((sum, event) => sum + event.count, 0)}
+                  </Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
         </Grid>
 
         {/* Tabs for different analytics views */}
@@ -668,7 +666,7 @@ const Analytics: React.FC = () => {
             <Tab icon={<DevicesIcon />} label="Devices" />
             <Tab icon={<LocationIcon />} label="Locations" />
             <Tab icon={<TimeIcon />} label="Time" />
-            <Tab icon={<DescriptionIcon />} label="Forms" />
+            <Tab icon={<EventIcon />} label="Events" />
           </Tabs>
         </Box>
 
@@ -772,7 +770,7 @@ const Analytics: React.FC = () => {
                     <TableBody>
                       {analyticsData.recentVisitors.map((visitor) => (
                         <TableRow key={visitor.id}>
-                          <TableCell>{visitor.location}</TableCell>
+                          <TableCell>{formatLocation(visitor.location)}</TableCell>
                           <TableCell>{visitor.device}</TableCell>
                           <TableCell>
                             {formatInEST(visitor.visited_at)}
@@ -998,46 +996,45 @@ const Analytics: React.FC = () => {
           </Grid>
         </TabPanel>
 
-        {/* Form Submissions Tab */}
+        {/* Events Tab */}
         <TabPanel value={tabValue} index={5}>
           <Grid container spacing={3}>
             <Grid item xs={12}>
-              <Paper sx={{ p: 3 }}>
+              <Paper sx={{ p: 3, mb: 3 }}>
                 <Typography variant="h6" gutterBottom>
-                  Form Submissions
+                  Event Analytics
                 </Typography>
-                {analyticsData.formSubmissions.length > 0 ? (
-                  <TableContainer>
-                    <Table>
-                      <TableHead>
-                        <TableRow>
-                          <TableCell>Form Name</TableCell>
-                          <TableCell align="right">Submissions</TableCell>
-                          <TableCell>Last Submission</TableCell>
-                          <TableCell align="right">% of Total</TableCell>
+                <TableContainer>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Event Name</TableCell>
+                        <TableCell align="right">Total Count</TableCell>
+                        <TableCell align="right">Unique Users</TableCell>
+                        <TableCell align="right">% of Users</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {analyticsData.events.map((event, index) => (
+                        <TableRow key={index}>
+                          <TableCell>
+                            <Chip 
+                              label={event.name} 
+                              color="primary" 
+                              variant="outlined" 
+                              size="small" 
+                            />
+                          </TableCell>
+                          <TableCell align="right">{event.count}</TableCell>
+                          <TableCell align="right">{event.uniqueUsers}</TableCell>
+                          <TableCell align="right">
+                            {((event.uniqueUsers / analyticsData.uniqueVisitors) * 100).toFixed(1)}%
+                          </TableCell>
                         </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {analyticsData.formSubmissions.map((form) => (
-                          <TableRow key={form.form_id}>
-                            <TableCell>{form.form_name}</TableCell>
-                            <TableCell align="right">{form.count}</TableCell>
-                            <TableCell>{formatInEST(form.last_submission)}</TableCell>
-                            <TableCell align="right">
-                              {((form.count / analyticsData.formSubmissions.reduce((acc, curr) => acc + curr.count, 0)) * 100).toFixed(1)}%
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                ) : (
-                  <Box sx={{ p: 3, textAlign: 'center' }}>
-                    <Typography color="text.secondary">
-                      No form submissions found for the selected date range.
-                    </Typography>
-                  </Box>
-                )}
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
               </Paper>
             </Grid>
           </Grid>
