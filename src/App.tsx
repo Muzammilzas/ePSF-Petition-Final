@@ -41,7 +41,8 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import DataDeletionRequest from './pages/DataDeletionRequest';
 import TimeshareScams from './pages/TimeshareScams';
 import TimeshareScamAwareness from './pages/TimeshareScamAwareness';
-import { trackPageView, getDeviceType, getLocationFromIP } from './services/analytics';
+import { trackPageView as trackCustomPageView, getDeviceType, getLocationFromIP } from './services/analytics';
+import { GoogleAnalyticsProvider, trackPageView as trackGAPageView } from './services/googleAnalytics';
 
 const theme = createTheme({
   palette: {
@@ -89,6 +90,10 @@ const AnalyticsTracker: React.FC<{ children: React.ReactNode }> = ({ children })
   const location = useLocation();
 
   useEffect(() => {
+    // Track page view in Google Analytics
+    trackGAPageView(location.pathname);
+
+    // Track page view in custom analytics
     const trackAnalytics = async () => {
       try {
         // Get IP address using a public API
@@ -102,7 +107,7 @@ const AnalyticsTracker: React.FC<{ children: React.ReactNode }> = ({ children })
         const device = getDeviceType(navigator.userAgent);
 
         // Track the page view
-        await trackPageView({
+        await trackCustomPageView({
           ip_address: ip,
           location,
           device,
@@ -127,182 +132,184 @@ const App: React.FC = () => {
       <CssBaseline />
       <AuthProvider>
         <PetitionProvider>
-          <Router>
-            <AnalyticsTracker>
-              <Box 
-                sx={{ 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  minHeight: '100vh',
-                  background: 'linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%)', // Subtle gradient
-                  '&::before': {
-                    content: '""',
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    background: 'radial-gradient(circle at 50% 0%, rgba(1, 189, 155, 0.03) 0%, rgba(224, 172, 63, 0.02) 100%)', // Very subtle radial gradient with brand colors
-                    pointerEvents: 'none',
-                    zIndex: 0,
-                  },
-                }}
-              >
-                <Navigation />
+          <GoogleAnalyticsProvider>
+            <Router>
+              <AnalyticsTracker>
                 <Box 
-                  component="main" 
                   sx={{ 
-                    flexGrow: 1, 
-                    py: 3,
-                    position: 'relative',
-                    zIndex: 1,
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    minHeight: '100vh',
+                    background: 'linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%)', // Subtle gradient
+                    '&::before': {
+                      content: '""',
+                      position: 'fixed',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      background: 'radial-gradient(circle at 50% 0%, rgba(1, 189, 155, 0.03) 0%, rgba(224, 172, 63, 0.02) 100%)', // Very subtle radial gradient with brand colors
+                      pointerEvents: 'none',
+                      zIndex: 0,
+                    },
                   }}
                 >
-                  <Routes>
-                    {/* Public Routes */}
-                    <Route path="/" element={<HomePage />} />
-                    <Route path="/petition" element={<PetitionPage />} />
-                    <Route path="/consumer-rights" element={<ConsumerRights />} />
-                    <Route path="/sign/:id" element={<SignPetitionForm />} />
-                    <Route path="/thank-you/:id" element={<ThankYou />} />
-                    <Route path="/complete" element={<DonationComplete />} />
-                    <Route path="/cancel" element={<DonationCancel />} />
-                    <Route path="/donate" element={<DonationPage />} />
-                    <Route path="/report-scam" element={<ReportScamPage />} />
-                    <Route path="/report-scam/thank-you" element={<SuccessMessage />} />
-                    <Route path="/timeshare-scam" element={<TimeshareScamReport />} />
-                    <Route path="/timeshare-scam-checklist" element={<TimeshareScamChecklist />} />
-                    <Route path="/where-scams-thrive" element={<WhereScamsThrive />} />
-                    <Route path="/before-you-sign" element={<BeforeYouSign />} />
-                    <Route path="/spotting-exit-scams" element={<SpottingExitScams />} />
-                    <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-                    <Route path="/data-deletion-request" element={<DataDeletionRequest />} />
-                    <Route path="/how-timeshare-scams-work" element={<TimeshareScams />} />
-                    <Route path="/timeshare-scam-awareness" element={<TimeshareScamAwareness />} />
-                    
-                    {/* Authentication Routes */}
-                    <Route path="/admin/login" element={<AdminLogin />} />
-                    <Route path="/unauthorized" element={<Unauthorized />} />
-                    
-                    {/* Protected Admin Routes */}
-                    <Route 
-                      path="/admin/dashboard" 
-                      element={
-                        <ProtectedRoute>
-                          <AdminDashboard />
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route 
-                      path="/admin/create" 
-                      element={
-                        <ProtectedRoute>
-                          <CreatePetitionForm />
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route 
-                      path="/admin/petitions/:id/signatures" 
-                      element={
-                        <ProtectedRoute>
-                          <PetitionSignatures />
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route 
-                      path="/admin/scam-reports" 
-                      element={
-                        <ProtectedRoute>
-                          <ScamReportsAdmin />
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route 
-                      path="/admin/forms" 
-                      element={
-                        <ProtectedRoute>
-                          <FormsAdmin />
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route 
-                      path="/admin/forms/where-scams-thrive" 
-                      element={
-                        <ProtectedRoute>
-                          <WhereScamsThriveSubmissions />
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route 
-                      path="/admin/forms/before-you-sign" 
-                      element={
-                        <ProtectedRoute>
-                          <BeforeYouSignSubmissions />
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route 
-                      path="/admin/forms/spotting-exit-scams" 
-                      element={
-                        <ProtectedRoute>
-                          <SpottingExitScamsSubmissions />
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route 
-                      path="/admin/forms/checklist" 
-                      element={
-                        <ProtectedRoute>
-                          <TimeshareScamChecklistSubmissions />
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route 
-                      path="/admin/abandoned-forms" 
-                      element={
-                        <ProtectedRoute>
-                          <AbandonedFormsAdmin />
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route 
-                      path="/share/:id" 
-                      element={
-                        <ProtectedRoute>
-                          <SharePetition />
-                        </ProtectedRoute>
-                      } 
-                    />
-                    
-                    {/* Test Email Route */}
-                    <Route 
-                      path="/admin/test-email" 
-                      element={
-                        <ProtectedRoute>
-                          <TestEmail />
-                        </ProtectedRoute>
-                      } 
-                    />
+                  <Navigation />
+                  <Box 
+                    component="main" 
+                    sx={{ 
+                      flexGrow: 1, 
+                      py: 3,
+                      position: 'relative',
+                      zIndex: 1,
+                    }}
+                  >
+                    <Routes>
+                      {/* Public Routes */}
+                      <Route path="/" element={<HomePage />} />
+                      <Route path="/petition" element={<PetitionPage />} />
+                      <Route path="/consumer-rights" element={<ConsumerRights />} />
+                      <Route path="/sign/:id" element={<SignPetitionForm />} />
+                      <Route path="/thank-you/:id" element={<ThankYou />} />
+                      <Route path="/complete" element={<DonationComplete />} />
+                      <Route path="/cancel" element={<DonationCancel />} />
+                      <Route path="/donate" element={<DonationPage />} />
+                      <Route path="/report-scam" element={<ReportScamPage />} />
+                      <Route path="/report-scam/thank-you" element={<SuccessMessage />} />
+                      <Route path="/timeshare-scam" element={<TimeshareScamReport />} />
+                      <Route path="/timeshare-scam-checklist" element={<TimeshareScamChecklist />} />
+                      <Route path="/where-scams-thrive" element={<WhereScamsThrive />} />
+                      <Route path="/before-you-sign" element={<BeforeYouSign />} />
+                      <Route path="/spotting-exit-scams" element={<SpottingExitScams />} />
+                      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                      <Route path="/data-deletion-request" element={<DataDeletionRequest />} />
+                      <Route path="/how-timeshare-scams-work" element={<TimeshareScams />} />
+                      <Route path="/timeshare-scam-awareness" element={<TimeshareScamAwareness />} />
+                      
+                      {/* Authentication Routes */}
+                      <Route path="/admin/login" element={<AdminLogin />} />
+                      <Route path="/unauthorized" element={<Unauthorized />} />
+                      
+                      {/* Protected Admin Routes */}
+                      <Route 
+                        path="/admin/dashboard" 
+                        element={
+                          <ProtectedRoute>
+                            <AdminDashboard />
+                          </ProtectedRoute>
+                        } 
+                      />
+                      <Route 
+                        path="/admin/create" 
+                        element={
+                          <ProtectedRoute>
+                            <CreatePetitionForm />
+                          </ProtectedRoute>
+                        } 
+                      />
+                      <Route 
+                        path="/admin/petitions/:id/signatures" 
+                        element={
+                          <ProtectedRoute>
+                            <PetitionSignatures />
+                          </ProtectedRoute>
+                        } 
+                      />
+                      <Route 
+                        path="/admin/scam-reports" 
+                        element={
+                          <ProtectedRoute>
+                            <ScamReportsAdmin />
+                          </ProtectedRoute>
+                        } 
+                      />
+                      <Route 
+                        path="/admin/forms" 
+                        element={
+                          <ProtectedRoute>
+                            <FormsAdmin />
+                          </ProtectedRoute>
+                        } 
+                      />
+                      <Route 
+                        path="/admin/forms/where-scams-thrive" 
+                        element={
+                          <ProtectedRoute>
+                            <WhereScamsThriveSubmissions />
+                          </ProtectedRoute>
+                        } 
+                      />
+                      <Route 
+                        path="/admin/forms/before-you-sign" 
+                        element={
+                          <ProtectedRoute>
+                            <BeforeYouSignSubmissions />
+                          </ProtectedRoute>
+                        } 
+                      />
+                      <Route 
+                        path="/admin/forms/spotting-exit-scams" 
+                        element={
+                          <ProtectedRoute>
+                            <SpottingExitScamsSubmissions />
+                          </ProtectedRoute>
+                        } 
+                      />
+                      <Route 
+                        path="/admin/forms/checklist" 
+                        element={
+                          <ProtectedRoute>
+                            <TimeshareScamChecklistSubmissions />
+                          </ProtectedRoute>
+                        } 
+                      />
+                      <Route 
+                        path="/admin/abandoned-forms" 
+                        element={
+                          <ProtectedRoute>
+                            <AbandonedFormsAdmin />
+                          </ProtectedRoute>
+                        } 
+                      />
+                      <Route 
+                        path="/share/:id" 
+                        element={
+                          <ProtectedRoute>
+                            <SharePetition />
+                          </ProtectedRoute>
+                        } 
+                      />
+                      
+                      {/* Test Email Route */}
+                      <Route 
+                        path="/admin/test-email" 
+                        element={
+                          <ProtectedRoute>
+                            <TestEmail />
+                          </ProtectedRoute>
+                        } 
+                      />
 
-                    {/* Analytics Route */}
-                    <Route 
-                      path="/admin/analytics" 
-                      element={
-                        <ProtectedRoute>
-                          <Analytics />
-                        </ProtectedRoute>
-                      } 
-                    />
+                      {/* Analytics Route */}
+                      <Route 
+                        path="/admin/analytics" 
+                        element={
+                          <ProtectedRoute>
+                            <Analytics />
+                          </ProtectedRoute>
+                        } 
+                      />
 
-                    {/* 404 and Catch-all */}
-                    <Route path="/404" element={<NotFound />} />
-                    <Route path="*" element={<Navigate to="/404" replace />} />
-                  </Routes>
+                      {/* 404 and Catch-all */}
+                      <Route path="/404" element={<NotFound />} />
+                      <Route path="*" element={<Navigate to="/404" replace />} />
+                    </Routes>
+                  </Box>
+                  <Footer />
                 </Box>
-                <Footer />
-              </Box>
-            </AnalyticsTracker>
-          </Router>
+              </AnalyticsTracker>
+            </Router>
+          </GoogleAnalyticsProvider>
         </PetitionProvider>
       </AuthProvider>
     </ThemeProvider>

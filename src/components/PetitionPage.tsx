@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import '../styles/landing-page.css';
 import { motion, useAnimation, useInView } from 'framer-motion';
-import { Avatar } from '@mui/material';
+import { Avatar, Button } from '@mui/material';
 
 // Animation variants
 const fadeIn = {
@@ -165,9 +165,10 @@ const PetitionPage: React.FC<PetitionPageProps> = () => {
                 </div>
               </motion.div>
               <motion.div variants={fadeIn} style={{ marginTop: '2rem' }}>
-                <Link 
-                  to="/sign/84dec50d-d877-4f15-9250-f5364124371a"
-                  className="cta-button"
+                <Button
+                  variant="contained"
+                  color="secondary"
+                  size="large"
                   style={{
                     display: 'inline-block',
                     padding: '1rem 2rem',
@@ -181,19 +182,20 @@ const PetitionPage: React.FC<PetitionPageProps> = () => {
                     transition: 'all 0.3s ease',
                     cursor: 'pointer',
                   }}
-                  onMouseOver={(e) => {
+                  onClick={() => navigate('/sign/84dec50d-d877-4f15-9250-f5364124371a')}
+                  onMouseOver={e => {
                     e.currentTarget.style.transform = 'translateY(-2px)';
                     e.currentTarget.style.boxShadow = '0 6px 12px rgba(0, 0, 0, 0.15)';
                     e.currentTarget.style.backgroundColor = '#c99b38';
                   }}
-                  onMouseOut={(e) => {
+                  onMouseOut={e => {
                     e.currentTarget.style.transform = 'translateY(0)';
                     e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
                     e.currentTarget.style.backgroundColor = '#E0AC3F';
                   }}
                 >
                   Sign the Petition Now
-                </Link>
+                </Button>
               </motion.div>
             </motion.div>
             <motion.div 
