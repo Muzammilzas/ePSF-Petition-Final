@@ -1,9 +1,14 @@
 import React from 'react';
 import { Box, Container, Typography, Button, useTheme } from '@mui/material';
 import { Link } from 'react-router-dom';
+import { trackButtonClick } from '../../../services/googleAnalytics';
 
 const SignPetitionSection: React.FC = () => {
   const theme = useTheme();
+
+  const handleClick = () => {
+    trackButtonClick('sign_petition_section');
+  };
 
   return (
     <Box sx={{ 
@@ -83,6 +88,7 @@ const SignPetitionSection: React.FC = () => {
             to="/petition"
             variant="contained"
             size="large"
+            onClick={handleClick}
             sx={{
               bgcolor: theme.palette.secondary.main,
               color: 'white',

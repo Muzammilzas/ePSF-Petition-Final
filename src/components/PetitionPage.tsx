@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import '../styles/landing-page.css';
 import { motion, useAnimation, useInView } from 'framer-motion';
 import { Avatar, Button } from '@mui/material';
+import { trackButtonClick } from '../services/googleAnalytics';
 
 // Animation variants
 const fadeIn = {
@@ -117,6 +118,7 @@ const PetitionPage: React.FC<PetitionPageProps> = () => {
   }, []);
 
   const handleSignNow = () => {
+    trackButtonClick('sign_petition_main');
     window.location.href = '/sign/84dec50d-d877-4f15-9250-f5364124371a';
   };
 
@@ -182,7 +184,7 @@ const PetitionPage: React.FC<PetitionPageProps> = () => {
                     transition: 'all 0.3s ease',
                     cursor: 'pointer',
                   }}
-                  onClick={() => navigate('/sign/84dec50d-d877-4f15-9250-f5364124371a')}
+                  onClick={handleSignNow}
                   onMouseOver={e => {
                     e.currentTarget.style.transform = 'translateY(-2px)';
                     e.currentTarget.style.boxShadow = '0 6px 12px rgba(0, 0, 0, 0.15)';

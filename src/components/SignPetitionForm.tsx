@@ -15,6 +15,7 @@ import { supabase } from '../services/supabase';
 import { usePetition } from '../context/PetitionContext';
 import { addContactToBrevoList } from '../utils/brevo';
 import { sendSignatureNotification } from '../utils/email';
+import { trackPetitionSignature } from '../services/googleAnalytics';
 
 const getBrowserInfo = () => {
   const userAgent = navigator.userAgent;
@@ -167,7 +168,6 @@ const SignPetitionFormContent: React.FC = () => {
       };
       
       // Insert the signature with only the required fields
-      // This avoids errors with missing columns
       const { data: signatureData, error: signatureError } = await supabase
         .from('signatures')
         .insert([signaturePayload])
@@ -176,7 +176,10 @@ const SignPetitionFormContent: React.FC = () => {
       if (signatureError) throw signatureError;
       
       console.log('Signature submitted successfully:', signatureData);
-      
+
+      // Track the successful signature in Google Analytics
+      trackPetitionSignature();
+
       // After the signature is submitted successfully and we have signatureData:
       if (signatureData && signatureData.length > 0) {
         try {

@@ -6,8 +6,13 @@ import { fadeInUp, staggerContainer } from '../common/animations';
 import { FINAL_CTA } from '../common/constants';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import { trackButtonClick } from '../../../services/googleAnalytics';
 
 const CallToActionSection: React.FC = () => {
+  const handleClick = () => {
+    trackButtonClick('sign_petition_cta');
+  };
+
   return (
     <Box 
       sx={{ 
@@ -97,6 +102,7 @@ const CallToActionSection: React.FC = () => {
                 to="/petition"
                 variant="contained"
                 size="large"
+                onClick={handleClick}
                 endIcon={<ArrowForwardIcon />}
                 sx={{
                   py: 2,

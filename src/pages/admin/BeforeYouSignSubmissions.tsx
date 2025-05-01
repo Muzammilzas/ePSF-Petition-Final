@@ -331,7 +331,7 @@ const BeforeYouSignSubmissions: React.FC = () => {
       const { error: deleteError } = await supabase
         .from('before_you_sign_submissions')
         .delete()
-        .neq('id', ''); // Delete all records
+        .not('id', 'is', null); // Matches all rows
 
       if (deleteError) throw deleteError;
       
