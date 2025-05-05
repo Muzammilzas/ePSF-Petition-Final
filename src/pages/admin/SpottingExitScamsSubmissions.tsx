@@ -200,14 +200,14 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, submission
 
 const SpottingExitScamsSubmissions: React.FC = () => {
   const navigate = useNavigate();
+  const [submissions, setSubmissions] = useState<FormSubmission[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedSubmission, setSelectedSubmission] = useState<FormSubmission | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteAllDialogOpen, setDeleteAllDialogOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [submissions, setSubmissions] = useState<FormSubmission[]>([]);
 
   const fetchSubmissions = async () => {
     setLoading(true);
@@ -246,6 +246,8 @@ const SpottingExitScamsSubmissions: React.FC = () => {
 
       if (deleteError) throw deleteError;
       await fetchSubmissions();
+      setDeleteDialogOpen(false);
+      setSelectedId(null);
     } catch (err: any) {
       console.error('Error deleting submission:', err);
       setError(err.message || 'Failed to delete submission');
@@ -261,6 +263,7 @@ const SpottingExitScamsSubmissions: React.FC = () => {
 
       if (deleteError) throw deleteError;
       await fetchSubmissions();
+      setDeleteAllDialogOpen(false);
     } catch (err: any) {
       console.error('Error deleting all submissions:', err);
       setError(err.message || 'Failed to delete all submissions');
@@ -433,38 +436,39 @@ const SpottingExitScamsSubmissions: React.FC = () => {
             </Table>
           </TableContainer>
         )}
-      </Paper>
 
-      <DetailsDialog
-        open={detailsOpen}
-        onClose={() => setDetailsOpen(false)}
-        submission={selectedSubmission}
-      />
-
+        {/* Delete Single Submission Dialog */}
       <DeleteConfirmationDialog
         open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
-        onConfirm={() => {
-          if (selectedId) {
-            handleDelete(selectedId);
+          onClose={() => {
             setDeleteDialogOpen(false);
-          }
+            setSelectedId(null);
         }}
+          onConfirm={() => selectedId && handleDelete(selectedId)}
         title="Delete Submission"
         message="Are you sure you want to delete this submission? This action cannot be undone."
       />
 
+        {/* Delete All Submissions Dialog */}
       <DeleteConfirmationDialog
         open={deleteAllDialogOpen}
         onClose={() => setDeleteAllDialogOpen(false)}
-        onConfirm={() => {
-          handleDeleteAll();
-          setDeleteAllDialogOpen(false);
-        }}
+          onConfirm={handleDeleteAll}
         title="Delete All Submissions"
-        message="Are you sure you want to delete ALL submissions? This action cannot be undone."
+          message="Are you sure you want to delete all submissions? This action cannot be undone."
         requireConfirmText={true}
       />
+
+        {/* Details Dialog */}
+        <DetailsDialog
+          open={detailsOpen}
+          onClose={() => {
+            setDetailsOpen(false);
+            setSelectedSubmission(null);
+          }}
+          submission={selectedSubmission}
+        />
+      </Paper>
     </Container>
   );
 };

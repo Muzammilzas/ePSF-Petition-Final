@@ -179,7 +179,7 @@ const SignPetitionFormContent: React.FC = () => {
 
       // Track the successful signature in Google Analytics
       trackPetitionSignature();
-
+      
       // After the signature is submitted successfully and we have signatureData:
       if (signatureData && signatureData.length > 0) {
         try {

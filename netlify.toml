@@ -10,7 +10,9 @@
   to = "/index.html"
   status = 200
 
+[functions]
+  directory = "netlify/functions"
+
 [context.production.environment]
   VITE_APP_URL = "https://timeshare.epublicsf.org"
-  VITE_SUPABASE_URL = "https://lbqhvgvvxvrrooalywhz.supabase.co"
   # Note: Add other environment variables through the Netlify UI for security 

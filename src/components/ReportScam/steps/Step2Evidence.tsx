@@ -29,6 +29,7 @@ const Step2Evidence: React.FC<Step2EvidenceProps> = ({
   onBack,
 }) => {
   const [phoneError, setPhoneError] = useState<string>('');
+  const [websiteError, setWebsiteError] = useState<string>('');
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] || null;
@@ -61,16 +62,79 @@ const Step2Evidence: React.FC<Step2EvidenceProps> = ({
     onChange('scammerPhone', sanitizedValue);
   };
 
+  const validateWebsite = (url: string): boolean => {
+    // Empty values are valid
+    if (!url || !url.trim()) {
+      return true;
+    }
+
+    try {
+      let formattedUrl = url.trim();
+      
+      // Add https:// if no protocol is specified
+      if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
+        formattedUrl = 'https://' + formattedUrl;
+      }
+
+      // Basic URL validation
+      new URL(formattedUrl);
+      
+      // Strict URL pattern validation
+      const urlPattern = /^https?:\/\/[^\s/$.?#].[^\s]*$/;
+      if (!urlPattern.test(formattedUrl)) {
+        console.log('Form validation - URL failed pattern:', {
+          url: formattedUrl,
+          pattern: urlPattern.source
+        });
+        return false;
+      }
+
+      // Additional validation to ensure URL has a valid domain
+      const urlParts = formattedUrl.split('://');
+      if (urlParts.length !== 2 || !urlParts[1].includes('.')) {
+        console.log('Form validation - URL failed domain check:', {
+          url: formattedUrl,
+          parts: urlParts
+        });
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.log('Form validation - URL validation error:', {
+        url,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      return false;
+    }
+  };
+
+  const handleWebsiteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    
+    if (value && !validateWebsite(value)) {
+      setWebsiteError(
+        'Please enter a valid website URL (e.g., https://example.com). ' +
+        'The URL must start with http:// or https:// and contain a valid domain name. ' +
+        'Leave empty if you don\'t have a website to report.'
+      );
+    } else {
+      setWebsiteError('');
+    }
+    
+    onChange('scammerWebsite', value);
+  };
+
   const isValid = () => {
-    // At least one field should be filled out and if phone is filled, it should be valid
     return (
       (formData.scammerName.trim() !== '' ||
       formData.companyName.trim() !== '' ||
       (formData.scammerPhone.trim() !== '' && validatePhoneNumber(formData.scammerPhone)) ||
       formData.scammerEmail.trim() !== '' ||
-      formData.scammerWebsite.trim() !== '' ||
+      (formData.scammerWebsite.trim() !== '' && validateWebsite(formData.scammerWebsite)) ||
       formData.evidence !== null) &&
-      (!formData.scammerPhone.trim() || validatePhoneNumber(formData.scammerPhone))
+      (!formData.scammerPhone.trim() || validatePhoneNumber(formData.scammerPhone)) &&
+      (!formData.scammerWebsite.trim() || validateWebsite(formData.scammerWebsite))
     );
   };
 
@@ -155,7 +219,9 @@ const Step2Evidence: React.FC<Step2EvidenceProps> = ({
         type="url"
         placeholder="If you were sent to a website or link, please share it here"
         value={formData.scammerWebsite}
-        onChange={(e) => onChange('scammerWebsite', e.target.value)}
+        onChange={handleWebsiteChange}
+        error={!!websiteError}
+        helperText={websiteError}
         sx={{ mb: 3 }}
       />
 

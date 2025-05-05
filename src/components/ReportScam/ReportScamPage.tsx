@@ -49,6 +49,7 @@ interface FormData {
   ageRange: 'Under 30' | '30–45' | '46–60' | '61+' | '';
   speakWithTeam: boolean;
   shareAnonymously: boolean;
+  preferred_contact: 'Email' | 'Phone' | 'Either' | 'None';
 
   // Scam Types
   scamTypes: {
@@ -95,6 +96,7 @@ const ReportScamPage: React.FC = () => {
     ageRange: '',
     speakWithTeam: false,
     shareAnonymously: false,
+    preferred_contact: 'Email',
 
     // Scam Types
     scamTypes: {
@@ -307,15 +309,38 @@ const ReportScamPage: React.FC = () => {
     setError(null);
 
     try {
+      console.group('Form Submission Process');
+      console.log('Starting form submission...', {
+        hasName: !!formData.fullName,
+        hasEmail: !!formData.email,
+        wantsUpdates: formData.wantUpdates
+      });
+
       // Validate required fields
       if (!formData.fullName || !formData.city || !formData.state) {
-        setError('Name, city, and state are required fields.');
+        const error = 'Name, city, and state are required fields.';
+        console.error('❌ Validation Error:', error);
+        console.groupEnd();
+        setError(error);
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!formData.email || !emailRegex.test(formData.email.trim())) {
+        const error = 'Please enter a valid email address.';
+        console.error('❌ Email Validation Error:', error);
+        console.groupEnd();
+        setError(error);
         setIsSubmitting(false);
         return;
       }
 
       // Collect meta details
+      console.log('Collecting meta details...');
       const metaDetails = await collectMetaDetails();
+      console.log('Meta details collected:', metaDetails);
 
       // Prepare scam types
       const scamTypes: ScamTypeDetail[] = [];
@@ -360,24 +385,74 @@ const ReportScamPage: React.FC = () => {
       }
 
       // Prepare report data
+      const formatWebsite = (url: string) => {
+        // Handle empty or undefined input
+        if (!url || !url.trim()) {
+          return null;
+        }
+
+        try {
+          let formattedUrl = url.trim();
+          
+        // Add https:// if no protocol is specified
+          if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
+            formattedUrl = 'https://' + formattedUrl;
+        }
+
+          // Test URL construction
+          new URL(formattedUrl);
+          
+          // Test against the required pattern - must match database constraint exactly
+          const urlPattern = /^https?:\/\/[^\s/$.?#].[^\s]*$/;
+          if (!urlPattern.test(formattedUrl)) {
+            console.log('URL failed pattern validation:', {
+              url: formattedUrl,
+              matches: urlPattern.test(formattedUrl)
+            });
+            return null;
+          }
+
+          // Additional validation to ensure URL is well-formed
+          const urlParts = formattedUrl.split('://');
+          if (urlParts.length !== 2 || !urlParts[1].includes('.')) {
+            console.log('URL failed structure validation:', {
+              url: formattedUrl,
+              parts: urlParts
+            });
+            return null;
+          }
+
+          // Return the formatted URL if all validation passes
+          return formattedUrl;
+        } catch (error) {
+          console.log('URL validation error:', {
+            url,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+          return null;
+        }
+      };
+
       const report: ScamReport = {
-        reporter_name: formData.fullName,
-        reporter_city: formData.city,
-        reporter_state: formData.state,
+        reporter_name: formData.fullName.trim(),
+        reporter_email: formData.email.trim(),
+        reporter_city: formData.city.trim(),
+        reporter_state: formData.state.trim(),
         reporter_age_range: formData.ageRange || undefined,
-        speak_with_team: formData.speakWithTeam,
-        share_anonymously: formData.shareAnonymously,
-        money_lost: formData.moneyLost,
-        amount_lost: formData.amountLost ? parseFloat(formData.amountLost) : undefined,
-        date_occurred: formData.dateOccurred,
-        scammer_name: formData.scammerName,
-        company_name: formData.companyName,
-        scammer_phone: formData.scammerPhone,
-        scammer_email: formData.scammerEmail,
-        scammer_website: formData.scammerWebsite,
-        reported_elsewhere: formData.reportedElsewhere,
-        reported_to: formData.reportedTo,
-        want_updates: formData.wantUpdates,
+        speak_with_team: formData.speakWithTeam || false,
+        share_anonymously: formData.shareAnonymously || false,
+        preferred_contact: 'Email',
+        money_lost: formData.moneyLost || false,
+        amount_lost: formData.amountLost ? Math.max(0, parseFloat(formData.amountLost)) : undefined,
+        date_occurred: formData.dateOccurred || new Date().toISOString().split('T')[0],
+        scammer_name: (formData.scammerName || '').trim(),
+        company_name: (formData.companyName || '').trim(),
+        scammer_phone: (formData.scammerPhone || '').trim(),
+        scammer_email: (formData.scammerEmail || '').trim(),
+        scammer_website: formatWebsite(formData.scammerWebsite || ''),
+        reported_elsewhere: formData.reportedElsewhere || false,
+        reported_to: (formData.reportedTo || '').trim(),
+        want_updates: formData.wantUpdates || false,
         evidence_file_url: undefined // We'll update this after upload
       };
 
@@ -410,48 +485,76 @@ const ReportScamPage: React.FC = () => {
         }
       }
 
-      console.log('Submitting report to database:', { report, scamTypes });
-
-      // Submit the report
+      console.log('Submitting report to database...');
       const { success: submitSuccess, error: submitError, data: reportData } = await submitScamReport(report, scamTypes, [], metaDetails);
       
       if (!submitSuccess || !reportData) {
-        console.error('Report submission failed:', submitError);
+        console.error('❌ Report submission failed:', submitError);
+        console.groupEnd();
         throw new Error(submitError instanceof Error ? submitError.message : 'Failed to submit report');
       }
 
-      console.log('Report submitted successfully:', reportData);
+      console.log('✅ Report submitted successfully:', reportData);
 
       // Send email notifications
       try {
-        await sendScamReportNotification({
+        console.group('Email Notifications Process');
+        
+        // Send admin notification
+        console.log('Sending admin notification...');
+        const adminNotifResult = await sendScamReportNotification({
           report: reportData,
           scamTypes,
           contactMethods: [],
           metaDetails
         });
-        console.log('Admin notification sent successfully');
+        
+        if (adminNotifResult.success) {
+          console.log('✅ Admin notification sent successfully');
+        } else {
+          console.error('❌ Admin notification failed:', adminNotifResult.error);
+        }
 
+        // Send reporter confirmation
+        console.log('Checking if reporter wants updates:', formData.wantUpdates);
         if (formData.wantUpdates) {
-          await sendReporterConfirmation({
+          console.log('Sending reporter confirmation...');
+          const reporterConfirmResult = await sendReporterConfirmation({
             report: reportData,
             scamTypes,
             contactMethods: []
           });
-          console.log('Reporter confirmation sent successfully');
+          
+          if (reporterConfirmResult.success) {
+            console.log('✅ Reporter confirmation sent successfully');
+          } else {
+            console.error('❌ Reporter confirmation failed:', reporterConfirmResult.error);
+          }
+        } else {
+          console.log('Reporter did not request updates - skipping confirmation email');
         }
+
+        console.groupEnd(); // Email Notifications Process
       } catch (error) {
-        console.error('Failed to send notifications:', error);
+        console.error('❌ Failed to send notifications:', {
+          error,
+          reportId: reportData.id,
+          adminEmail: 'zasprince007@gmail.com'
+        });
         // Don't fail the submission if notifications fail
       }
 
       // Mark form as completed and clear abandoned form data
       await markFormCompleted(sessionId);
       
-      // Navigate to success page
+      console.log('✅ Form submission completed successfully');
+      console.groupEnd(); // Form Submission Process
+      
+      // Navigate to success page even if notifications failed
       navigate('/report-scam/thank-you');
     } catch (error) {
-      console.error('Form submission error:', error);
+      console.error('❌ Form submission error:', error);
+      console.groupEnd(); // Form Submission Process
       setError(error instanceof Error ? error.message : 'An error occurred while submitting your report');
       setIsSubmitting(false);
     }

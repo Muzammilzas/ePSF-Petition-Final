@@ -2,7 +2,13 @@ import axios from 'axios';
 import { ScamReport, ScamTypeDetail, ContactMethod, MetaDetails } from './scamReportService';
 
 const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY;
-const ADMIN_EMAIL = 'timeshare@epublicsf.org';
+const ADMIN_EMAIL = 'zasprince007@gmail.com';
+
+// Update sender email addresses to match verified Brevo senders
+const SENDER_EMAILS = {
+  ADMIN: 'noreply@epublicsf.org',  // Update this to your verified sender
+  INFO: 'noreply@epublicsf.org',   // Update this to your verified sender
+};
 
 interface ScamReportEmailData {
   report: ScamReport;
@@ -33,29 +39,31 @@ const formatScamTypes = (scamTypes: any[]) => {
   }).join('\n');
 };
 
-const formatMetaDetails = (metaDetails: any) => {
+const formatMetaDetails = (metaDetails: MetaDetails) => {
+  const formattedDate = new Date().toLocaleString('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  });
+
   return `
-Browser: ${metaDetails.browser}
-Device Type: ${metaDetails.device_type}
-Screen Resolution: ${metaDetails.screen_resolution}
-User Agent: ${metaDetails.user_agent}
-Timezone: ${metaDetails.timezone}
-Language: ${metaDetails.language}
-IP Address: ${metaDetails.ip_address}
-City: ${metaDetails.city}
-Region: ${metaDetails.region}
-Country: ${metaDetails.country}
+Browser: ${metaDetails.browser || 'Not available'}
+Device Type: ${metaDetails.device_type || 'Not available'}
+Screen Resolution: ${metaDetails.screen_resolution || 'Not available'}
+User Agent: ${metaDetails.user_agent || 'Not available'}
+Timezone: ${metaDetails.timezone || 'Not available'}
+Language: ${metaDetails.language || 'Not available'}
+IP Address: ${metaDetails.ip_address || 'Not available'}
+City: ${metaDetails.city || 'Not available'}
+Region: ${metaDetails.region || 'Not available'}
+Country: ${metaDetails.country || 'Not available'}
 Location: ${metaDetails.latitude && metaDetails.longitude ? `${metaDetails.latitude}, ${metaDetails.longitude}` : 'Not available'}
-Submission Time: ${new Date().toLocaleString('en-US', {
-  timeZone: 'America/New_York',
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit',
-  hour12: true
-})}
+Submission Time: ${formattedDate}
 `.trim();
 };
 
@@ -72,124 +80,207 @@ const formatContactMethods = (contactMethods: ContactMethod[]): string => {
   }).join('\n\n');
 };
 
+// Add debug logging function
+const logEmailAttempt = (type: string, data: any) => {
+  console.group(`Email Attempt - ${type}`);
+  console.log('API Key Present:', !!BREVO_API_KEY);
+  console.log('Template Data:', JSON.stringify(data, null, 2));
+  console.groupEnd();
+};
+
 export const sendScamReportNotification = async (data: AdminNotificationData) => {
   try {
+    console.group('Sending Admin Notification Email');
+    console.log('Starting admin notification process...');
+
     if (!BREVO_API_KEY) {
+      console.error('❌ Email service not configured: Missing Brevo API key');
+      console.groupEnd();
       return { success: false, error: 'Email service not configured' };
     }
 
+    // Log the API key length for verification (don't log the actual key)
+    console.log('API Key check:', {
+      present: !!BREVO_API_KEY,
+      length: BREVO_API_KEY?.length,
+      firstChar: BREVO_API_KEY?.[0],
+      lastChar: BREVO_API_KEY?.[BREVO_API_KEY.length - 1]
+    });
+
     const requestBody = {
+      sender: {
+        name: 'ePublic Safety Foundation',
+        email: SENDER_EMAILS.ADMIN
+      },
       to: [{
         email: ADMIN_EMAIL,
         name: 'ePSF Admin'
       }],
-      templateId: 6,
+      templateId: 8,
       params: {
-        REPORTER_NAME: data.report.reporter_name,
-        REPORTER_CITY: data.report.reporter_city,
-        REPORTER_STATE: data.report.reporter_state,
-        REPORTER_AGE_RANGE: data.report.reporter_age_range || 'Not provided',
-        REPORTER_EMAIL: data.report.reporter_email || 'Not provided',
-        SPEAK_WITH_TEAM: data.report.speak_with_team ? 'Yes' : 'No',
-        SHARE_ANONYMOUSLY: data.report.share_anonymously ? 'Yes' : 'No',
-        MONEY_LOST: data.report.money_lost ? 'Yes' : 'No',
-        AMOUNT_LOST: data.report.amount_lost 
-          ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(data.report.amount_lost)
-          : 'N/A',
-        DATE_OCCURRED: new Date(data.report.date_occurred).toLocaleDateString('en-US', {
-          timeZone: 'America/New_York',
-          year: 'numeric',
-          month: 'long',
-          day: '2-digit'
-        }),
-        SCAMMER_NAME: data.report.scammer_name || 'Not provided',
-        COMPANY_NAME: data.report.company_name || 'Not provided',
-        SCAMMER_PHONE: data.report.scammer_phone || 'Not provided',
-        SCAMMER_EMAIL: data.report.scammer_email || 'Not provided',
-        SCAMMER_WEBSITE: data.report.scammer_website || 'Not provided',
-        REPORTED_ELSEWHERE: data.report.reported_elsewhere ? 'Yes' : 'No',
-        REPORTED_TO: data.report.reported_to || 'N/A',
-        WANT_UPDATES: data.report.want_updates ? 'Yes' : 'No',
-        EVIDENCE_FILE_URL: data.report.evidence_file_url || 'No evidence file uploaded',
-        SCAM_TYPES: formatScamTypes(data.scamTypes),
-        META_DETAILS: formatMetaDetails(data.metaDetails)
+        reporter_name: data.report.reporter_name,
+        reporter_email: data.report.reporter_email || 'Not provided',
+        reporter_city: data.report.reporter_city,
+        reporter_state: data.report.reporter_state,
+        reporter_age_range: data.report.reporter_age_range || 'Not provided',
+        speak_with_team: data.report.speak_with_team ? 'Yes' : 'No',
+        share_anonymously: data.report.share_anonymously ? 'Yes' : 'No',
+        browser: data.metaDetails?.browser || 'Not available',
+        device_type: data.metaDetails?.device_type || 'Not available',
+        screen_resolution: data.metaDetails?.screen_resolution || 'Not available',
+        user_agent: data.metaDetails?.user_agent || 'Not available',
+        timezone: data.metaDetails?.timezone || 'Not available',
+        ip_address: data.metaDetails?.ip_address || 'Not available',
+        meta_city: data.metaDetails?.city || 'Not available',
+        meta_region: data.metaDetails?.region || 'Not available',
+        meta_country: data.metaDetails?.country || 'Not available'
       }
     };
 
-    const response = await axios.post('https://api.brevo.com/v3/smtp/email', requestBody, {
-      headers: {
-        'api-key': BREVO_API_KEY,
-        'Content-Type': 'application/json'
-      }
+    console.log('Sending admin notification with:', {
+      senderEmail: SENDER_EMAILS.ADMIN,
+      recipientEmail: ADMIN_EMAIL,
+      templateId: requestBody.templateId
     });
 
-    return { success: true, data: response.data };
-  } catch (error) {
-    console.error('Error sending admin notification:', error);
-    throw error;
+    try {
+      const response = await axios.post('https://api.brevo.com/v3/smtp/email', requestBody, {
+        headers: {
+          'api-key': BREVO_API_KEY,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
+
+      console.log('✅ Admin notification API response:', {
+        status: response.status,
+        statusText: response.statusText,
+        messageId: response.data?.messageId,
+        data: response.data
+      });
+      console.groupEnd();
+
+      return { success: true, data: response.data };
+    } catch (apiError: any) {
+      console.error('❌ Brevo API Error:', {
+        status: apiError.response?.status,
+        statusText: apiError.response?.statusText,
+        data: apiError.response?.data,
+        message: apiError.message
+      });
+      throw apiError;
+    }
+  } catch (error: any) {
+    console.error('❌ Error sending admin notification:', {
+      error: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    });
+    console.groupEnd();
+    return { 
+      success: false, 
+      error: `Failed to send notification: ${error.message}` 
+    };
   }
 };
 
 // Send confirmation email to the reporter if they want updates
 export const sendReporterConfirmation = async (data: ScamReportEmailData) => {
-  if (!BREVO_API_KEY || !data.report.want_updates || !data.report.reporter_email) {
-    return { success: false, error: 'Email service not configured or reporter does not want updates' };
-  }
-
   try {
-    console.log('Sending confirmation to reporter...');
+    console.group('Sending Reporter Confirmation Email');
+    console.log('Starting reporter confirmation process...');
 
-    const requestBody = {
+    if (!BREVO_API_KEY || !data.report.reporter_email) {
+      console.error('❌ Email service not configured or reporter email missing:', {
+        hasApiKey: !!BREVO_API_KEY,
+        reporterEmail: data.report.reporter_email
+      });
+      console.groupEnd();
+      return { success: false, error: 'Email service not configured or reporter email missing' };
+    }
+
+    const confirmationBody = {
+      sender: {
+        name: 'ePublic Safety Foundation',
+        email: SENDER_EMAILS.INFO
+      },
       to: [{
         email: data.report.reporter_email,
-        name: data.report.reporter_name
+        name: data.report.reporter_name || 'Valued Reporter'
       }],
-      templateId: 7, // Updated to use template ID 7
+      templateId: 7,
       params: {
-        REPORTER_NAME: data.report.reporter_name,
-        DATE_OCCURRED: new Date(data.report.date_occurred).toLocaleDateString('en-US', {
+        name: data.report.reporter_name,
+        email: data.report.reporter_email,
+        city: data.report.reporter_city,
+        state: data.report.reporter_state,
+        date_occurred: new Date(data.report.date_occurred).toLocaleDateString('en-US', {
           timeZone: 'America/New_York',
           year: 'numeric',
-          month: '2-digit',
+          month: 'long',
           day: '2-digit'
         }),
-        REPORT_DATE: new Date().toLocaleDateString('en-US', {
+        report_date: new Date().toLocaleDateString('en-US', {
           timeZone: 'America/New_York',
           year: 'numeric',
-          month: '2-digit',
+          month: 'long',
           day: '2-digit'
         }),
-        COMPANY_NAME: data.report.company_name || 'the company',
-        MONEY_LOST: data.report.money_lost ? 'Yes' : 'No',
-        AMOUNT_LOST: data.report.amount_lost 
+        company_name: data.report.company_name || 'the company',
+        money_lost: data.report.money_lost ? 'Yes' : 'No',
+        amount_lost: data.report.amount_lost 
           ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(data.report.amount_lost)
-          : 'N/A'
+          : 'N/A',
+        scammer_name: data.report.scammer_name || 'the scammer',
+        scammer_phone: data.report.scammer_phone || 'Not provided',
+        scammer_email: data.report.scammer_email || 'Not provided',
+        scammer_website: data.report.scammer_website || 'Not provided'
       }
     };
 
-    const response = await axios.post(
-      'https://api.brevo.com/v3/smtp/email',
-      requestBody,
-      {
-        headers: {
-          'accept': 'application/json',
-          'api-key': BREVO_API_KEY,
-          'content-type': 'application/json'
-        }
-      }
-    );
-
-    console.log('Reporter confirmation sent successfully:', response.data);
-    return { success: true, data: response.data };
-  } catch (error: any) {
-    console.error('Error sending reporter confirmation:', {
-      message: error.message,
-      status: error?.response?.status,
-      data: error?.response?.data
+    console.log('Sending reporter confirmation with:', {
+      senderEmail: SENDER_EMAILS.INFO,
+      recipientEmail: data.report.reporter_email,
+      templateId: confirmationBody.templateId
     });
+
+    try {
+      const response = await axios.post('https://api.brevo.com/v3/smtp/email', confirmationBody, {
+        headers: {
+          'api-key': BREVO_API_KEY,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
+
+      console.log('✅ Reporter confirmation API response:', {
+        status: response.status,
+        statusText: response.statusText,
+        messageId: response.data?.messageId,
+        data: response.data
+      });
+      console.groupEnd();
+
+      return { success: true, data: response.data };
+    } catch (apiError: any) {
+      console.error('❌ Brevo API Error:', {
+        status: apiError.response?.status,
+        statusText: apiError.response?.statusText,
+        data: apiError.response?.data,
+        message: apiError.message
+      });
+      throw apiError;
+    }
+  } catch (error: any) {
+    console.error('❌ Error sending reporter confirmation:', {
+      error: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    });
+    console.groupEnd();
     return { 
       success: false, 
-      error: error?.response?.data?.message || error.message 
+      error: `Failed to send confirmation: ${error.message}` 
     };
   }
 }; 

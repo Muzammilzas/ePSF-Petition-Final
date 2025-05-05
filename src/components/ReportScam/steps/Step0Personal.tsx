@@ -42,6 +42,10 @@ const Step0Personal: React.FC<Step0PersonalProps> = ({ formData, onChange, onNex
     // Basic validation
     if (!formData.fullName.trim()) return false;
     
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!formData.email.trim() || !emailRegex.test(formData.email.trim())) return false;
+    
     // City and state are required
     if (!formData.city.trim() || !formData.state.trim()) return false;
     

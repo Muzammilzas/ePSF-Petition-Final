@@ -93,6 +93,22 @@ interface ContactMethod {
   event_type?: string;
 }
 
+interface MetaDetails {
+  browser: string;
+  device_type: string;
+  screen_resolution: string;
+  user_agent: string;
+  timezone: string;
+  language: string;
+  ip_address: string;
+  city: string;
+  region: string;
+  country: string;
+  latitude: number | null;
+  longitude: number | null;
+  created_at: string;
+}
+
 interface TabPanelProps {
   children?: React.ReactNode;
   index: number;
@@ -128,6 +144,7 @@ const ScamReportsAdmin: React.FC = () => {
   const [reportDetails, setReportDetails] = useState<{
     scamTypes: ScamTypeDetail[];
     contactMethods: ContactMethod[];
+    metaDetails?: MetaDetails;
   } | null>(null);
   const [filters, setFilters] = useState({
     dateFrom: null as Date | null,
@@ -185,7 +202,7 @@ const ScamReportsAdmin: React.FC = () => {
 
   const fetchReportDetails = async (reportId: number) => {
     try {
-      const [scamTypesResponse, contactMethodsResponse] = await Promise.all([
+      const [scamTypesResponse, contactMethodsResponse, metaDetailsResponse] = await Promise.all([
         supabase
           .from('scam_types')
           .select('*')
@@ -194,6 +211,11 @@ const ScamReportsAdmin: React.FC = () => {
           .from('contact_methods')
           .select('*')
           .eq('report_id', reportId),
+        supabase
+          .from('scam_report_metadata')
+          .select('*')
+          .eq('report_id', reportId)
+          .single()
       ]);
 
       if (scamTypesResponse.error) throw scamTypesResponse.error;
@@ -202,6 +224,7 @@ const ScamReportsAdmin: React.FC = () => {
       setReportDetails({
         scamTypes: scamTypesResponse.data || [],
         contactMethods: contactMethodsResponse.data || [],
+        metaDetails: metaDetailsResponse.error ? undefined : metaDetailsResponse.data
       });
     } catch (error) {
       console.error('Error fetching report details:', error);
@@ -1033,6 +1056,77 @@ const ScamReportsAdmin: React.FC = () => {
                         </Paper>
                       ))}
                     </Box>
+
+                    {reportDetails?.metaDetails && (
+                      <Box sx={{ mb: 3 }}>
+                        <Typography variant="h6" gutterBottom>
+                          Meta Details
+                        </Typography>
+                        <Paper sx={{ p: 2, bgcolor: 'background.default' }}>
+                          <Grid container spacing={2}>
+                            <Grid item xs={12} sm={6}>
+                              <Typography variant="subtitle2">Browser</Typography>
+                              <Typography>{reportDetails.metaDetails.browser || 'Not available'}</Typography>
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                              <Typography variant="subtitle2">Device Type</Typography>
+                              <Typography>{reportDetails.metaDetails.device_type || 'Not available'}</Typography>
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                              <Typography variant="subtitle2">Screen Resolution</Typography>
+                              <Typography>{reportDetails.metaDetails.screen_resolution || 'Not available'}</Typography>
+                            </Grid>
+                            <Grid item xs={12}>
+                              <Typography variant="subtitle2">User Agent</Typography>
+                              <Typography sx={{ wordBreak: 'break-word' }}>{reportDetails.metaDetails.user_agent || 'Not available'}</Typography>
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                              <Typography variant="subtitle2">Timezone</Typography>
+                              <Typography>{reportDetails.metaDetails.timezone || 'Not available'}</Typography>
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                              <Typography variant="subtitle2">Language</Typography>
+                              <Typography>{reportDetails.metaDetails.language || 'Not available'}</Typography>
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                              <Typography variant="subtitle2">IP Address</Typography>
+                              <Typography>{reportDetails.metaDetails.ip_address || 'Not available'}</Typography>
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                              <Typography variant="subtitle2">Location</Typography>
+                              <Typography>
+                                {reportDetails.metaDetails.city && reportDetails.metaDetails.region && reportDetails.metaDetails.country
+                                  ? `${reportDetails.metaDetails.city}, ${reportDetails.metaDetails.region}, ${reportDetails.metaDetails.country}`
+                                  : 'Not available'}
+                              </Typography>
+                            </Grid>
+                            {reportDetails.metaDetails.latitude && reportDetails.metaDetails.longitude && (
+                              <Grid item xs={12}>
+                                <Typography variant="subtitle2">Coordinates</Typography>
+                                <Typography>{`${reportDetails.metaDetails.latitude}, ${reportDetails.metaDetails.longitude}`}</Typography>
+                              </Grid>
+                            )}
+                            <Grid item xs={12}>
+                              <Typography variant="subtitle2">Submission Time</Typography>
+                              <Typography>
+                                {reportDetails.metaDetails.created_at
+                                  ? new Date(reportDetails.metaDetails.created_at).toLocaleString('en-US', {
+                                      timeZone: 'America/New_York',
+                                      year: 'numeric',
+                                      month: '2-digit',
+                                      day: '2-digit',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                      second: '2-digit',
+                                      hour12: true
+                                    })
+                                  : 'Not available'}
+                              </Typography>
+                            </Grid>
+                          </Grid>
+                        </Paper>
+                      </Box>
+                    )}
                   </>
                 )}
               </DialogContent>
