@@ -309,19 +309,9 @@ const ReportScamPage: React.FC = () => {
     setError(null);
 
     try {
-      console.group('Form Submission Process');
-      console.log('Starting form submission...', {
-        hasName: !!formData.fullName,
-        hasEmail: !!formData.email,
-        wantsUpdates: formData.wantUpdates
-      });
-
       // Validate required fields
       if (!formData.fullName || !formData.city || !formData.state) {
-        const error = 'Name, city, and state are required fields.';
-        console.error('❌ Validation Error:', error);
-        console.groupEnd();
-        setError(error);
+        setError('Name, city, and state are required fields.');
         setIsSubmitting(false);
         return;
       }
@@ -329,18 +319,13 @@ const ReportScamPage: React.FC = () => {
       // Email validation
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!formData.email || !emailRegex.test(formData.email.trim())) {
-        const error = 'Please enter a valid email address.';
-        console.error('❌ Email Validation Error:', error);
-        console.groupEnd();
-        setError(error);
+        setError('Please enter a valid email address.');
         setIsSubmitting(false);
         return;
       }
 
       // Collect meta details
-      console.log('Collecting meta details...');
       const metaDetails = await collectMetaDetails();
-      console.log('Meta details collected:', metaDetails);
 
       // Prepare scam types
       const scamTypes: ScamTypeDetail[] = [];
@@ -485,23 +470,24 @@ const ReportScamPage: React.FC = () => {
         }
       }
 
-      console.log('Submitting report to database...');
+      console.log('Submitting report to database:', { report, scamTypes });
+
+      // Submit the report
       const { success: submitSuccess, error: submitError, data: reportData } = await submitScamReport(report, scamTypes, [], metaDetails);
       
       if (!submitSuccess || !reportData) {
-        console.error('❌ Report submission failed:', submitError);
-        console.groupEnd();
+        console.error('Report submission failed:', submitError);
         throw new Error(submitError instanceof Error ? submitError.message : 'Failed to submit report');
       }
 
-      console.log('✅ Report submitted successfully:', reportData);
+      console.log('Report submitted successfully:', reportData);
 
       // Send email notifications
       try {
-        console.group('Email Notifications Process');
+        console.log('Starting email notifications process...');
         
         // Send admin notification
-        console.log('Sending admin notification...');
+        console.log('Attempting to send admin notification...');
         const adminNotifResult = await sendScamReportNotification({
           report: reportData,
           scamTypes,
@@ -510,15 +496,21 @@ const ReportScamPage: React.FC = () => {
         });
         
         if (adminNotifResult.success) {
-          console.log('✅ Admin notification sent successfully');
+          console.log('Admin notification sent successfully:', adminNotifResult.data);
         } else {
-          console.error('❌ Admin notification failed:', adminNotifResult.error);
+          console.error('Admin notification failed:', {
+            error: adminNotifResult.error,
+            report: {
+              id: reportData.id,
+              reporter: reportData.reporter_name,
+              email: reportData.reporter_email
+            }
+          });
         }
 
-        // Send reporter confirmation
-        console.log('Checking if reporter wants updates:', formData.wantUpdates);
+        // Send reporter confirmation if requested
         if (formData.wantUpdates) {
-          console.log('Sending reporter confirmation...');
+          console.log('Attempting to send reporter confirmation...');
           const reporterConfirmResult = await sendReporterConfirmation({
             report: reportData,
             scamTypes,
@@ -526,17 +518,18 @@ const ReportScamPage: React.FC = () => {
           });
           
           if (reporterConfirmResult.success) {
-            console.log('✅ Reporter confirmation sent successfully');
+            console.log('Reporter confirmation sent successfully:', reporterConfirmResult.data);
           } else {
-            console.error('❌ Reporter confirmation failed:', reporterConfirmResult.error);
+            console.error('Reporter confirmation failed:', {
+              error: reporterConfirmResult.error,
+              email: reportData.reporter_email
+            });
           }
         } else {
           console.log('Reporter did not request updates - skipping confirmation email');
         }
-
-        console.groupEnd(); // Email Notifications Process
       } catch (error) {
-        console.error('❌ Failed to send notifications:', {
+        console.error('Failed to send notifications:', {
           error,
           reportId: reportData.id,
           adminEmail: 'zasprince007@gmail.com'
@@ -547,14 +540,10 @@ const ReportScamPage: React.FC = () => {
       // Mark form as completed and clear abandoned form data
       await markFormCompleted(sessionId);
       
-      console.log('✅ Form submission completed successfully');
-      console.groupEnd(); // Form Submission Process
-      
       // Navigate to success page even if notifications failed
       navigate('/report-scam/thank-you');
     } catch (error) {
-      console.error('❌ Form submission error:', error);
-      console.groupEnd(); // Form Submission Process
+      console.error('Form submission error:', error);
       setError(error instanceof Error ? error.message : 'An error occurred while submitting your report');
       setIsSubmitting(false);
     }

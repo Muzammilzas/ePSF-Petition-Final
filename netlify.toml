@@ -15,15 +15,4 @@
 
 [context.production.environment]
   VITE_APP_URL = "https://timeshare.epublicsf.org"
-  # Add other environment variables through the Netlify UI
-  # Required variables:
-  # - VITE_SUPABASE_URL
-  # - VITE_SUPABASE_ANON_KEY
-  # - VITE_BREVO_API_KEY
-  # - VITE_RECAPTCHA_SITE_KEY
-  # - VITE_RECAPTCHA_SECRET_KEY
-  # - SUPABASE_DATABASE_URL
-  # - SUPABASE_ANON_KEY
-  # - SUPABASE_SERVICE_ROLE_KEY
-  # - SUPABASE_JWT_SECRET
   # Note: Add other environment variables through the Netlify UI for security 
