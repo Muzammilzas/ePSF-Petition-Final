@@ -71,3 +71,12 @@ yarn-error.log*
 # Supabase
 .supabase/ 
 node_modules
+<<<<<<< HEAD
+
+# Local Netlify folder
+.netlify
+backend/epublic-safety-p-1741901392545-c113de6b501a.json
+backend/epublic-safety-p-1741901392545-c113de6b501a.json
+backend/epublic-safety-p-1741901392545-c113de6b501a.json
+=======
+>>>>>>> parent of d2eab5ef (added sheets)
