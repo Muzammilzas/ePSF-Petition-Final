@@ -27,6 +27,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CloseIcon from '@mui/icons-material/Close';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import SyncIcon from '@mui/icons-material/Sync';
 import { supabase } from '../../services/supabase';
 
 interface FormSubmission {
@@ -198,6 +199,8 @@ const WhereScamsThriveSubmissions: React.FC = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteAllDialogOpen, setDeleteAllDialogOpen] = useState(false);
   const [submissionToDelete, setSubmissionToDelete] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   const fetchSubmissions = async () => {
     console.log('Fetching submissions...');
@@ -322,6 +325,32 @@ const WhereScamsThriveSubmissions: React.FC = () => {
     }
   };
 
+  const handleSync = async () => {
+    setSyncing(true);
+    setSyncError(null);
+    try {
+      const response = await fetch('/.netlify/functions/sync-sheet', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to sync with Google Sheets');
+      }
+
+      const result = await response.json();
+      console.log('Sync completed:', result);
+    } catch (err: any) {
+      console.error('Sync error:', err);
+      setSyncError(err.message || 'Failed to sync with Google Sheets');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   return (
     <Container maxWidth="lg">
       <Paper elevation={3} sx={{ p: 3, mt: 4 }}>
@@ -377,6 +406,22 @@ const WhereScamsThriveSubmissions: React.FC = () => {
               Export as CSV
             </Button>
 
+            <Button
+              onClick={handleSync}
+              variant="contained"
+              startIcon={<SyncIcon />}
+              disabled={syncing}
+              sx={{ 
+                backgroundColor: '#2196F3',
+                color: '#FFFFFF',
+                '&:hover': {
+                  backgroundColor: '#1976D2'
+                }
+              }}
+            >
+              {syncing ? 'Syncing...' : 'Sync with Google Sheets'}
+            </Button>
+
             {submissions.length > 0 && (
               <Button
                 onClick={handleDeleteAll}
@@ -393,6 +438,12 @@ const WhereScamsThriveSubmissions: React.FC = () => {
         {error && (
           <Alert severity="error" sx={{ mb: 3 }}>
             {error}
+          </Alert>
+        )}
+
+        {syncError && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {syncError}
           </Alert>
         )}
 
