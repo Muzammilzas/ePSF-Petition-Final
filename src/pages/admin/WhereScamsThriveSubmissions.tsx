@@ -20,6 +20,7 @@ import {
   Alert,
   Grid,
   TextField,
+  Snackbar,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -189,6 +190,19 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, submission
   );
 };
 
+const formatDateToEST = (dateString: string) => {
+  return new Date(dateString).toLocaleString('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  });
+};
+
 const WhereScamsThriveSubmissions: React.FC = () => {
   const navigate = useNavigate();
   const [selectedSubmission, setSelectedSubmission] = useState<FormSubmission | null>(null);
@@ -201,6 +215,7 @@ const WhereScamsThriveSubmissions: React.FC = () => {
   const [submissionToDelete, setSubmissionToDelete] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncSuccess, setSyncSuccess] = useState(false);
 
   const fetchSubmissions = async () => {
     console.log('Fetching submissions...');
@@ -328,7 +343,9 @@ const WhereScamsThriveSubmissions: React.FC = () => {
   const handleSync = async () => {
     setSyncing(true);
     setSyncError(null);
+    setSyncSuccess(false);
     try {
+      console.log('Starting sync process...');
       const response = await fetch('/.netlify/functions/sync-sheet', {
         method: 'POST',
         headers: {
@@ -336,13 +353,18 @@ const WhereScamsThriveSubmissions: React.FC = () => {
         }
       });
 
+      console.log('Sync response status:', response.status);
+      const responseData = await response.json();
+      console.log('Sync response data:', responseData);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to sync with Google Sheets');
+        throw new Error(responseData.error || 'Failed to sync with Google Sheets');
       }
 
-      const result = await response.json();
-      console.log('Sync completed:', result);
+      // Refresh the submissions data
+      await fetchSubmissions();
+      setSyncSuccess(true);
+      console.log('Sync completed successfully:', responseData);
     } catch (err: any) {
       console.error('Sync error:', err);
       setSyncError(err.message || 'Failed to sync with Google Sheets');
@@ -447,6 +469,21 @@ const WhereScamsThriveSubmissions: React.FC = () => {
           </Alert>
         )}
 
+        <Snackbar
+          open={syncSuccess}
+          autoHideDuration={6000}
+          onClose={() => setSyncSuccess(false)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <Alert 
+            onClose={() => setSyncSuccess(false)} 
+            severity="success"
+            sx={{ width: '100%' }}
+          >
+            Successfully synced with Google Sheets
+          </Alert>
+        </Snackbar>
+
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
             <CircularProgress />
@@ -461,10 +498,9 @@ const WhereScamsThriveSubmissions: React.FC = () => {
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell>Date</TableCell>
+                    <TableCell>Date (EST)</TableCell>
                     <TableCell>Full Name</TableCell>
                     <TableCell>Email</TableCell>
-                    <TableCell>Submission Date</TableCell>
                     <TableCell>Newsletter Consent</TableCell>
                     <TableCell align="center">Actions</TableCell>
                   </TableRow>
@@ -472,19 +508,16 @@ const WhereScamsThriveSubmissions: React.FC = () => {
                 <TableBody>
                   {submissions.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} align="center">No submissions found</TableCell>
+                      <TableCell colSpan={5} align="center">No submissions found</TableCell>
                     </TableRow>
                   ) : (
                     submissions.map((submission) => (
                       <TableRow key={submission.id}>
                         <TableCell>
-                          {new Date(submission.created_at).toLocaleDateString()}
+                          {formatDateToEST(submission.created_at)}
                         </TableCell>
                         <TableCell>{submission.full_name}</TableCell>
                         <TableCell>{submission.email}</TableCell>
-                        <TableCell>
-                          {new Date(submission.created_at).toLocaleString()}
-                        </TableCell>
                         <TableCell>{submission.newsletter_consent ? 'Yes' : 'No'}</TableCell>
                         <TableCell align="center">
                           <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>

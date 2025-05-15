@@ -175,6 +175,37 @@ const WhereScamsThrivePage = () => {
         throw new Error('Please enter a valid email address');
       }
 
+      // Save to Supabase
+      console.log('Saving to Supabase...');
+      const { data: submissionData, error: submissionError } = await supabase
+        .from('where_scams_thrive_submissions')
+        .insert([
+          {
+            full_name: formData.fullName,
+            email: formData.email,
+            newsletter_consent: formData.newsletterConsent,
+            meta_details: {
+              ...metaDetails,
+              browser: metaDetails.browser || 'Unknown',
+              device_type: metaDetails.device_type || 'Unknown',
+              screen_resolution: metaDetails.screen_resolution || 'Unknown',
+              timezone: metaDetails.timezone || 'Unknown',
+              ip_address: metaDetails.ip_address || 'Unknown',
+              city: metaDetails.city || 'Unknown',
+              region: metaDetails.region || 'Unknown',
+              country: metaDetails.country || 'Unknown'
+            }
+          }
+        ])
+        .select();
+
+      if (submissionError) {
+        console.error('Supabase error:', submissionError);
+        throw new Error('Failed to save your submission. Please try again.');
+      }
+
+      console.log('Saved to Supabase:', submissionData);
+
       // Send admin notification
       const downloadTime = new Date().toLocaleString('en-US', {
         timeZone: 'America/New_York',
