@@ -188,23 +188,21 @@ const WhereScamsThrivePage = () => {
       });
 
       // Prepare email data with correct property names
-      const adminEmailData = {
-        report: {
-          reporter_name: formData.fullName,
-          reporter_email: formData.email,
-          download_time: downloadTime,
-          newsletter_consent: formData.newsletterConsent ? "Yes" : "No",
-          lead_source: "Where Scams Thrive"
-        },
-        metaDetails: {
-          browser: metaDetails.browser || "Unknown",
-          device_type: metaDetails.device_type || "Unknown",
-          screen_resolution: metaDetails.screen_resolution || "Unknown",
-          timezone: metaDetails.timezone || "Unknown",
-          ip_address: metaDetails.ip_address || "Unknown",
-          city: metaDetails.city || "Unknown",
-          region: metaDetails.region || "Unknown",
-          country: metaDetails.country || "Unknown"
+      const adminEmailParams = {
+        params: {
+          NAME: formData.fullName,
+          EMAIL: formData.email,
+          DOWNLOAD_TIME: downloadTime,
+          NEWSLETTER_CONSENT: formData.newsletterConsent ? "Yes" : "No",
+          LEAD_SOURCE: "Where Scams Thrive",
+          BROWSER: metaDetails.browser || "Unknown",
+          DEVICE_TYPE: metaDetails.device_type || "Unknown",
+          SCREEN_RESOLUTION: metaDetails.screen_resolution || "Unknown",
+          TIMEZONE: metaDetails.timezone || "Unknown",
+          IP_ADDRESS: metaDetails.ip_address || "Unknown",
+          CITY: metaDetails.city || "Unknown",
+          REGION: metaDetails.region || "Unknown",
+          COUNTRY: metaDetails.country || "Unknown"
         }
       };
 
@@ -217,9 +215,13 @@ const WhereScamsThrivePage = () => {
           'api-key': import.meta.env.VITE_BREVO_API_KEY
         },
         body: JSON.stringify({
-          to: [{ email: 'timeshare@epublicsf.org' }],
+          sender: {
+            name: 'ePublic Safety Foundation',
+            email: 'timeshare@epublicsf.org'
+          },
+          to: [{ email: 'zasprince007@gmail.com' }],
           templateId: 14,
-          params: adminEmailData
+          params: adminEmailParams.params
         })
       });
 
