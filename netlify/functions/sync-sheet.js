@@ -6,6 +6,7 @@ exports.handler = async function(event) {
   console.log('Starting sync-sheet function...');
   
   if (event.httpMethod !== 'POST') {
+    console.log('Invalid HTTP method:', event.httpMethod);
     return {
       statusCode: 405,
       body: JSON.stringify({
@@ -17,12 +18,11 @@ exports.handler = async function(event) {
 
   try {
     // Verify environment variables
-    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      throw new Error('Missing Supabase configuration');
-    }
-    if (!process.env.GOOGLE_SERVICE_ACCOUNT_JSON || !process.env.GOOGLE_SPREADSHEET_ID) {
-      throw new Error('Missing Google Sheets configuration');
-    }
+    console.log('Verifying environment variables...');
+    if (!process.env.SUPABASE_URL) throw new Error('SUPABASE_URL is missing');
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error('SUPABASE_SERVICE_ROLE_KEY is missing');
+    if (!process.env.GOOGLE_SERVICE_ACCOUNT_JSON) throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON is missing');
+    if (!process.env.GOOGLE_SPREADSHEET_ID) throw new Error('GOOGLE_SPREADSHEET_ID is missing');
 
     console.log('Environment variables verified');
 
@@ -35,23 +35,27 @@ exports.handler = async function(event) {
 
     // Get all submissions from Supabase
     console.log('Fetching submissions from Supabase...');
-    const { data: submissions, error } = await supabase
+    const { data: submissions, error: supabaseError } = await supabase
       .from('where_scams_thrive_submissions')
       .select('*')
       .order('created_at', { ascending: true });
 
-    if (error) {
-      console.error('Supabase error:', error);
-      throw new Error(`Supabase error: ${error.message}`);
+    if (supabaseError) {
+      console.error('Supabase error:', supabaseError);
+      throw new Error(`Supabase error: ${supabaseError.message}`);
     }
 
-    console.log(`Found ${submissions?.length || 0} submissions`);
+    console.log(`Found ${submissions?.length || 0} submissions in Supabase`);
 
     // Initialize Google Sheets
     console.log('Initializing Google Sheets client...');
     const serviceAccount = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
     const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID;
     const SHEET_NAME = 'Where Scam Thrive';
+
+    console.log('Service account email:', serviceAccount.client_email);
+    console.log('Spreadsheet ID:', SPREADSHEET_ID);
+    console.log('Sheet name:', SHEET_NAME);
 
     const auth = new google.auth.GoogleAuth({
       credentials: serviceAccount,
@@ -69,6 +73,12 @@ exports.handler = async function(event) {
       });
       console.log('Spreadsheet title:', sheetInfo.data.properties.title);
       console.log('Available sheets:', sheetInfo.data.sheets.map(sheet => sheet.properties.title));
+
+      // Check if our sheet exists
+      const sheetExists = sheetInfo.data.sheets.some(sheet => sheet.properties.title === SHEET_NAME);
+      if (!sheetExists) {
+        throw new Error(`Sheet "${SHEET_NAME}" not found in spreadsheet`);
+      }
     } catch (sheetError) {
       console.error('Failed to access spreadsheet:', sheetError);
       throw new Error(`Google Sheets access error: ${sheetError.message}`);
@@ -118,6 +128,8 @@ exports.handler = async function(event) {
       ];
     });
 
+    console.log(`Prepared ${rows.length} rows for sync`);
+
     if (rows.length > 0) {
       // Append all rows
       console.log('Appending rows to sheet...');
@@ -139,10 +151,11 @@ exports.handler = async function(event) {
       statusCode: 200,
       body: JSON.stringify({
         message: 'Sync completed successfully',
-        rowsSynced: rows.length,
         details: {
           totalSubmissions: submissions.length,
-          syncedRows: rows.length
+          syncedRows: rows.length,
+          spreadsheetId: SPREADSHEET_ID,
+          sheetName: SHEET_NAME
         }
       })
     };

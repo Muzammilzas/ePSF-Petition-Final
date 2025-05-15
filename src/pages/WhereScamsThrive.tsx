@@ -206,6 +206,29 @@ const WhereScamsThrivePage = () => {
 
       console.log('Saved to Supabase:', submissionData);
 
+      // Sync with Google Sheets
+      try {
+        console.log('Syncing with Google Sheets...');
+        const sheetResponse = await fetch('/.netlify/functions/sync-sheet', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!sheetResponse.ok) {
+          const errorData = await sheetResponse.json();
+          console.error('Google Sheets sync failed:', errorData);
+          // Don't throw error here, continue with the rest of the submission
+        } else {
+          const syncResult = await sheetResponse.json();
+          console.log('Google Sheets sync successful:', syncResult);
+        }
+      } catch (sheetError) {
+        console.error('Error syncing with Google Sheets:', sheetError);
+        // Don't throw error here, continue with the rest of the submission
+      }
+
       // Send admin notification
       const downloadTime = new Date().toLocaleString('en-US', {
         timeZone: 'America/New_York',
