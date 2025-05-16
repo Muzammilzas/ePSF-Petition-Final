@@ -33,11 +33,12 @@ exports.handler = async function(event) {
       process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
-    // Get all submissions from Supabase
-    console.log('Fetching submissions from Supabase...');
+    // Get unsynced submissions from Supabase
+    console.log('Fetching unsynced submissions from Supabase...');
     const { data: submissions, error: supabaseError } = await supabase
       .from('timeshare_scam_checklist')
       .select('*')
+      .is('synced_at', null)
       .order('created_at', { ascending: true });
 
     if (supabaseError) {
@@ -45,7 +46,21 @@ exports.handler = async function(event) {
       throw new Error(`Supabase error: ${supabaseError.message}`);
     }
 
-    console.log(`Found ${submissions?.length || 0} submissions in Supabase`);
+    if (!submissions || submissions.length === 0) {
+      console.log('No new submissions to sync');
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          message: 'No new submissions to sync',
+          details: {
+            totalSubmissions: 0,
+            syncedRows: 0
+          }
+        })
+      };
+    }
+
+    console.log(`Found ${submissions.length} unsynced submissions`);
 
     // Initialize Google Sheets
     console.log('Initializing Google Sheets client...');
@@ -85,14 +100,7 @@ exports.handler = async function(event) {
     }
     const sheetId = sheet.properties.sheetId;
 
-    // Clear existing data (except headers)
-    console.log('Clearing existing data...');
-    await sheets.spreadsheets.values.clear({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A2:N`,
-    });
-
-    // Prepare rows for Google Sheet
+    // Prepare all rows
     console.log('Preparing rows for sync...');
     const rows = submissions.map(submission => {
       const estDate = new Date(submission.created_at);
@@ -112,7 +120,7 @@ exports.handler = async function(event) {
         timeZone: 'America/New_York'
       });
 
-      const row = [
+      return [
         dateStr,
         timeStr,
         submission.full_name,
@@ -127,85 +135,37 @@ exports.handler = async function(event) {
         submission.meta_details?.device?.screen_resolution || 'N/A',
         submission.meta_details?.device?.timezone || 'N/A'
       ];
-
-      console.log('Prepared row:', row);
-      return row;
     });
 
     console.log(`Prepared ${rows.length} rows for sync`);
 
-    if (rows.length > 0) {
-      // Format date and time columns
-      console.log('Applying column formatting...');
-      await sheets.spreadsheets.batchUpdate({
-        spreadsheetId: SPREADSHEET_ID,
-        requestBody: {
-          requests: [
-            {
-              repeatCell: {
-                range: {
-                  sheetId: sheetId,
-                  startRowIndex: 1,
-                  startColumnIndex: 0,
-                  endColumnIndex: 1
-                },
-                cell: {
-                  userEnteredFormat: {
-                    numberFormat: {
-                      type: 'DATE',
-                      pattern: 'MM/dd/yyyy'
-                    }
-                  }
-                },
-                fields: 'userEnteredFormat.numberFormat'
-              }
-            },
-            {
-              repeatCell: {
-                range: {
-                  sheetId: sheetId,
-                  startRowIndex: 1,
-                  startColumnIndex: 1,
-                  endColumnIndex: 2
-                },
-                cell: {
-                  userEnteredFormat: {
-                    numberFormat: {
-                      type: 'TIME',
-                      pattern: 'hh:mm:ss AM/PM'
-                    }
-                  }
-                },
-                fields: 'userEnteredFormat.numberFormat'
-              }
-            },
-            {
-              autoResizeDimensions: {
-                dimensions: {
-                  sheetId: sheetId,
-                  dimension: 'COLUMNS',
-                  startIndex: 0,
-                  endIndex: 13
-                }
-              }
-            }
-          ]
-        }
-      });
+    // Append all rows
+    console.log('Appending rows to sheet...');
+    const appendResponse = await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_NAME}!A2:M`,
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: {
+        values: rows
+      }
+    });
 
-      // Append all rows
-      console.log('Appending rows to sheet...');
-      const appendResponse = await sheets.spreadsheets.values.append({
-        spreadsheetId: SPREADSHEET_ID,
-        range: `${SHEET_NAME}!A2:M`,
-        valueInputOption: 'USER_ENTERED',
-        insertDataOption: 'INSERT_ROWS',
-        requestBody: {
-          values: rows
-        }
-      });
+    console.log('Append response:', appendResponse.data);
 
-      console.log('Append response:', appendResponse.data);
+    // Mark submissions as synced
+    console.log('Marking submissions as synced...');
+    const now = new Date().toISOString();
+    const submissionIds = submissions.map(s => s.id);
+    
+    const { error: updateError } = await supabase
+      .from('timeshare_scam_checklist')
+      .update({ synced_at: now })
+      .in('id', submissionIds);
+
+    if (updateError) {
+      console.error('Error marking submissions as synced:', updateError);
+      throw new Error(`Failed to mark submissions as synced: ${updateError.message}`);
     }
 
     console.log('Sync completed successfully');

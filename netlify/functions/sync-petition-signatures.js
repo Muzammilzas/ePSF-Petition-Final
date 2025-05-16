@@ -33,14 +33,12 @@ exports.handler = async function(event) {
       process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
-    // Get all signatures from Supabase
-    console.log('Fetching signatures from Supabase...');
-    const { data: signatures, error: supabaseError } = await supabase
-      .from('signatures')
-      .select(`
-        *,
-        metadata:signature_metadata(metadata)
-      `)
+    // Get unsynced submissions from Supabase
+    console.log('Fetching unsynced submissions from Supabase...');
+    const { data: submissions, error: supabaseError } = await supabase
+      .from('petition_signatures')
+      .select('*')
+      .is('synced_at', null)
       .order('created_at', { ascending: true });
 
     if (supabaseError) {
@@ -48,7 +46,21 @@ exports.handler = async function(event) {
       throw new Error(`Supabase error: ${supabaseError.message}`);
     }
 
-    console.log(`Found ${signatures?.length || 0} signatures in Supabase`);
+    if (!submissions || submissions.length === 0) {
+      console.log('No new submissions to sync');
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          message: 'No new submissions to sync',
+          details: {
+            totalSubmissions: 0,
+            syncedRows: 0
+          }
+        })
+      };
+    }
+
+    console.log(`Found ${submissions.length} unsynced submissions`);
 
     // Initialize Google Sheets
     console.log('Initializing Google Sheets client...');
@@ -68,38 +80,30 @@ exports.handler = async function(event) {
     const client = await auth.getClient();
     const sheets = google.sheets({ version: 'v4', auth: client });
 
-    // Verify spreadsheet access and get sheet ID
-    console.log('Verifying spreadsheet access...');
-    let sheetId;
-    try {
-      const sheetInfo = await sheets.spreadsheets.get({
-        spreadsheetId: SPREADSHEET_ID
-      });
-      console.log('Spreadsheet title:', sheetInfo.data.properties.title);
-      console.log('Available sheets:', sheetInfo.data.sheets.map(sheet => sheet.properties.title));
+    // First, get all sheets to verify our target sheet exists
+    console.log('Getting list of all sheets...');
+    const spreadsheet = await sheets.spreadsheets.get({
+      spreadsheetId: SPREADSHEET_ID,
+    });
+    
+    const allSheets = spreadsheet.data.sheets.map(sheet => sheet.properties.title);
+    console.log('Available sheets:', allSheets);
 
-      // Check if our sheet exists and get its ID
-      const sheet = sheetInfo.data.sheets.find(s => s.properties.title === SHEET_NAME);
-      if (!sheet) {
-        throw new Error(`Sheet "${SHEET_NAME}" not found in spreadsheet`);
-      }
-      sheetId = sheet.properties.sheetId;
-    } catch (sheetError) {
-      console.error('Failed to access spreadsheet:', sheetError);
-      throw new Error(`Google Sheets access error: ${sheetError.message}`);
+    if (!allSheets.includes(SHEET_NAME)) {
+      throw new Error(`Sheet "${SHEET_NAME}" not found. Available sheets: ${allSheets.join(', ')}`);
     }
 
-    // Clear existing data (except headers)
-    console.log('Clearing existing data...');
-    await sheets.spreadsheets.values.clear({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A2:P`,
-    });
+    // Get sheet ID
+    const sheet = spreadsheet.data.sheets.find(s => s.properties.title === SHEET_NAME);
+    if (!sheet) {
+      throw new Error(`Sheet "${SHEET_NAME}" not found in spreadsheet`);
+    }
+    const sheetId = sheet.properties.sheetId;
 
-    // Prepare rows for Google Sheet
+    // Prepare all rows
     console.log('Preparing rows for sync...');
-    const rows = signatures.map(signature => {
-      const estDate = new Date(signature.created_at);
+    const rows = submissions.map(submission => {
+      const estDate = new Date(submission.created_at);
       
       const dateStr = estDate.toLocaleDateString('en-US', {
         year: 'numeric',
@@ -116,101 +120,56 @@ exports.handler = async function(event) {
         timeZone: 'America/New_York'
       });
 
-      const metadata = signature.metadata?.[0]?.metadata || {};
-
       return [
         dateStr,
         timeStr,
-        signature.first_name,
-        signature.last_name,
-        signature.email,
-        signature.phone || 'N/A',
-        signature.zip_code || 'N/A',
-        signature.petition_id,
-        metadata.location?.city || 'N/A',
-        metadata.location?.region || 'N/A',
-        metadata.location?.country || 'N/A',
-        metadata.location?.ip_address || 'N/A',
-        metadata.device?.browser || 'N/A',
-        metadata.device?.device_type || 'N/A',
-        metadata.device?.screen_resolution || 'N/A',
-        metadata.device?.timezone || 'N/A'
+        submission.full_name,
+        submission.email,
+        submission.newsletter_consent ? 'Yes' : 'No',
+        submission.meta_details?.location?.city || 'N/A',
+        submission.meta_details?.location?.region || 'N/A',
+        submission.meta_details?.location?.country || 'N/A',
+        submission.meta_details?.location?.ip_address || 'N/A',
+        submission.meta_details?.device?.browser || 'N/A',
+        submission.meta_details?.device?.device_type || 'N/A',
+        submission.meta_details?.device?.screen_resolution || 'N/A',
+        submission.meta_details?.device?.timezone || 'N/A',
+        submission.meta_details?.device?.language || 'N/A',
+        submission.meta_details?.device?.user_agent || 'N/A',
+        submission.meta_details?.location?.latitude || 'N/A',
+        submission.meta_details?.location?.longitude || 'N/A'
       ];
     });
 
     console.log(`Prepared ${rows.length} rows for sync`);
 
-    if (rows.length > 0) {
-      // Format date and time columns
-      await sheets.spreadsheets.batchUpdate({
-        spreadsheetId: SPREADSHEET_ID,
-        requestBody: {
-          requests: [
-            {
-              repeatCell: {
-                range: {
-                  sheetId: sheetId,
-                  startRowIndex: 1,
-                  startColumnIndex: 0,
-                  endColumnIndex: 1
-                },
-                cell: {
-                  userEnteredFormat: {
-                    numberFormat: {
-                      type: 'DATE',
-                      pattern: 'MM/dd/yyyy'
-                    }
-                  }
-                },
-                fields: 'userEnteredFormat.numberFormat'
-              }
-            },
-            {
-              repeatCell: {
-                range: {
-                  sheetId: sheetId,
-                  startRowIndex: 1,
-                  startColumnIndex: 1,
-                  endColumnIndex: 2
-                },
-                cell: {
-                  userEnteredFormat: {
-                    numberFormat: {
-                      type: 'TIME',
-                      pattern: 'hh:mm:ss AM/PM'
-                    }
-                  }
-                },
-                fields: 'userEnteredFormat.numberFormat'
-              }
-            },
-            {
-              autoResizeDimensions: {
-                dimensions: {
-                  sheetId: sheetId,
-                  dimension: 'COLUMNS',
-                  startIndex: 0,
-                  endIndex: 16
-                }
-              }
-            }
-          ]
-        }
-      });
+    // Append all rows
+    console.log('Appending rows to sheet...');
+    const appendResponse = await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_NAME}!A2:Q`,
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: {
+        values: rows
+      }
+    });
 
-      // Append all rows
-      console.log('Appending rows to sheet...');
-      const appendResponse = await sheets.spreadsheets.values.append({
-        spreadsheetId: SPREADSHEET_ID,
-        range: `${SHEET_NAME}!A2:P`,
-        valueInputOption: 'USER_ENTERED',
-        insertDataOption: 'INSERT_ROWS',
-        requestBody: {
-          values: rows
-        }
-      });
+    console.log('Append response:', appendResponse.data);
 
-      console.log('Append response:', appendResponse.data);
+    // Mark submissions as synced
+    console.log('Marking submissions as synced...');
+    const now = new Date().toISOString();
+    const submissionIds = submissions.map(s => s.id);
+    
+    const { error: updateError } = await supabase
+      .from('petition_signatures')
+      .update({ synced_at: now })
+      .in('id', submissionIds);
+
+    if (updateError) {
+      console.error('Error marking submissions as synced:', updateError);
+      throw new Error(`Failed to mark submissions as synced: ${updateError.message}`);
     }
 
     console.log('Sync completed successfully');
@@ -219,7 +178,7 @@ exports.handler = async function(event) {
       body: JSON.stringify({
         message: 'Sync completed successfully',
         details: {
-          totalSignatures: signatures.length,
+          totalSubmissions: submissions.length,
           syncedRows: rows.length,
           spreadsheetId: SPREADSHEET_ID,
           sheetName: SHEET_NAME
