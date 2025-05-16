@@ -36,7 +36,7 @@ exports.handler = async function(event) {
     // Get all submissions from Supabase
     console.log('Fetching submissions from Supabase...');
     const { data: submissions, error: supabaseError } = await supabase
-      .from('timeshare_checklist_submissions')
+      .from('timeshare_scam_checklist')
       .select('*')
       .order('created_at', { ascending: true });
 
@@ -51,7 +51,7 @@ exports.handler = async function(event) {
     console.log('Initializing Google Sheets client...');
     const serviceAccount = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
     const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID;
-    const SHEET_NAME = 'Timeshare Scam Checklist';
+    const SHEET_NAME = 'Timeshare Scam Reports';
 
     console.log('Service account email:', serviceAccount.client_email);
     console.log('Spreadsheet ID:', SPREADSHEET_ID);
