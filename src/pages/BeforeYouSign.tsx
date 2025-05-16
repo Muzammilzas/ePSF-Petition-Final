@@ -327,6 +327,29 @@ const BeforeYouSignPage = () => {
           console.error('Supabase Error:', supabaseError);
           throw supabaseError;
         }
+
+        // Sync with Google Sheets
+        try {
+          console.log('Syncing with Google Sheets...');
+          const sheetResponse = await fetch('/.netlify/functions/sync-before-you-sign', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (!sheetResponse.ok) {
+            const errorData = await sheetResponse.json();
+            console.error('Google Sheets sync failed:', errorData);
+            // Don't throw error here, continue with the rest of the submission
+          } else {
+            const syncResult = await sheetResponse.json();
+            console.log('Google Sheets sync successful:', syncResult);
+          }
+        } catch (sheetError) {
+          console.error('Error syncing with Google Sheets:', sheetError);
+          // Don't throw error here, continue with the rest of the submission
+        }
       } catch (supabaseError) {
         console.error('Error saving to Supabase:', supabaseError);
         // Continue with email notifications even if Supabase save fails

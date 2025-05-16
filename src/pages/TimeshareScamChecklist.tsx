@@ -380,6 +380,29 @@ const TimeshareScamChecklistPage = () => {
         throw new Error('Failed to save submission');
       }
 
+      // Sync with Google Sheets
+      try {
+        console.log('Syncing with Google Sheets...');
+        const sheetResponse = await fetch('/.netlify/functions/sync-timeshare-checklist', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!sheetResponse.ok) {
+          const errorData = await sheetResponse.json();
+          console.error('Google Sheets sync failed:', errorData);
+          // Don't throw error here, continue with the rest of the submission
+        } else {
+          const syncResult = await sheetResponse.json();
+          console.log('Google Sheets sync successful:', syncResult);
+        }
+      } catch (sheetError) {
+        console.error('Error syncing with Google Sheets:', sheetError);
+        // Don't throw error here, continue with the rest of the submission
+      }
+
       // Send user notification
       const userResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',

@@ -440,6 +440,29 @@ const SpottingExitScamsPage = () => {
           console.error('Supabase Error:', supabaseError);
           // Continue with email sending even if Supabase fails
         }
+
+        // Sync with Google Sheets
+        try {
+          console.log('Syncing with Google Sheets...');
+          const sheetResponse = await fetch('/.netlify/functions/sync-spotting-exit-scams', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (!sheetResponse.ok) {
+            const errorData = await sheetResponse.json();
+            console.error('Google Sheets sync failed:', errorData);
+            // Don't throw error here, continue with the rest of the submission
+          } else {
+            const syncResult = await sheetResponse.json();
+            console.log('Google Sheets sync successful:', syncResult);
+          }
+        } catch (sheetError) {
+          console.error('Error syncing with Google Sheets:', sheetError);
+          // Don't throw error here, continue with the rest of the submission
+        }
       } catch (error) {
         console.error('Supabase Insert Error:', error);
         // Continue with email sending even if Supabase fails
