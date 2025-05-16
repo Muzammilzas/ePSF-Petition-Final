@@ -36,7 +36,7 @@ exports.handler = async function(event) {
     // Get unsynced submissions from Supabase
     console.log('Fetching unsynced submissions from Supabase...');
     const { data: submissions, error: supabaseError } = await supabase
-      .from('spotting_exit_scams')
+      .from('spotting_exit_scams_submissions')
       .select('*')
       .is('synced_at', null)
       .order('created_at', { ascending: true });
@@ -126,14 +126,14 @@ exports.handler = async function(event) {
         submission.full_name,
         submission.email,
         submission.newsletter_consent ? 'Yes' : 'No',
-        submission.meta_details?.location?.city || 'N/A',
-        submission.meta_details?.location?.region || 'N/A',
-        submission.meta_details?.location?.country || 'N/A',
-        submission.meta_details?.location?.ip_address || 'N/A',
-        submission.meta_details?.device?.browser || 'N/A',
-        submission.meta_details?.device?.device_type || 'N/A',
-        submission.meta_details?.device?.screen_resolution || 'N/A',
-        submission.meta_details?.device?.timezone || 'N/A'
+        submission.meta_details?.city || 'N/A',
+        submission.meta_details?.region || 'N/A',
+        submission.meta_details?.country || 'N/A',
+        submission.meta_details?.ip_address || 'N/A',
+        submission.meta_details?.browser || 'N/A',
+        submission.meta_details?.device_type || 'N/A',
+        submission.meta_details?.screen_resolution || 'N/A',
+        submission.meta_details?.timezone || 'N/A'
       ];
     });
 
@@ -159,7 +159,7 @@ exports.handler = async function(event) {
     const submissionIds = submissions.map(s => s.id);
     
     const { error: updateError } = await supabase
-      .from('spotting_exit_scams')
+      .from('spotting_exit_scams_submissions')
       .update({ synced_at: now })
       .in('id', submissionIds);
 
