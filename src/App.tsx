@@ -43,6 +43,7 @@ import TimeshareScams from './pages/TimeshareScams';
 import TimeshareScamAwareness from './pages/TimeshareScamAwareness';
 import { trackPageView as trackCustomPageView, getDeviceType, getLocationFromIP } from './services/analytics';
 import { trackPageView } from './services/googleAnalytics';
+import PetitionsAdmin from './pages/admin/PetitionsAdmin';
 
 const theme = createTheme({
   palette: {
@@ -199,7 +200,23 @@ const App: React.FC = () => {
                     } 
                   />
                   <Route 
-                    path="/admin/create" 
+                    path="/admin/petitions" 
+                    element={
+                      <ProtectedRoute>
+                        <PetitionsAdmin />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/admin/petition-signatures" 
+                    element={
+                      <ProtectedRoute>
+                        <PetitionSignatures />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/admin/create-petition" 
                     element={
                       <ProtectedRoute>
                         <CreatePetitionForm />

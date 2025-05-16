@@ -21,6 +21,7 @@ import {
   Grid,
   TextField,
   Tooltip,
+  Snackbar,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -29,6 +30,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import CloseIcon from '@mui/icons-material/Close';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import SyncIcon from '@mui/icons-material/Sync';
 import { supabase } from '../../services/supabase';
 
 interface FormSubmission {
@@ -208,6 +210,9 @@ const SpottingExitScamsSubmissions: React.FC = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteAllDialogOpen, setDeleteAllDialogOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncSuccess, setSyncSuccess] = useState(false);
 
   const fetchSubmissions = async () => {
     setLoading(true);
@@ -270,7 +275,40 @@ const SpottingExitScamsSubmissions: React.FC = () => {
     }
   };
 
-  const exportToCSV = () => {
+  const handleSync = async () => {
+    setSyncing(true);
+    setSyncError(null);
+    setSyncSuccess(false);
+    try {
+      console.log('Starting sync process...');
+      const response = await fetch('/.netlify/functions/sync-spotting-exit-scams', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      console.log('Sync response status:', response.status);
+      const responseData = await response.json();
+      console.log('Sync response data:', responseData);
+
+      if (!response.ok) {
+        throw new Error(responseData.error || 'Failed to sync with Google Sheets');
+      }
+
+      // Refresh the submissions data
+      await fetchSubmissions();
+      setSyncSuccess(true);
+      console.log('Sync completed successfully:', responseData);
+    } catch (err: any) {
+      console.error('Sync error:', err);
+      setSyncError(err.message || 'Failed to sync with Google Sheets');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleExportCSV = () => {
     const headers = [
       'Full Name',
       'Email',
@@ -344,26 +382,63 @@ const SpottingExitScamsSubmissions: React.FC = () => {
               Spotting Exit Scams - Submissions
             </Typography>
             <Box>
-              <Tooltip title="Refresh submissions">
-                <IconButton onClick={fetchSubmissions} color="primary" sx={{ mr: 1 }}>
-                  <RefreshIcon />
-                </IconButton>
-              </Tooltip>
               <Button
+                onClick={fetchSubmissions}
+                variant="contained"
+                sx={{ 
+                  mr: 1,
+                  backgroundColor: '#01BD9B',
+                  color: '#FFFFFF',
+                  '&:hover': {
+                    backgroundColor: '#01a989'
+                  }
+                }}
+              >
+                Refresh Data
+              </Button>
+
+              <Button
+                onClick={handleExportCSV}
                 variant="contained"
                 startIcon={<FileDownloadIcon />}
-                onClick={exportToCSV}
-                sx={{ mr: 1 }}
+                sx={{ 
+                  mr: 1,
+                  backgroundColor: '#4CAF50',
+                  color: '#FFFFFF',
+                  '&:hover': {
+                    backgroundColor: '#45a049'
+                  }
+                }}
               >
                 Export as CSV
               </Button>
+
               <Button
+                onClick={handleSync}
                 variant="contained"
-                color="error"
-                onClick={() => setDeleteAllDialogOpen(true)}
+                startIcon={<SyncIcon />}
+                disabled={syncing}
+                sx={{ 
+                  mr: 1,
+                  backgroundColor: '#2196F3',
+                  color: '#FFFFFF',
+                  '&:hover': {
+                    backgroundColor: '#1976D2'
+                  }
+                }}
               >
-                Delete All
+                {syncing ? 'Syncing...' : 'Sync with Google Sheets'}
               </Button>
+
+              {submissions.length > 0 && (
+                <Button
+                  variant="contained"
+                  color="error"
+                  onClick={() => setDeleteAllDialogOpen(true)}
+                >
+                  Delete All
+                </Button>
+              )}
             </Box>
           </Box>
           
@@ -377,6 +452,27 @@ const SpottingExitScamsSubmissions: React.FC = () => {
             {error}
           </Alert>
         )}
+
+        {syncError && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {syncError}
+          </Alert>
+        )}
+
+        <Snackbar
+          open={syncSuccess}
+          autoHideDuration={6000}
+          onClose={() => setSyncSuccess(false)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <Alert 
+            onClose={() => setSyncSuccess(false)} 
+            severity="success"
+            sx={{ width: '100%' }}
+          >
+            Successfully synced with Google Sheets
+          </Alert>
+        </Snackbar>
 
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
@@ -409,15 +505,13 @@ const SpottingExitScamsSubmissions: React.FC = () => {
                       </TableCell>
                       <TableCell>{submission.newsletter_consent ? 'Yes' : 'No'}</TableCell>
                       <TableCell align="center">
-                        <Tooltip title="View Details">
+                        <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
                           <IconButton
                             onClick={() => handleViewDetails(submission)}
                             color="primary"
                           >
                             <VisibilityIcon />
                           </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Delete">
                           <IconButton
                             onClick={() => {
                               setSelectedId(submission.id);
@@ -427,7 +521,7 @@ const SpottingExitScamsSubmissions: React.FC = () => {
                           >
                             <DeleteIcon />
                           </IconButton>
-                        </Tooltip>
+                        </Box>
                       </TableCell>
                     </TableRow>
                   ))
@@ -437,28 +531,6 @@ const SpottingExitScamsSubmissions: React.FC = () => {
           </TableContainer>
         )}
 
-        {/* Delete Single Submission Dialog */}
-      <DeleteConfirmationDialog
-        open={deleteDialogOpen}
-          onClose={() => {
-            setDeleteDialogOpen(false);
-            setSelectedId(null);
-        }}
-          onConfirm={() => selectedId && handleDelete(selectedId)}
-        title="Delete Submission"
-        message="Are you sure you want to delete this submission? This action cannot be undone."
-      />
-
-        {/* Delete All Submissions Dialog */}
-      <DeleteConfirmationDialog
-        open={deleteAllDialogOpen}
-        onClose={() => setDeleteAllDialogOpen(false)}
-          onConfirm={handleDeleteAll}
-        title="Delete All Submissions"
-          message="Are you sure you want to delete all submissions? This action cannot be undone."
-        requireConfirmText={true}
-      />
-
         {/* Details Dialog */}
         <DetailsDialog
           open={detailsOpen}
@@ -467,6 +539,28 @@ const SpottingExitScamsSubmissions: React.FC = () => {
             setSelectedSubmission(null);
           }}
           submission={selectedSubmission}
+        />
+
+        {/* Delete Single Submission Dialog */}
+        <DeleteConfirmationDialog
+          open={deleteDialogOpen}
+          onClose={() => {
+            setDeleteDialogOpen(false);
+            setSelectedId(null);
+          }}
+          onConfirm={() => selectedId && handleDelete(selectedId)}
+          title="Delete Submission"
+          message="Are you sure you want to delete this submission? This action cannot be undone."
+        />
+
+        {/* Delete All Submissions Dialog */}
+        <DeleteConfirmationDialog
+          open={deleteAllDialogOpen}
+          onClose={() => setDeleteAllDialogOpen(false)}
+          onConfirm={handleDeleteAll}
+          title="Delete All Submissions"
+          message="Are you sure you want to delete all submissions? This action cannot be undone."
+          requireConfirmText={true}
         />
       </Paper>
     </Container>

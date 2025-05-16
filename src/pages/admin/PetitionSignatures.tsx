@@ -22,6 +22,11 @@ import {
   TextField,
   Tooltip,
   Snackbar,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  InputAdornment,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -31,34 +36,45 @@ import CloseIcon from '@mui/icons-material/Close';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import SyncIcon from '@mui/icons-material/Sync';
+import SearchIcon from '@mui/icons-material/Search';
 import { supabase } from '../../services/supabase';
 
-interface FormSubmission {
-  id: string;
-  full_name: string;
-  email: string;
-  created_at: string;
-  newsletter_consent: boolean;
-  meta_details: {
-    user_info: Record<string, string>;
-    device: Record<string, string>;
-    location: Record<string, string>;
+interface SignatureMetadata {
+  device: {
+    browser: string;
+    device_type: string;
+    screen_resolution: string;
+    user_agent: string;
+    timezone: string;
+    language: string;
   };
+  location: {
+    city: string;
+    region: string;
+    country: string;
+    latitude: number;
+    longitude: number;
+    ip_address: string;
+  };
+  submission_date: string;
 }
 
-interface MetaDetail {
+interface Signature {
   id: string;
-  checklist_id: string;
-  meta_type: 'user_info' | 'device' | 'location';
-  meta_key: string;
-  meta_value: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  zip_code: string;
+  petition_id: string;
   created_at: string;
+  metadata: SignatureMetadata;
 }
 
 interface DetailsDialogProps {
   open: boolean;
   onClose: () => void;
-  submission: FormSubmission | null;
+  signature: Signature | null;
 }
 
 interface DeleteConfirmationDialogProps {
@@ -139,19 +155,19 @@ const formatDate = (dateString: string) => {
     minute: '2-digit',
     second: '2-digit',
     hour12: true,
-    timeZoneName: 'short' // This will show EST/EDT
+    timeZoneName: 'short'
   });
 };
 
-const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, submission }) => {
-  if (!submission) return null;
+const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, signature }) => {
+  if (!signature) return null;
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Typography variant="h6">
-            Submission Details - {formatDate(submission.created_at)}
+            Signature Details - {formatDate(signature.created_at)}
           </Typography>
           <IconButton onClick={onClose} size="small">
             <CloseIcon />
@@ -161,40 +177,38 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, submission
       <DialogContent>
         <Box sx={{ mt: 2 }}>
           <Typography variant="h6" gutterBottom sx={{ color: theme => theme.palette.primary.main }}>
-            User Information
+            Signer Information
           </Typography>
           <Grid container spacing={3} sx={{ mb: 4 }}>
             <Grid item xs={6}>
               <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                 Name
               </Typography>
-              <Typography variant="body1">{submission.full_name}</Typography>
+              <Typography variant="body1">{`${signature.first_name} ${signature.last_name}`}</Typography>
             </Grid>
             <Grid item xs={6}>
               <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                 Email
               </Typography>
-              <Typography variant="body1">{submission.email}</Typography>
+              <Typography variant="body1">{signature.email}</Typography>
             </Grid>
             <Grid item xs={6}>
               <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                Submission Time
+                Phone
               </Typography>
-              <Typography variant="body1">{formatDate(submission.created_at)}</Typography>
+              <Typography variant="body1">{signature.phone || 'N/A'}</Typography>
             </Grid>
             <Grid item xs={6}>
               <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                Newsletter Consent
+                ZIP Code
               </Typography>
-              <Typography variant="body1">{submission.newsletter_consent ? 'Yes' : 'No'}</Typography>
+              <Typography variant="body1">{signature.zip_code || 'N/A'}</Typography>
             </Grid>
             <Grid item xs={6}>
               <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                Download Time
+                Signed At
               </Typography>
-              <Typography variant="body1">
-                {submission.meta_details.user_info.download_time || 'N/A'}
-              </Typography>
+              <Typography variant="body1">{formatDate(signature.created_at)}</Typography>
             </Grid>
           </Grid>
 
@@ -207,7 +221,7 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, submission
                 City
               </Typography>
               <Typography variant="body1">
-                {submission.meta_details.location.city || 'N/A'}
+                {signature.metadata?.location?.city || 'N/A'}
               </Typography>
             </Grid>
             <Grid item xs={6}>
@@ -215,7 +229,7 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, submission
                 Region
               </Typography>
               <Typography variant="body1">
-                {submission.meta_details.location.region || 'N/A'}
+                {signature.metadata?.location?.region || 'N/A'}
               </Typography>
             </Grid>
             <Grid item xs={6}>
@@ -223,7 +237,7 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, submission
                 Country
               </Typography>
               <Typography variant="body1">
-                {submission.meta_details.location.country || 'N/A'}
+                {signature.metadata?.location?.country || 'N/A'}
               </Typography>
             </Grid>
             <Grid item xs={6}>
@@ -231,7 +245,7 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, submission
                 IP Address
               </Typography>
               <Typography variant="body1">
-                {submission.meta_details.location.ip_address || 'N/A'}
+                {signature.metadata?.location?.ip_address || 'N/A'}
               </Typography>
             </Grid>
           </Grid>
@@ -245,7 +259,7 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, submission
                 Browser
               </Typography>
               <Typography variant="body1">
-                {submission.meta_details.device.browser || 'N/A'}
+                {signature.metadata?.device?.browser || 'N/A'}
               </Typography>
             </Grid>
             <Grid item xs={6}>
@@ -253,7 +267,7 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, submission
                 Device Type
               </Typography>
               <Typography variant="body1">
-                {submission.meta_details.device.device_type || 'N/A'}
+                {signature.metadata?.device?.device_type || 'N/A'}
               </Typography>
             </Grid>
             <Grid item xs={6}>
@@ -261,15 +275,7 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, submission
                 Screen Resolution
               </Typography>
               <Typography variant="body1">
-                {submission.meta_details.device.screen_resolution || 'N/A'}
-              </Typography>
-            </Grid>
-            <Grid item xs={6}>
-              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                Language
-              </Typography>
-              <Typography variant="body1">
-                {submission.meta_details.device.language || 'N/A'}
+                {signature.metadata?.device?.screen_resolution || 'N/A'}
               </Typography>
             </Grid>
             <Grid item xs={6}>
@@ -277,24 +283,7 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, submission
                 Timezone
               </Typography>
               <Typography variant="body1">
-                {submission.meta_details.device.timezone || 'N/A'}
-              </Typography>
-            </Grid>
-            <Grid item xs={12}>
-              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                User Agent
-              </Typography>
-              <Typography 
-                variant="body2" 
-                sx={{ 
-                  wordBreak: 'break-word',
-                  fontFamily: 'monospace',
-                  bgcolor: theme => theme.palette.grey[100],
-                  p: 1,
-                  borderRadius: 1
-                }}
-              >
-                {submission.meta_details.device.user_agent || 'N/A'}
+                {signature.metadata?.device?.timezone || 'N/A'}
               </Typography>
             </Grid>
           </Grid>
@@ -309,28 +298,34 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, submission
   );
 };
 
-const TimeshareScamChecklistSubmissions: React.FC = () => {
+const PetitionSignatures: React.FC = () => {
   const navigate = useNavigate();
-  const [selectedSubmission, setSelectedSubmission] = useState<FormSubmission | null>(null);
+  const [selectedSignature, setSelectedSignature] = useState<Signature | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteAllDialogOpen, setDeleteAllDialogOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [submissions, setSubmissions] = useState<FormSubmission[]>([]);
+  const [signatures, setSignatures] = useState<Signature[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [syncSuccess, setSyncSuccess] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('created_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
-  const fetchSubmissions = async () => {
-    console.log('Starting to fetch submissions...');
+  const fetchSignatures = async () => {
+    console.log('Starting to fetch signatures...');
     setLoading(true);
     setError(null);
     try {
       const { data, error: fetchError } = await supabase
-        .from('timeshare_scam_checklist')
-        .select('*')
+        .from('signatures')
+        .select(`
+          *,
+          metadata:signature_metadata(metadata)
+        `)
         .order('created_at', { ascending: false });
 
       if (fetchError) {
@@ -338,66 +333,58 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
         throw fetchError;
       }
 
-      // Transform the data to match the expected FormSubmission interface
-      const submissions = (data || []).map(submission => ({
-        id: submission.id,
-        full_name: submission.full_name,
-        email: submission.email,
-        created_at: submission.created_at,
-        newsletter_consent: submission.newsletter_consent,
-        meta_details: submission.meta_details || {
-          user_info: {},
-          device: {},
-          location: {}
-        }
+      // Process signatures to include metadata
+      const processedSignatures = (data || []).map(signature => ({
+        ...signature,
+        metadata: signature.metadata?.[0]?.metadata || null
       }));
 
-      console.log('Fetched submissions:', submissions);
-      setSubmissions(submissions);
+      console.log('Fetched signatures:', processedSignatures);
+      setSignatures(processedSignatures);
     } catch (err: any) {
-      console.error('Error in fetchSubmissions:', err);
-      setError(err.message || 'Failed to load submissions');
+      console.error('Error in fetchSignatures:', err);
+      setError(err.message || 'Failed to load signatures');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchSubmissions();
+    fetchSignatures();
   }, []);
 
-  const handleViewDetails = (submission: FormSubmission) => {
-    setSelectedSubmission(submission);
+  const handleViewDetails = (signature: Signature) => {
+    setSelectedSignature(signature);
     setDetailsOpen(true);
   };
 
   const handleDelete = async (id: string) => {
     try {
       const { error: deleteError } = await supabase
-        .from('timeshare_scam_checklist')
+        .from('signatures')
         .delete()
         .eq('id', id);
 
       if (deleteError) throw deleteError;
-      await fetchSubmissions();
+      await fetchSignatures();
     } catch (err: any) {
-      console.error('Error deleting submission:', err);
-      setError(err.message || 'Failed to delete submission');
+      console.error('Error deleting signature:', err);
+      setError(err.message || 'Failed to delete signature');
     }
   };
 
   const handleDeleteAll = async () => {
     try {
       const { error: deleteError } = await supabase
-        .from('timeshare_scam_checklist')
+        .from('signatures')
         .delete()
         .neq('id', ''); // Delete all records
 
       if (deleteError) throw deleteError;
-      await fetchSubmissions();
+      await fetchSignatures();
     } catch (err: any) {
-      console.error('Error deleting all submissions:', err);
-      setError(err.message || 'Failed to delete all submissions');
+      console.error('Error deleting all signatures:', err);
+      setError(err.message || 'Failed to delete all signatures');
     }
   };
 
@@ -407,7 +394,7 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
     setSyncSuccess(false);
     try {
       console.log('Starting sync process...');
-      const response = await fetch('/.netlify/functions/sync-timeshare-checklist', {
+      const response = await fetch('/.netlify/functions/sync-petition-signatures', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -422,8 +409,8 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
         throw new Error(responseData.error || 'Failed to sync with Google Sheets');
       }
 
-      // Refresh the submissions data
-      await fetchSubmissions();
+      // Refresh the signatures data
+      await fetchSignatures();
       setSyncSuccess(true);
       console.log('Sync completed successfully:', responseData);
     } catch (err: any) {
@@ -436,14 +423,16 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
 
   const exportToCSV = () => {
     const headers = [
-      'Full Name',
+      'First Name',
+      'Last Name',
       'Email',
-      'Newsletter Consent',
+      'Phone',
+      'ZIP Code',
+      'Petition ID',
       'Submission Date',
       'Browser',
       'Device Type',
       'Screen Resolution',
-      'Language',
       'Timezone',
       'City',
       'Region',
@@ -451,20 +440,22 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
       'IP Address',
     ];
 
-    const csvData = submissions.map((submission) => [
-      submission.full_name,
-      submission.email,
-      submission.newsletter_consent ? 'Yes' : 'No',
-      new Date(submission.created_at).toLocaleString(),
-      submission.meta_details?.device?.browser || '',
-      submission.meta_details?.device?.device_type || '',
-      submission.meta_details?.device?.screen_resolution || '',
-      submission.meta_details?.device?.language || '',
-      submission.meta_details?.device?.timezone || '',
-      submission.meta_details?.location?.city || '',
-      submission.meta_details?.location?.region || '',
-      submission.meta_details?.location?.country || '',
-      submission.meta_details?.location?.ip_address || '',
+    const csvData = signatures.map((signature) => [
+      signature.first_name,
+      signature.last_name,
+      signature.email,
+      signature.phone || '',
+      signature.zip_code || '',
+      signature.petition_id,
+      new Date(signature.created_at).toLocaleString(),
+      signature.metadata?.device?.browser || '',
+      signature.metadata?.device?.device_type || '',
+      signature.metadata?.device?.screen_resolution || '',
+      signature.metadata?.device?.timezone || '',
+      signature.metadata?.location?.city || '',
+      signature.metadata?.location?.region || '',
+      signature.metadata?.location?.country || '',
+      signature.metadata?.location?.ip_address || '',
     ]);
 
     const csvContent = [
@@ -476,11 +467,34 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `timeshare-checklist-submissions-${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `petition-signatures-${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
+
+  // Filter and sort signatures
+  const filteredSignatures = signatures
+    .filter(signature => {
+      if (!searchTerm) return true;
+      const searchLower = searchTerm.toLowerCase();
+      return (
+        signature.first_name.toLowerCase().includes(searchLower) ||
+        signature.last_name.toLowerCase().includes(searchLower) ||
+        signature.email.toLowerCase().includes(searchLower) ||
+        signature.petition_id.toLowerCase().includes(searchLower)
+      );
+    })
+    .sort((a, b) => {
+      const aValue = a[sortBy as keyof Signature];
+      const bValue = b[sortBy as keyof Signature];
+      const order = sortOrder === 'asc' ? 1 : -1;
+      
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return aValue.localeCompare(bValue) * order;
+      }
+      return 0;
+    });
 
   return (
     <Container maxWidth="lg">
@@ -489,7 +503,7 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
         <Box sx={{ mb: 4 }}>
           <Button
             startIcon={<ArrowBackIcon />}
-            onClick={() => navigate('/admin/forms')}
+            onClick={() => navigate('/admin/dashboard')}
             sx={{ 
               mb: 2,
               backgroundColor: '#E0AC3F',
@@ -500,16 +514,16 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
             }}
             variant="contained"
           >
-            Back to Forms
+            Back to Dashboard
           </Button>
           
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h4" component="h1">
-              Timeshare Scam Checklist - Submissions
+              Petition Signatures
             </Typography>
             <Box>
               <Button
-                onClick={fetchSubmissions}
+                onClick={fetchSignatures}
                 variant="contained"
                 sx={{ 
                   mr: 1,
@@ -556,7 +570,7 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
                 {syncing ? 'Syncing...' : 'Sync with Google Sheets'}
               </Button>
 
-              {submissions.length > 0 && (
+              {signatures.length > 0 && (
                 <Button
                   variant="contained"
                   color="error"
@@ -569,7 +583,7 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
           </Box>
           
           <Typography variant="subtitle1" color="text.secondary">
-            Total Submissions: {submissions.length}
+            Total Signatures: {signatures.length}
           </Typography>
         </Box>
 
@@ -600,6 +614,68 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
           </Alert>
         </Snackbar>
 
+        {/* Filters */}
+        <Box sx={{ mb: 3 }}>
+          <Grid container spacing={2} alignItems="center">
+            <Grid item xs={12} md={4}>
+              <TextField
+                fullWidth
+                label="Search Signatures"
+                variant="outlined"
+                size="small"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Sort By</InputLabel>
+                <Select
+                  value={sortBy}
+                  label="Sort By"
+                  onChange={(e) => setSortBy(e.target.value)}
+                >
+                  <MenuItem value="created_at">Date Signed</MenuItem>
+                  <MenuItem value="first_name">First Name</MenuItem>
+                  <MenuItem value="last_name">Last Name</MenuItem>
+                  <MenuItem value="email">Email</MenuItem>
+                  <MenuItem value="petition_id">Petition ID</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Order</InputLabel>
+                <Select
+                  value={sortOrder}
+                  label="Order"
+                  onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
+                >
+                  <MenuItem value="asc">Ascending</MenuItem>
+                  <MenuItem value="desc">Descending</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={2}>
+              <Button
+                fullWidth
+                variant="contained"
+                onClick={fetchSignatures}
+                startIcon={<RefreshIcon />}
+              >
+                Refresh
+              </Button>
+            </Grid>
+          </Grid>
+        </Box>
+
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
             <CircularProgress />
@@ -609,32 +685,34 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Full Name</TableCell>
+                  <TableCell>Name</TableCell>
                   <TableCell>Email</TableCell>
-                  <TableCell>Submission Date (EST)</TableCell>
-                  <TableCell>Newsletter Consent</TableCell>
+                  <TableCell>Phone</TableCell>
+                  <TableCell>ZIP Code</TableCell>
+                  <TableCell>Petition ID</TableCell>
+                  <TableCell>Signed At (EST)</TableCell>
                   <TableCell align="center">Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {submissions.length === 0 ? (
+                {filteredSignatures.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} align="center">No submissions found</TableCell>
+                    <TableCell colSpan={7} align="center">No signatures found</TableCell>
                   </TableRow>
                 ) : (
-                  submissions.map((submission) => (
-                    <TableRow key={submission.id}>
-                      <TableCell>{submission.full_name}</TableCell>
-                      <TableCell>{submission.email}</TableCell>
-                      <TableCell>
-                        {formatDate(submission.created_at)}
-                      </TableCell>
-                      <TableCell>{submission.newsletter_consent ? 'Yes' : 'No'}</TableCell>
+                  filteredSignatures.map((signature) => (
+                    <TableRow key={signature.id}>
+                      <TableCell>{`${signature.first_name} ${signature.last_name}`}</TableCell>
+                      <TableCell>{signature.email}</TableCell>
+                      <TableCell>{signature.phone || 'N/A'}</TableCell>
+                      <TableCell>{signature.zip_code || 'N/A'}</TableCell>
+                      <TableCell>{signature.petition_id}</TableCell>
+                      <TableCell>{formatDate(signature.created_at)}</TableCell>
                       <TableCell align="center">
                         <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
                           <IconButton
                             size="small"
-                            onClick={() => handleViewDetails(submission)}
+                            onClick={() => handleViewDetails(signature)}
                             sx={{ color: '#01BD9B' }}
                           >
                             <VisibilityIcon />
@@ -642,7 +720,7 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
                           <IconButton
                             size="small"
                             onClick={() => {
-                              setSelectedId(submission.id);
+                              setSelectedId(signature.id);
                               setDeleteDialogOpen(true);
                             }}
                             sx={{ color: '#f44336' }}
@@ -663,7 +741,7 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
       <DetailsDialog
         open={detailsOpen}
         onClose={() => setDetailsOpen(false)}
-        submission={selectedSubmission}
+        signature={selectedSignature}
       />
 
       <DeleteConfirmationDialog
@@ -675,8 +753,8 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
             setDeleteDialogOpen(false);
           }
         }}
-        title="Delete Submission"
-        message="Are you sure you want to delete this submission? This action cannot be undone."
+        title="Delete Signature"
+        message="Are you sure you want to delete this signature? This action cannot be undone."
       />
 
       <DeleteConfirmationDialog
@@ -686,12 +764,12 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
           handleDeleteAll();
           setDeleteAllDialogOpen(false);
         }}
-        title="Delete All Submissions"
-        message="This will permanently delete all submissions. This action cannot be undone."
+        title="Delete All Signatures"
+        message="This will permanently delete all signatures. This action cannot be undone."
         requireConfirmText={true}
       />
     </Container>
   );
 };
 
-export default TimeshareScamChecklistSubmissions; 
+export default PetitionSignatures; 

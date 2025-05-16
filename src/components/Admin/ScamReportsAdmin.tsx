@@ -36,6 +36,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import DeleteIcon from '@mui/icons-material/Delete';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import SyncIcon from '@mui/icons-material/Sync';
 import { supabase } from '../../services/supabase';
 import { formatCurrency } from '../../utils/formatters';
 import { AbandonedForm, deleteAbandonedForm, getAbandonedForms } from '../../services/abandonedFormService';
@@ -161,6 +162,11 @@ const ScamReportsAdmin: React.FC = () => {
   const [abandonedFormDialogOpen, setAbandonedFormDialogOpen] = useState(false);
   const [deleteAbandonedDialogOpen, setDeleteAbandonedDialogOpen] = useState(false);
   const [selectedAbandonedFormId, setSelectedAbandonedFormId] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncSuccess, setSyncSuccess] = useState(false);
+  const [deleteAllDialogOpen, setDeleteAllDialogOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   const fetchReports = async () => {
     try {
@@ -463,6 +469,86 @@ const ScamReportsAdmin: React.FC = () => {
     }
   };
 
+  const handleSync = async () => {
+    try {
+      setSyncing(true);
+      setSyncError(null);
+      setSyncSuccess(false);
+
+      console.log('Starting sync process...');
+      const response = await fetch('/.netlify/functions/sync-scam-reports', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      console.log('Sync response status:', response.status);
+      console.log('Sync response headers:', Object.fromEntries(response.headers.entries()));
+      
+      const responseText = await response.text();
+      console.log('Raw response:', responseText);
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Failed to parse response:', parseError);
+        throw new Error('Invalid response from server: ' + responseText);
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || data.details || 'Failed to sync scam reports');
+      }
+
+      setSyncSuccess(true);
+      await fetchReports(); // Refresh the list after successful sync
+    } catch (error: any) {
+      console.error('Error syncing scam reports:', error);
+      setSyncError(error.message || 'Failed to sync scam reports');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    if (deleteConfirmText !== 'CONFIRM') {
+      return;
+    }
+
+    try {
+      // Delete all related records first due to foreign key constraints
+      await supabase
+        .from('contact_methods')
+        .delete()
+        .neq('id', '');
+
+      await supabase
+        .from('scam_types')
+        .delete()
+        .neq('id', '');
+
+      await supabase
+        .from('scam_report_metadata')
+        .delete()
+        .neq('id', '');
+
+      const { error } = await supabase
+        .from('scam_reports')
+        .delete()
+        .neq('id', '');
+
+      if (error) throw error;
+
+      setDeleteAllDialogOpen(false);
+      setDeleteConfirmText('');
+      await fetchReports(); // Refresh the list
+    } catch (error: any) {
+      console.error('Error deleting all reports:', error);
+      alert('Failed to delete all reports. Please try again.');
+    }
+  };
+
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
@@ -471,6 +557,15 @@ const ScamReportsAdmin: React.FC = () => {
             Scam Reports Administration
           </Typography>
           <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<SyncIcon />}
+              onClick={handleSync}
+              disabled={syncing}
+            >
+              {syncing ? 'Syncing...' : 'Sync to Sheet'}
+            </Button>
             <Button
               variant="contained"
               color="primary"
@@ -487,8 +582,34 @@ const ScamReportsAdmin: React.FC = () => {
             >
               Export Detailed Reports
             </Button>
+            <Button
+              variant="contained"
+              startIcon={<DeleteIcon />}
+              onClick={() => setDeleteAllDialogOpen(true)}
+              sx={{ 
+                backgroundColor: '#ff4444',
+                color: '#FFFFFF',
+                '&:hover': {
+                  backgroundColor: '#cc0000'
+                }
+              }}
+            >
+              Delete All
+            </Button>
           </Box>
         </Box>
+
+        {syncError && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {syncError}
+          </Alert>
+        )}
+
+        {syncSuccess && (
+          <Alert severity="success" sx={{ mb: 3 }}>
+            Successfully synced scam reports to Google Sheet
+          </Alert>
+        )}
 
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
           <Tabs value={tabValue} onChange={handleTabChange} aria-label="scam reports tabs">
@@ -1213,6 +1334,61 @@ const ScamReportsAdmin: React.FC = () => {
               }}
             >
               Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Delete All Confirmation Dialog */}
+        <Dialog
+          open={deleteAllDialogOpen}
+          onClose={() => {
+            setDeleteAllDialogOpen(false);
+            setDeleteConfirmText('');
+          }}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle sx={{ fontSize: '2rem', fontWeight: 'bold', pt: 3, px: 3 }}>
+            Delete All Submissions
+          </DialogTitle>
+          <DialogContent sx={{ pb: 4 }}>
+            <Typography variant="body1" sx={{ mb: 3 }}>
+              This will permanently delete all submissions. This action cannot be undone.
+            </Typography>
+            <Typography variant="body1" sx={{ mb: 2, color: 'text.secondary' }}>
+              Type "CONFIRM" to delete all submissions
+            </Typography>
+            <TextField
+              fullWidth
+              variant="outlined"
+              placeholder="Type CONFIRM"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  backgroundColor: '#fff'
+                }
+              }}
+            />
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 3 }}>
+            <Button
+              variant="contained"
+              onClick={handleDeleteAll}
+              disabled={deleteConfirmText !== 'CONFIRM'}
+              sx={{
+                bgcolor: '#ff4444',
+                color: '#fff',
+                '&:hover': {
+                  bgcolor: '#cc0000',
+                },
+                '&.Mui-disabled': {
+                  bgcolor: '#ccc',
+                  color: '#666'
+                }
+              }}
+            >
+              DELETE
             </Button>
           </DialogActions>
         </Dialog>

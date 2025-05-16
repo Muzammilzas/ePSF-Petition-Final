@@ -3,7 +3,7 @@ const { google } = require('googleapis');
 const { createClient } = require('@supabase/supabase-js');
 
 exports.handler = async function(event) {
-  console.log('Starting sync-sheet function...');
+  console.log('Starting sync-petition-signatures function...');
   
   if (event.httpMethod !== 'POST') {
     console.log('Invalid HTTP method:', event.httpMethod);
@@ -33,11 +33,14 @@ exports.handler = async function(event) {
       process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
-    // Get all submissions from Supabase
-    console.log('Fetching submissions from Supabase...');
-    const { data: submissions, error: supabaseError } = await supabase
-      .from('where_scams_thrive_submissions')
-      .select('*')
+    // Get all signatures from Supabase
+    console.log('Fetching signatures from Supabase...');
+    const { data: signatures, error: supabaseError } = await supabase
+      .from('signatures')
+      .select(`
+        *,
+        metadata:signature_metadata(metadata)
+      `)
       .order('created_at', { ascending: true });
 
     if (supabaseError) {
@@ -45,13 +48,13 @@ exports.handler = async function(event) {
       throw new Error(`Supabase error: ${supabaseError.message}`);
     }
 
-    console.log(`Found ${submissions?.length || 0} submissions in Supabase`);
+    console.log(`Found ${signatures?.length || 0} signatures in Supabase`);
 
     // Initialize Google Sheets
     console.log('Initializing Google Sheets client...');
     const serviceAccount = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
     const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID;
-    const SHEET_NAME = 'Where Scam Thrive';
+    const SHEET_NAME = 'Petition Signatures';
 
     console.log('Service account email:', serviceAccount.client_email);
     console.log('Spreadsheet ID:', SPREADSHEET_ID);
@@ -90,13 +93,13 @@ exports.handler = async function(event) {
     console.log('Clearing existing data...');
     await sheets.spreadsheets.values.clear({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A2:N`,
+      range: `${SHEET_NAME}!A2:P`,
     });
 
     // Prepare rows for Google Sheet
     console.log('Preparing rows for sync...');
-    const rows = submissions.map(submission => {
-      const estDate = new Date(submission.created_at);
+    const rows = signatures.map(signature => {
+      const estDate = new Date(signature.created_at);
       
       const dateStr = estDate.toLocaleDateString('en-US', {
         year: 'numeric',
@@ -113,20 +116,25 @@ exports.handler = async function(event) {
         timeZone: 'America/New_York'
       });
 
+      const metadata = signature.metadata?.[0]?.metadata || {};
+
       return [
         dateStr,
         timeStr,
-        submission.full_name,
-        submission.email,
-        submission.newsletter_consent ? 'Yes' : 'No',
-        submission.meta_details?.city || 'N/A',
-        submission.meta_details?.region || 'N/A',
-        submission.meta_details?.country || 'N/A',
-        submission.meta_details?.ip_address || 'N/A',
-        submission.meta_details?.browser || 'N/A',
-        submission.meta_details?.device_type || 'N/A',
-        submission.meta_details?.screen_resolution || 'N/A',
-        submission.meta_details?.timezone || 'N/A'
+        signature.first_name,
+        signature.last_name,
+        signature.email,
+        signature.phone || 'N/A',
+        signature.zip_code || 'N/A',
+        signature.petition_id,
+        metadata.location?.city || 'N/A',
+        metadata.location?.region || 'N/A',
+        metadata.location?.country || 'N/A',
+        metadata.location?.ip_address || 'N/A',
+        metadata.device?.browser || 'N/A',
+        metadata.device?.device_type || 'N/A',
+        metadata.device?.screen_resolution || 'N/A',
+        metadata.device?.timezone || 'N/A'
       ];
     });
 
@@ -182,7 +190,7 @@ exports.handler = async function(event) {
                   sheetId: sheetId,
                   dimension: 'COLUMNS',
                   startIndex: 0,
-                  endIndex: 13
+                  endIndex: 16
                 }
               }
             }
@@ -194,7 +202,7 @@ exports.handler = async function(event) {
       console.log('Appending rows to sheet...');
       const appendResponse = await sheets.spreadsheets.values.append({
         spreadsheetId: SPREADSHEET_ID,
-        range: `${SHEET_NAME}!A2:M`,
+        range: `${SHEET_NAME}!A2:P`,
         valueInputOption: 'USER_ENTERED',
         insertDataOption: 'INSERT_ROWS',
         requestBody: {
@@ -211,7 +219,7 @@ exports.handler = async function(event) {
       body: JSON.stringify({
         message: 'Sync completed successfully',
         details: {
-          totalSubmissions: submissions.length,
+          totalSignatures: signatures.length,
           syncedRows: rows.length,
           spreadsheetId: SPREADSHEET_ID,
           sheetName: SHEET_NAME

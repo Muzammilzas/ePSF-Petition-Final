@@ -3,7 +3,7 @@ const { google } = require('googleapis');
 const { createClient } = require('@supabase/supabase-js');
 
 exports.handler = async function(event) {
-  console.log('Starting sync-sheet function...');
+  console.log('Starting sync-spotting-exit-scams function...');
   
   if (event.httpMethod !== 'POST') {
     console.log('Invalid HTTP method:', event.httpMethod);
@@ -36,7 +36,7 @@ exports.handler = async function(event) {
     // Get all submissions from Supabase
     console.log('Fetching submissions from Supabase...');
     const { data: submissions, error: supabaseError } = await supabase
-      .from('where_scams_thrive_submissions')
+      .from('spotting_exit_scams_submissions')
       .select('*')
       .order('created_at', { ascending: true });
 
@@ -51,7 +51,7 @@ exports.handler = async function(event) {
     console.log('Initializing Google Sheets client...');
     const serviceAccount = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
     const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID;
-    const SHEET_NAME = 'Where Scam Thrive';
+    const SHEET_NAME = 'Spotting Exit Scams';
 
     console.log('Service account email:', serviceAccount.client_email);
     console.log('Spreadsheet ID:', SPREADSHEET_ID);
@@ -119,14 +119,14 @@ exports.handler = async function(event) {
         submission.full_name,
         submission.email,
         submission.newsletter_consent ? 'Yes' : 'No',
-        submission.meta_details?.city || 'N/A',
-        submission.meta_details?.region || 'N/A',
-        submission.meta_details?.country || 'N/A',
-        submission.meta_details?.ip_address || 'N/A',
-        submission.meta_details?.browser || 'N/A',
-        submission.meta_details?.device_type || 'N/A',
-        submission.meta_details?.screen_resolution || 'N/A',
-        submission.meta_details?.timezone || 'N/A'
+        submission.meta_details?.location?.city || 'N/A',
+        submission.meta_details?.location?.region || 'N/A',
+        submission.meta_details?.location?.country || 'N/A',
+        submission.meta_details?.location?.ip_address || 'N/A',
+        submission.meta_details?.device?.browser || 'N/A',
+        submission.meta_details?.device?.device_type || 'N/A',
+        submission.meta_details?.device?.screen_resolution || 'N/A',
+        submission.meta_details?.device?.timezone || 'N/A'
       ];
     });
 

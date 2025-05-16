@@ -3,10 +3,9 @@ const { google } = require('googleapis');
 const { createClient } = require('@supabase/supabase-js');
 
 exports.handler = async function(event) {
-  console.log('Starting sync-sheet function...');
+  console.log('Starting sync-scam-reports function...');
   
   if (event.httpMethod !== 'POST') {
-    console.log('Invalid HTTP method:', event.httpMethod);
     return {
       statusCode: 405,
       body: JSON.stringify({
@@ -33,29 +32,30 @@ exports.handler = async function(event) {
       process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
-    // Get all submissions from Supabase
-    console.log('Fetching submissions from Supabase...');
-    const { data: submissions, error: supabaseError } = await supabase
-      .from('where_scams_thrive_submissions')
-      .select('*')
+    // Get all scam reports with their related data
+    console.log('Fetching scam reports from Supabase...');
+    const { data: reports, error: reportsError } = await supabase
+      .from('scam_reports')
+      .select(`
+        *,
+        scam_types (*),
+        contact_methods (*),
+        scam_report_metadata (*)
+      `)
       .order('created_at', { ascending: true });
 
-    if (supabaseError) {
-      console.error('Supabase error:', supabaseError);
-      throw new Error(`Supabase error: ${supabaseError.message}`);
+    if (reportsError) {
+      console.error('Supabase error:', reportsError);
+      throw new Error(`Supabase error: ${reportsError.message}`);
     }
 
-    console.log(`Found ${submissions?.length || 0} submissions in Supabase`);
+    console.log(`Found ${reports?.length || 0} scam reports in Supabase`);
 
     // Initialize Google Sheets
     console.log('Initializing Google Sheets client...');
     const serviceAccount = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
     const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID;
-    const SHEET_NAME = 'Where Scam Thrive';
-
-    console.log('Service account email:', serviceAccount.client_email);
-    console.log('Spreadsheet ID:', SPREADSHEET_ID);
-    console.log('Sheet name:', SHEET_NAME);
+    const SHEET_NAME = 'Timeshare Scam Reports';
 
     const auth = new google.auth.GoogleAuth({
       credentials: serviceAccount,
@@ -72,8 +72,6 @@ exports.handler = async function(event) {
       const sheetInfo = await sheets.spreadsheets.get({
         spreadsheetId: SPREADSHEET_ID
       });
-      console.log('Spreadsheet title:', sheetInfo.data.properties.title);
-      console.log('Available sheets:', sheetInfo.data.sheets.map(sheet => sheet.properties.title));
 
       // Check if our sheet exists and get its ID
       const sheet = sheetInfo.data.sheets.find(s => s.properties.title === SHEET_NAME);
@@ -90,14 +88,17 @@ exports.handler = async function(event) {
     console.log('Clearing existing data...');
     await sheets.spreadsheets.values.clear({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A2:N`,
+      range: `${SHEET_NAME}!A2:Z`,
     });
 
     // Prepare rows for Google Sheet
     console.log('Preparing rows for sync...');
-    const rows = submissions.map(submission => {
-      const estDate = new Date(submission.created_at);
-      
+    const rows = reports.map(report => {
+      const metadata = report.scam_report_metadata?.[0] || {};
+      const scamTypes = report.scam_types || [];
+      const contactMethods = report.contact_methods || [];
+
+      const estDate = new Date(report.created_at);
       const dateStr = estDate.toLocaleDateString('en-US', {
         year: 'numeric',
         month: '2-digit',
@@ -113,24 +114,58 @@ exports.handler = async function(event) {
         timeZone: 'America/New_York'
       });
 
+      // Get scam types
+      const hasScamType = (type) => scamTypes.some(st => st.scam_type === type);
+      const getScamTypeDetails = (type) => scamTypes.find(st => st.scam_type === type);
+
       return [
-        dateStr,
-        timeStr,
-        submission.full_name,
-        submission.email,
-        submission.newsletter_consent ? 'Yes' : 'No',
-        submission.meta_details?.city || 'N/A',
-        submission.meta_details?.region || 'N/A',
-        submission.meta_details?.country || 'N/A',
-        submission.meta_details?.ip_address || 'N/A',
-        submission.meta_details?.browser || 'N/A',
-        submission.meta_details?.device_type || 'N/A',
-        submission.meta_details?.screen_resolution || 'N/A',
-        submission.meta_details?.timezone || 'N/A'
+        dateStr, // Date Reported
+        timeStr, // Time Reported
+        report.reporter_name || 'N/A',
+        report.reporter_email || 'N/A',
+        report.reporter_phone || 'N/A',
+        `${report.reporter_city}, ${report.reporter_state}`,
+        report.reporter_age_range || 'N/A',
+        report.preferred_contact || 'N/A',
+        report.speak_with_team ? 'Yes' : 'No',
+        report.share_anonymously ? 'Yes' : 'No',
+        report.scammer_name || 'N/A',
+        report.company_name || 'N/A',
+        report.scammer_phone || 'N/A',
+        report.scammer_email || 'N/A',
+        report.scammer_website || 'N/A',
+        report.money_lost ? 'Yes' : 'No',
+        report.amount_lost ? `$${report.amount_lost.toFixed(2)}` : 'N/A',
+        new Date(report.date_occurred).toLocaleDateString('en-US', {
+          timeZone: 'America/New_York'
+        }),
+        report.reported_elsewhere ? 'Yes' : 'No',
+        report.reported_to || 'N/A',
+        // Scam Types
+        hasScamType('fake_resale') ? 'Yes' : 'No',
+        getScamTypeDetails('fake_resale')?.claimed_sale_amount ? `$${getScamTypeDetails('fake_resale').claimed_sale_amount.toFixed(2)}` : 'N/A',
+        hasScamType('upfront_fees') ? 'Yes' : 'No',
+        getScamTypeDetails('upfront_fees')?.amount ? `$${getScamTypeDetails('upfront_fees').amount.toFixed(2)}` : 'N/A',
+        getScamTypeDetails('upfront_fees')?.promised_services || 'N/A',
+        hasScamType('high_pressure_sales') ? 'Yes' : 'No',
+        getScamTypeDetails('high_pressure_sales')?.tactics || 'N/A',
+        getScamTypeDetails('high_pressure_sales')?.limited_time_or_threat ? 'Yes' : 'No',
+        hasScamType('refund_exit') ? 'Yes' : 'No',
+        getScamTypeDetails('refund_exit')?.promised_refund || 'N/A',
+        getScamTypeDetails('refund_exit')?.contacted_after_other_company ? 'Yes' : 'No',
+        hasScamType('other') ? 'Yes' : 'No',
+        getScamTypeDetails('other')?.description || 'N/A',
+        // Meta Details
+        metadata.browser || 'N/A',
+        metadata.device_type || 'N/A',
+        metadata.screen_resolution || 'N/A',
+        metadata.timezone || 'N/A',
+        metadata.language || 'N/A',
+        metadata.ip_address || 'N/A',
+        metadata.city ? `${metadata.city}, ${metadata.region}, ${metadata.country}` : 'N/A',
+        metadata.latitude && metadata.longitude ? `${metadata.latitude}, ${metadata.longitude}` : 'N/A'
       ];
     });
-
-    console.log(`Prepared ${rows.length} rows for sync`);
 
     if (rows.length > 0) {
       // Format date and time columns
@@ -182,7 +217,7 @@ exports.handler = async function(event) {
                   sheetId: sheetId,
                   dimension: 'COLUMNS',
                   startIndex: 0,
-                  endIndex: 13
+                  endIndex: 40
                 }
               }
             }
@@ -194,7 +229,7 @@ exports.handler = async function(event) {
       console.log('Appending rows to sheet...');
       const appendResponse = await sheets.spreadsheets.values.append({
         spreadsheetId: SPREADSHEET_ID,
-        range: `${SHEET_NAME}!A2:M`,
+        range: `${SHEET_NAME}!A2:AN`,
         valueInputOption: 'USER_ENTERED',
         insertDataOption: 'INSERT_ROWS',
         requestBody: {
@@ -211,7 +246,7 @@ exports.handler = async function(event) {
       body: JSON.stringify({
         message: 'Sync completed successfully',
         details: {
-          totalSubmissions: submissions.length,
+          totalReports: reports.length,
           syncedRows: rows.length,
           spreadsheetId: SPREADSHEET_ID,
           sheetName: SHEET_NAME
@@ -225,8 +260,7 @@ exports.handler = async function(event) {
       statusCode: 500,
       body: JSON.stringify({
         error: 'Sync failed',
-        details: error.message,
-        stack: error.stack
+        details: error.message
       })
     };
   }

@@ -16,12 +16,14 @@ const CreatePetitionForm: React.FC = () => {
   const navigate = useNavigate();
   const { setCurrentPetition } = usePetition();
   const [formData, setFormData] = useState({
+    title: '',
+    story: '',
     goal: '1000',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     if (name === 'goal') {
       // Only allow positive integers for goal
@@ -29,6 +31,11 @@ const CreatePetitionForm: React.FC = () => {
       setFormData(prev => ({
         ...prev,
         [name]: numericValue,
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
       }));
     }
   };
@@ -40,6 +47,8 @@ const CreatePetitionForm: React.FC = () => {
 
     try {
       console.log('Submitting petition:', {
+        title: formData.title,
+        story: formData.story,
         goal: parseInt(formData.goal),
       });
 
@@ -47,6 +56,8 @@ const CreatePetitionForm: React.FC = () => {
         .from('petitions')
         .insert([
           {
+            title: formData.title,
+            story: formData.story,
             goal: parseInt(formData.goal),
             signature_count: 0,
           },
@@ -90,13 +101,10 @@ const CreatePetitionForm: React.FC = () => {
         </Box>
 
         <Typography variant="h4" component="h1" gutterBottom align="center">
-          Create Timeshare Petition!
+          Create Timeshare Petition
         </Typography>
         <Typography variant="subtitle1" gutterBottom align="center" color="text.secondary">
-          Timeshare scams trap millions-ePSF is fighting back.
-        </Typography>
-        <Typography variant="h6" gutterBottom align="center" color="primary">
-          Set your signature goal below
+          Create a petition to advocate for timeshare owner rights and reform
         </Typography>
 
         {error && (
@@ -106,6 +114,30 @@ const CreatePetitionForm: React.FC = () => {
         )}
 
         <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }}>
+          <TextField
+            fullWidth
+            label="Petition Title"
+            name="title"
+            value={formData.title}
+            onChange={handleChange}
+            margin="normal"
+            required
+            helperText="Enter a clear and compelling title for your petition"
+          />
+          
+          <TextField
+            fullWidth
+            label="Petition Story"
+            name="story"
+            value={formData.story}
+            onChange={handleChange}
+            margin="normal"
+            required
+            multiline
+            rows={4}
+            helperText="Describe the issue and what changes you're seeking"
+          />
+
           <TextField
             fullWidth
             label="Signature Goal"

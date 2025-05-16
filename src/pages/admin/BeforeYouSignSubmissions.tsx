@@ -20,6 +20,7 @@ import {
   Alert,
   Grid,
   TextField,
+  Snackbar,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -27,6 +28,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CloseIcon from '@mui/icons-material/Close';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import SyncIcon from '@mui/icons-material/Sync';
 import { supabase } from '../../services/supabase';
 
 interface FormSubmission {
@@ -238,6 +240,10 @@ const BeforeYouSignSubmissions: React.FC = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteAllDialogOpen, setDeleteAllDialogOpen] = useState(false);
   const [submissionToDelete, setSubmissionToDelete] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncSuccess, setSyncSuccess] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
 
   const fetchSubmissions = async () => {
     setLoading(true);
@@ -328,17 +334,51 @@ const BeforeYouSignSubmissions: React.FC = () => {
 
   const handleConfirmDeleteAll = async () => {
     try {
-      const { error: deleteError } = await supabase
+      const { error } = await supabase
         .from('before_you_sign_submissions')
         .delete()
-        .not('id', 'is', null); // Matches all rows
+        .neq('id', '');
 
-      if (deleteError) throw deleteError;
-      
-      await fetchSubmissions();
+      if (error) throw error;
+
       setDeleteAllDialogOpen(false);
+      await fetchSubmissions();
     } catch (err: any) {
+      console.error('Error deleting all submissions:', err);
       setError(err.message || 'Failed to delete all submissions');
+    }
+  };
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setSyncError(null);
+    setSyncSuccess(false);
+    try {
+      console.log('Starting sync process...');
+      const response = await fetch('/.netlify/functions/sync-before-you-sign', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      console.log('Sync response status:', response.status);
+      const responseData = await response.json();
+      console.log('Sync response data:', responseData);
+
+      if (!response.ok) {
+        throw new Error(responseData.error || 'Failed to sync with Google Sheets');
+      }
+
+      // Refresh the submissions data
+      await fetchSubmissions();
+      setSyncSuccess(true);
+      console.log('Sync completed successfully:', responseData);
+    } catch (err: any) {
+      console.error('Sync error:', err);
+      setSyncError(err.message || 'Failed to sync with Google Sheets');
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -397,16 +437,41 @@ const BeforeYouSignSubmissions: React.FC = () => {
               Export as CSV
             </Button>
 
-            {submissions.length > 0 && (
-              <Button
-                onClick={handleDeleteAll}
-                variant="contained"
-                color="error"
-                startIcon={<DeleteIcon />}
-              >
-                Delete All
-              </Button>
-            )}
+            <Button
+              onClick={handleSync}
+              variant="contained"
+              startIcon={<SyncIcon />}
+              disabled={syncing}
+              sx={{ 
+                backgroundColor: '#2196F3',
+                color: '#FFFFFF',
+                '&:hover': {
+                  backgroundColor: '#1976D2'
+                }
+              }}
+            >
+              {syncing ? 'Syncing...' : 'Sync with Google Sheets'}
+            </Button>
+
+            <Button
+              onClick={handleDeleteAll}
+              variant="contained"
+              startIcon={<DeleteIcon />}
+              disabled={submissions.length === 0}
+              sx={{ 
+                backgroundColor: '#ff4444',
+                color: '#FFFFFF',
+                '&:hover': {
+                  backgroundColor: '#cc0000'
+                },
+                '&.Mui-disabled': {
+                  bgcolor: '#ccc',
+                  color: '#666'
+                }
+              }}
+            >
+              Delete All
+            </Button>
           </Box>
         </Box>
 
@@ -415,6 +480,27 @@ const BeforeYouSignSubmissions: React.FC = () => {
             {error}
           </Alert>
         )}
+
+        {syncError && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {syncError}
+          </Alert>
+        )}
+
+        <Snackbar
+          open={syncSuccess}
+          autoHideDuration={6000}
+          onClose={() => setSyncSuccess(false)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <Alert 
+            onClose={() => setSyncSuccess(false)} 
+            severity="success"
+            sx={{ width: '100%' }}
+          >
+            Successfully synced with Google Sheets
+          </Alert>
+        </Snackbar>
 
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
@@ -501,14 +587,57 @@ const BeforeYouSignSubmissions: React.FC = () => {
           message="Are you sure you want to delete this submission? This action cannot be undone."
         />
 
-        <DeleteConfirmationDialog
+        {/* Delete All Dialog */}
+        <Dialog
           open={deleteAllDialogOpen}
           onClose={() => setDeleteAllDialogOpen(false)}
-          onConfirm={handleConfirmDeleteAll}
-          title="Delete All Submissions"
-          message="This will permanently delete all submissions. This action cannot be undone."
-          requireConfirmText={true}
-        />
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle sx={{ fontSize: '2rem', fontWeight: 'bold', pt: 3, px: 3 }}>
+            Delete All Submissions
+          </DialogTitle>
+          <DialogContent sx={{ pb: 4 }}>
+            <Typography variant="body1" sx={{ mb: 3 }}>
+              This will permanently delete all submissions. This action cannot be undone.
+            </Typography>
+            <Typography variant="body1" sx={{ mb: 2, color: 'text.secondary' }}>
+              Type "CONFIRM" to delete all submissions
+            </Typography>
+            <TextField
+              fullWidth
+              variant="outlined"
+              placeholder="Type CONFIRM"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  backgroundColor: '#fff'
+                }
+              }}
+            />
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 3 }}>
+            <Button
+              variant="contained"
+              onClick={handleConfirmDeleteAll}
+              disabled={confirmText !== 'CONFIRM'}
+              sx={{
+                bgcolor: '#ff4444',
+                color: '#fff',
+                '&:hover': {
+                  bgcolor: '#cc0000',
+                },
+                '&.Mui-disabled': {
+                  bgcolor: '#ccc',
+                  color: '#666'
+                }
+              }}
+            >
+              DELETE
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Paper>
     </Container>
   );

@@ -562,6 +562,32 @@ const AdminDashboard: React.FC = () => {
             </Button>
             <Button
               variant="contained"
+              onClick={() => navigate('/admin/petitions')}
+              sx={{
+                backgroundColor: '#01BD9B',
+                color: '#FFFFFF',
+                '&:hover': {
+                  backgroundColor: '#01a989'
+                }
+              }}
+            >
+              Petitions
+            </Button>
+            <Button
+              variant="contained"
+              onClick={() => navigate('/admin/petition-signatures')}
+              sx={{
+                backgroundColor: '#01BD9B',
+                color: '#FFFFFF',
+                '&:hover': {
+                  backgroundColor: '#01a989'
+                }
+              }}
+            >
+              Petition Signatures
+            </Button>
+            <Button
+              variant="contained"
               onClick={() => navigate('/admin/forms')}
               sx={{
                 backgroundColor: '#E0AC3F',

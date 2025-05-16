@@ -40,6 +40,9 @@ import {
   LocationOn as LocationIcon,
   Schedule as ScheduleIcon,
   Language as LanguageIcon,
+  Visibility as VisibilityIcon,
+  FileDownload as FileDownloadIcon,
+  Sync as SyncIcon,
 } from '@mui/icons-material';
 
 // Add interface for metadata
@@ -63,22 +66,40 @@ interface SignatureMetadata {
   submission_date: string;
 }
 
+interface Signature {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  timeshare_name?: string;
+  created_at: string;
+  metadata?: SignatureMetadata;
+  [key: string]: any; // Add index signature for sorting
+}
+
 const PetitionSignatures: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [petition, setPetition] = useState<any>(null);
-  const [signatures, setSignatures] = useState<any[]>([]);
-  const [filteredSignatures, setFilteredSignatures] = useState<any[]>([]);
+  const [signatures, setSignatures] = useState<Signature[]>([]);
+  const [filteredSignatures, setFilteredSignatures] = useState<Signature[]>([]);
   
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [expandedRow, setExpandedRow] = useState<string | null>(null);
-  const [selectedSignature, setSelectedSignature] = useState<any | null>(null);
-  const [openMetaDialog, setOpenMetaDialog] = useState(false);
+  const [selectedSignature, setSelectedSignature] = useState<string | null>(null);
+  const [metadataDialogOpen, setMetadataDialogOpen] = useState(false);
+  const [selectedMetadata, setSelectedMetadata] = useState<SignatureMetadata | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [metadataLoading, setMetadataLoading] = useState(false);
+  const [metadataError, setMetadataError] = useState<string | null>(null);
+  const [deleteAllDialogOpen, setDeleteAllDialogOpen] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncSuccess, setSyncSuccess] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -96,14 +117,19 @@ const PetitionSignatures: React.FC = () => {
           (signature.first_name && signature.first_name.toLowerCase().includes(searchLower)) ||
           (signature.last_name && signature.last_name.toLowerCase().includes(searchLower)) ||
           (signature.email && signature.email.toLowerCase().includes(searchLower)) ||
-          (signature.timeshare_name && signature.timeshare_name.toLowerCase().includes(searchLower))
+          (signature.timeshare_name && signature.timeshare_name.toLowerCase().includes(searchLower)) ||
+          (signature.metadata && (
+            (signature.metadata.location.city && signature.metadata.location.city.toLowerCase().includes(searchLower)) ||
+            (signature.metadata.location.region && signature.metadata.location.region.toLowerCase().includes(searchLower)) ||
+            (signature.metadata.location.country && signature.metadata.location.country.toLowerCase().includes(searchLower))
+          ))
         );
       }
       
       // Apply sorting
       filtered.sort((a, b) => {
-        let valueA = a[sortBy];
-        let valueB = b[sortBy];
+        let valueA = a[sortBy] || '';
+        let valueB = b[sortBy] || '';
         
         if (typeof valueA === 'string') valueA = valueA.toLowerCase();
         if (typeof valueB === 'string') valueB = valueB.toLowerCase();
@@ -122,32 +148,42 @@ const PetitionSignatures: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      // Fetch petition details
-      const { data: petitionData, error: petitionError } = await supabase
-        .from('petitions')
-        .select('*')
-        .eq('id', id)
-        .single();
-      
-      if (petitionError) throw petitionError;
-      setPetition(petitionData);
+      // Only fetch petition details if we have an ID
+      if (id) {
+        const { data: petitionData, error: petitionError } = await supabase
+          .from('petitions')
+          .select('*')
+          .eq('id', id)
+          .single();
+        
+        if (petitionError) throw petitionError;
+        setPetition(petitionData);
+      }
       
       // Fetch signatures with their metadata
-      const { data: signaturesData, error: signaturesError } = await supabase
+      let query = supabase
         .from('signatures')
         .select(`
           *,
-          metadata:signature_metadata(metadata)
+          signature_metadata (
+            metadata
+          )
         `)
-        .eq('petition_id', id)
         .order('created_at', { ascending: false });
+      
+      // Only filter by petition_id if we have one
+      if (id) {
+        query = query.eq('petition_id', id);
+      }
+      
+      const { data: signaturesData, error: signaturesError } = await query;
       
       if (signaturesError) throw signaturesError;
       
       // Process signatures to include metadata
       const processedSignatures = (signaturesData || []).map(signature => ({
         ...signature,
-        metadata: signature.metadata?.[0]?.metadata || null
+        metadata: signature.signature_metadata?.[0]?.metadata || null
       }));
       
       setSignatures(processedSignatures);
@@ -161,18 +197,53 @@ const PetitionSignatures: React.FC = () => {
     }
   };
 
-  const handleDeleteSignature = async (signatureId: string) => {
+  const handleViewMeta = async (signature: Signature) => {
     try {
-      const { error } = await supabase
+      setMetadataLoading(true);
+      setMetadataError(null);
+      
+      // Fetch metadata for the signature
+      const { data: metadataData, error: metadataError } = await supabase
+        .from('signature_metadata')
+        .select('metadata')
+        .eq('signature_id', signature.id)
+        .single();
+
+      if (metadataError) {
+        console.error('Error fetching metadata:', metadataError);
+        setMetadataError('Failed to load signature details');
+        return;
+      }
+
+      if (metadataData?.metadata) {
+        setSelectedSignature(signature.id);
+        setSelectedMetadata(metadataData.metadata);
+        setMetadataDialogOpen(true);
+      } else {
+        setMetadataError('No metadata found for this signature');
+      }
+    } catch (error: any) {
+      console.error('Error in handleViewMeta:', error);
+      setMetadataError(error.message || 'Failed to load signature details');
+    } finally {
+      setMetadataLoading(false);
+    }
+  };
+
+  const handleDelete = async (signatureId: string) => {
+    try {
+      const { error: deleteError } = await supabase
         .from('signatures')
         .delete()
         .eq('id', signatureId);
       
-      if (error) throw error;
+      if (deleteError) throw deleteError;
       
       // Remove the deleted signature from the state
       setSignatures(prev => prev.filter(sig => sig.id !== signatureId));
       setFilteredSignatures(prev => prev.filter(sig => sig.id !== signatureId));
+      setDeleteDialogOpen(false);
+      setSelectedSignature(null);
       
     } catch (error: any) {
       console.error('Error deleting signature:', error);
@@ -180,120 +251,245 @@ const PetitionSignatures: React.FC = () => {
     }
   };
 
-  const handleViewMeta = (signature: any) => {
-    setSelectedSignature(signature);
-    setOpenMetaDialog(true);
-  };
-
   const handleCloseMetaDialog = () => {
-    setOpenMetaDialog(false);
+    setMetadataDialogOpen(false);
     setSelectedSignature(null);
+    setSelectedMetadata(null);
   };
 
   const renderMetaDialog = () => {
-    if (!selectedSignature?.metadata) return null;
-    const metadata = selectedSignature.metadata;
+    if (!selectedMetadata) return null;
 
     return (
       <Dialog
-        open={openMetaDialog}
-        onClose={handleCloseMetaDialog}
+        open={metadataDialogOpen}
+        onClose={() => {
+          setMetadataDialogOpen(false);
+          setSelectedMetadata(null);
+          setMetadataError(null);
+        }}
         maxWidth="md"
         fullWidth
       >
         <DialogTitle>
-          Signature Details for {selectedSignature.first_name} {selectedSignature.last_name}
+          <Typography variant="h5" component="div" gutterBottom>
+            Signature Details
+          </Typography>
         </DialogTitle>
         <DialogContent>
-          <Grid container spacing={3}>
-            {/* Device Information */}
-            <Grid item xs={12} md={6}>
-              <Paper sx={{ p: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <ComputerIcon sx={{ mr: 1 }} />
-                  <Typography variant="subtitle1">Device Information</Typography>
-                </Box>
+          {metadataLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+              <CircularProgress />
+            </Box>
+          ) : metadataError ? (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {metadataError}
+            </Alert>
+          ) : selectedMetadata ? (
+            <Box sx={{ mt: 2 }}>
+              <Paper sx={{ p: 3, mb: 3 }}>
+                <Typography variant="h6" gutterBottom sx={{ color: '#01BD9B' }}>
+                  Location Information
+                </Typography>
                 <Grid container spacing={2}>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="textSecondary">Browser:</Typography>
-                    <Typography variant="body1">{metadata.device.browser}</Typography>
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="subtitle2" color="textSecondary">City</Typography>
+                    <Typography variant="body1" gutterBottom>{selectedMetadata.location.city}</Typography>
                   </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="textSecondary">Device Type:</Typography>
-                    <Typography variant="body1">{metadata.device.device_type}</Typography>
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="subtitle2" color="textSecondary">Region</Typography>
+                    <Typography variant="body1" gutterBottom>{selectedMetadata.location.region}</Typography>
                   </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="textSecondary">Screen Resolution:</Typography>
-                    <Typography variant="body1">{metadata.device.screen_resolution}</Typography>
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="subtitle2" color="textSecondary">Country</Typography>
+                    <Typography variant="body1" gutterBottom>{selectedMetadata.location.country}</Typography>
                   </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="textSecondary">Language:</Typography>
-                    <Typography variant="body1">{metadata.device.language}</Typography>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Typography variant="body2" color="textSecondary">User Agent:</Typography>
-                    <Typography variant="body1" sx={{ wordBreak: 'break-word' }}>
-                      {metadata.device.user_agent}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="textSecondary">Timezone:</Typography>
-                    <Typography variant="body1">{metadata.device.timezone}</Typography>
-                  </Grid>
-                </Grid>
-              </Paper>
-            </Grid>
-
-            {/* Location Information */}
-            <Grid item xs={12} md={6}>
-              <Paper sx={{ p: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <LocationIcon sx={{ mr: 1 }} />
-                  <Typography variant="subtitle1">Location Information</Typography>
-                </Box>
-                <Grid container spacing={2}>
-                  <Grid item xs={12}>
-                    <Typography variant="body2" color="textSecondary">Location:</Typography>
-                    <Typography variant="body1">
-                      {`${metadata.location.city}, ${metadata.location.region}, ${metadata.location.country}`}
-                    </Typography>
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="subtitle2" color="textSecondary">IP Address</Typography>
+                    <Typography variant="body1" gutterBottom>{selectedMetadata.location.ip_address}</Typography>
                   </Grid>
                   <Grid item xs={12}>
-                    <Typography variant="body2" color="textSecondary">IP Address:</Typography>
-                    <Typography variant="body1">{metadata.location.ip_address}</Typography>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Typography variant="body2" color="textSecondary">Coordinates:</Typography>
-                    <Typography variant="body1">
-                      {`${metadata.location.latitude}, ${metadata.location.longitude}`}
+                    <Typography variant="subtitle2" color="textSecondary">Coordinates</Typography>
+                    <Typography variant="body1" gutterBottom>
+                      {selectedMetadata.location.latitude}, {selectedMetadata.location.longitude}
                     </Typography>
                   </Grid>
                 </Grid>
               </Paper>
-            </Grid>
 
-            {/* Submission Information */}
-            <Grid item xs={12}>
-              <Paper sx={{ p: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <ScheduleIcon sx={{ mr: 1 }} />
-                  <Typography variant="subtitle1">Submission Information</Typography>
-                </Box>
-                <Typography variant="body2" color="textSecondary">Submission Date:</Typography>
+              <Paper sx={{ p: 3, mb: 3 }}>
+                <Typography variant="h6" gutterBottom sx={{ color: '#01BD9B' }}>
+                  Device Information
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="subtitle2" color="textSecondary">Browser</Typography>
+                    <Typography variant="body1" gutterBottom>{selectedMetadata.device.browser}</Typography>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="subtitle2" color="textSecondary">Device Type</Typography>
+                    <Typography variant="body1" gutterBottom>{selectedMetadata.device.device_type}</Typography>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="subtitle2" color="textSecondary">Screen Resolution</Typography>
+                    <Typography variant="body1" gutterBottom>{selectedMetadata.device.screen_resolution}</Typography>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="subtitle2" color="textSecondary">Language</Typography>
+                    <Typography variant="body1" gutterBottom>{selectedMetadata.device.language}</Typography>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="subtitle2" color="textSecondary">Timezone</Typography>
+                    <Typography variant="body1" gutterBottom>{selectedMetadata.device.timezone}</Typography>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle2" color="textSecondary">User Agent</Typography>
+                    <Typography variant="body1" sx={{ wordBreak: 'break-word' }} gutterBottom>
+                      {selectedMetadata.device.user_agent}
+                    </Typography>
+                  </Grid>
+                </Grid>
+              </Paper>
+
+              <Paper sx={{ p: 3 }}>
+                <Typography variant="h6" gutterBottom sx={{ color: '#01BD9B' }}>
+                  Submission Information
+                </Typography>
+                <Typography variant="subtitle2" color="textSecondary">Submission Date</Typography>
                 <Typography variant="body1">
-                  {new Date(metadata.submission_date).toLocaleString()}
+                  {new Date(selectedMetadata.submission_date).toLocaleString('en-US', {
+                    timeZone: 'America/New_York',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true
+                  })}
                 </Typography>
               </Paper>
-            </Grid>
-          </Grid>
+            </Box>
+          ) : null}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseMetaDialog} color="primary">
+          <Button 
+            onClick={() => {
+              setMetadataDialogOpen(false);
+              setSelectedMetadata(null);
+              setMetadataError(null);
+            }}
+            variant="contained"
+            sx={{ 
+              backgroundColor: '#01BD9B',
+              color: '#FFFFFF',
+              '&:hover': {
+                backgroundColor: '#01a989'
+              }
+            }}
+          >
             Close
           </Button>
         </DialogActions>
       </Dialog>
     );
+  };
+
+  const handleExportCSV = () => {
+    // Convert signatures to CSV format
+    const headers = ['First Name', 'Last Name', 'Email', 'Petition', 'Signed At'];
+    const csvData = filteredSignatures.map(signature => [
+      signature.first_name,
+      signature.last_name,
+      signature.email,
+      signature.petition_id,
+      new Date(signature.created_at).toLocaleString('en-US', {
+        timeZone: 'America/New_York',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true,
+        timeZoneName: undefined
+      }).replace(',', '')
+    ]);
+
+    // Create CSV content
+    const csvContent = [
+      headers.join(','),
+      ...csvData.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    // Create and trigger download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `petition-signatures-${new Date().toISOString()}.csv`;
+    link.click();
+  };
+
+  const handleDeleteAll = async () => {
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('signatures')
+        .delete()
+        .neq('id', ''); // Delete all records
+
+      if (error) throw error;
+
+      setDeleteAllDialogOpen(false);
+      await fetchData(); // Refresh the list
+    } catch (error: any) {
+      console.error('Error deleting all signatures:', error);
+      setError(error.message || 'Failed to delete all signatures');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSync = async () => {
+    try {
+      setSyncing(true);
+      setSyncError(null);
+      setSyncSuccess(false);
+
+      console.log('Starting sync process...');
+      const response = await fetch('/.netlify/functions/sync-petition-signatures', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      console.log('Sync response status:', response.status);
+      console.log('Sync response headers:', Object.fromEntries(response.headers.entries()));
+      
+      const responseText = await response.text();
+      console.log('Raw response:', responseText);
+
+      let errorData;
+      try {
+        errorData = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Failed to parse response:', parseError);
+        throw new Error('Invalid response from server: ' + responseText);
+      }
+
+      if (!response.ok) {
+        throw new Error(errorData.error || errorData.details || 'Failed to sync signatures');
+      }
+
+      setSyncSuccess(true);
+      await fetchData(); // Refresh the list after successful sync
+    } catch (error: any) {
+      console.error('Error syncing signatures:', error);
+      setSyncError(error.message || 'Failed to sync signatures');
+    } finally {
+      setSyncing(false);
+    }
   };
 
   if (loading) {
@@ -325,9 +521,56 @@ const PetitionSignatures: React.FC = () => {
             Back to Dashboard
           </Button>
           
-          <Typography variant="h4" component="h1" gutterBottom>
-            Petition Signatures
-          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h4" component="h1">
+              Petition Signatures
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Button
+                variant="contained"
+                startIcon={<SyncIcon />}
+                onClick={handleSync}
+                disabled={syncing}
+                sx={{ 
+                  backgroundColor: '#01BD9B',
+                  color: '#FFFFFF',
+                  '&:hover': {
+                    backgroundColor: '#01a989'
+                  }
+                }}
+              >
+                {syncing ? 'Syncing...' : 'Sync to Sheet'}
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={<FileDownloadIcon />}
+                onClick={handleExportCSV}
+                sx={{ 
+                  backgroundColor: '#01BD9B',
+                  color: '#FFFFFF',
+                  '&:hover': {
+                    backgroundColor: '#01a989'
+                  }
+                }}
+              >
+                Export CSV
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={<DeleteIcon />}
+                onClick={() => setDeleteAllDialogOpen(true)}
+                sx={{ 
+                  backgroundColor: '#ff4444',
+                  color: '#FFFFFF',
+                  '&:hover': {
+                    backgroundColor: '#cc0000'
+                  }
+                }}
+              >
+                Delete All
+              </Button>
+            </Box>
+          </Box>
           
           {petition && (
             <Typography variant="h6" color="textSecondary" gutterBottom>
@@ -339,6 +582,18 @@ const PetitionSignatures: React.FC = () => {
         {error && (
           <Alert severity="error" sx={{ mb: 3 }}>
             {error}
+          </Alert>
+        )}
+
+        {syncError && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {syncError}
+          </Alert>
+        )}
+
+        {syncSuccess && (
+          <Alert severity="success" sx={{ mb: 3 }}>
+            Successfully synced signatures to Google Sheet
           </Alert>
         )}
 
@@ -416,9 +671,11 @@ const PetitionSignatures: React.FC = () => {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Name</TableCell>
+                <TableCell>#</TableCell>
+                <TableCell>First Name</TableCell>
+                <TableCell>Last Name</TableCell>
                 <TableCell>Email</TableCell>
-                <TableCell>Timeshare Name</TableCell>
+                <TableCell>Petition</TableCell>
                 <TableCell>Signed At</TableCell>
                 <TableCell align="center">Actions</TableCell>
               </TableRow>
@@ -426,46 +683,62 @@ const PetitionSignatures: React.FC = () => {
             <TableBody>
               {filteredSignatures.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} align="center">
+                  <TableCell colSpan={7} align="center">
                     No signatures found
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredSignatures.map((signature) => (
+                filteredSignatures.map((signature, index) => (
                   <TableRow 
                     key={signature.id}
                     sx={{ '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' } }}
                   >
-                    <TableCell>
-                      {`${signature.first_name} ${signature.last_name}`}
-                    </TableCell>
+                    <TableCell>{index + 1}</TableCell>
+                    <TableCell>{signature.first_name}</TableCell>
+                    <TableCell>{signature.last_name}</TableCell>
                     <TableCell>{signature.email}</TableCell>
-                    <TableCell>{signature.timeshare_name || 'N/A'}</TableCell>
+                    <TableCell>{signature.petition_id}</TableCell>
                     <TableCell>
-                      {new Date(signature.created_at).toLocaleString()}
+                      {new Date(signature.created_at).toLocaleString('en-US', {
+                        timeZone: 'America/New_York',
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: true,
+                        timeZoneName: undefined
+                      }).replace(',', '')}
                     </TableCell>
                     <TableCell align="center">
                       <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
-                        <Button
-                          variant="contained"
-                          size="small"
-                          onClick={() => handleViewMeta(signature)}
-                          disabled={!signature.metadata}
-                          sx={{ 
-                            backgroundColor: '#01BD9B',
-                            color: '#FFFFFF',
-                            '&:hover': {
-                              backgroundColor: '#E0AC3F',
-                              color: '#FFFFFF'
-                            }
-                          }}
-                        >
-                          View Meta
-                        </Button>
+                        <Tooltip title="View Details">
+                          <IconButton
+                            onClick={() => handleViewMeta(signature)}
+                            sx={{ 
+                              color: '#01BD9B',
+                              '&:hover': {
+                                backgroundColor: 'rgba(1, 189, 155, 0.1)'
+                              }
+                            }}
+                            size="small"
+                          >
+                            <VisibilityIcon />
+                          </IconButton>
+                        </Tooltip>
                         <Tooltip title="Delete Signature">
                           <IconButton
-                            onClick={() => handleDeleteSignature(signature.id)}
-                            color="error"
+                            onClick={() => {
+                              setSelectedSignature(signature.id);
+                              setDeleteDialogOpen(true);
+                            }}
+                            sx={{ 
+                              color: '#ff4444',
+                              '&:hover': {
+                                backgroundColor: 'rgba(255, 68, 68, 0.1)'
+                              }
+                            }}
                             size="small"
                           >
                             <DeleteIcon />
@@ -479,6 +752,31 @@ const PetitionSignatures: React.FC = () => {
             </TableBody>
           </Table>
         </TableContainer>
+
+        {/* Delete All Confirmation Dialog */}
+        <Dialog
+          open={deleteAllDialogOpen}
+          onClose={() => setDeleteAllDialogOpen(false)}
+        >
+          <DialogTitle>Confirm Delete All</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Are you sure you want to delete all signatures? This action cannot be undone.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDeleteAllDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleDeleteAll}
+              color="error"
+              variant="contained"
+            >
+              Delete All
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Paper>
       {renderMetaDialog()}
     </Container>
