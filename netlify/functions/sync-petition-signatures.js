@@ -36,8 +36,13 @@ exports.handler = async function(event) {
     // Get unsynced submissions from Supabase
     console.log('Fetching unsynced submissions from Supabase...');
     const { data: submissions, error: supabaseError } = await supabase
-      .from('petition_signatures')
-      .select('*')
+      .from('signatures')
+      .select(`
+        *,
+        signature_metadata (
+          metadata
+        )
+      `)
       .is('synced_at', null)
       .order('created_at', { ascending: true });
 
@@ -120,24 +125,27 @@ exports.handler = async function(event) {
         timeZone: 'America/New_York'
       });
 
+      const metadata = submission.signature_metadata?.[0]?.metadata || {};
+
       return [
         dateStr,
         timeStr,
-        submission.full_name,
+        submission.first_name,
+        submission.last_name,
         submission.email,
-        submission.newsletter_consent ? 'Yes' : 'No',
-        submission.meta_details?.location?.city || 'N/A',
-        submission.meta_details?.location?.region || 'N/A',
-        submission.meta_details?.location?.country || 'N/A',
-        submission.meta_details?.location?.ip_address || 'N/A',
-        submission.meta_details?.device?.browser || 'N/A',
-        submission.meta_details?.device?.device_type || 'N/A',
-        submission.meta_details?.device?.screen_resolution || 'N/A',
-        submission.meta_details?.device?.timezone || 'N/A',
-        submission.meta_details?.device?.language || 'N/A',
-        submission.meta_details?.device?.user_agent || 'N/A',
-        submission.meta_details?.location?.latitude || 'N/A',
-        submission.meta_details?.location?.longitude || 'N/A'
+        submission.timeshare_name || 'N/A',
+        submission.petition_id,
+        metadata?.device?.browser || 'N/A',
+        metadata?.device?.device_type || 'N/A',
+        metadata?.device?.screen_resolution || 'N/A',
+        metadata?.device?.timezone || 'N/A',
+        metadata?.device?.language || 'N/A',
+        metadata?.location?.city || 'N/A',
+        metadata?.location?.region || 'N/A',
+        metadata?.location?.country || 'N/A',
+        metadata?.location?.ip_address || 'N/A',
+        metadata?.location?.latitude || 'N/A',
+        metadata?.location?.longitude || 'N/A'
       ];
     });
 
@@ -147,7 +155,7 @@ exports.handler = async function(event) {
     console.log('Appending rows to sheet...');
     const appendResponse = await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A2:Q`,
+      range: `${SHEET_NAME}!A2:R`,
       valueInputOption: 'USER_ENTERED',
       insertDataOption: 'INSERT_ROWS',
       requestBody: {
@@ -163,7 +171,7 @@ exports.handler = async function(event) {
     const submissionIds = submissions.map(s => s.id);
     
     const { error: updateError } = await supabase
-      .from('petition_signatures')
+      .from('signatures')
       .update({ synced_at: now })
       .in('id', submissionIds);
 

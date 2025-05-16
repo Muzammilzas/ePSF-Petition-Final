@@ -344,32 +344,20 @@ const TimeshareScamChecklistPage = () => {
 
       // Save to Supabase with meta_details as JSONB
       const { data: mainData, error: mainError } = await supabase
-        .from('timeshare_scam_checklist')
+        .from('timeshare_checklist_submissions')
         .insert({
           full_name: formData.fullName,
           email: formData.email,
           newsletter_consent: formData.newsletterConsent,
           meta_details: {
-            user_info: {
-              name: formData.fullName,
-              email: formData.email,
-              download_time: downloadTime,
-              newsletter_consent: formData.newsletterConsent
-            },
-            device: {
-              browser: formData.metaDetails.browser,
-              device_type: formData.metaDetails.deviceType,
-              screen_resolution: formData.metaDetails.screenResolution,
-              timezone: 'America/New_York',
-              language: navigator.language,
-              user_agent: navigator.userAgent
-            },
-            location: {
-              city: formData.metaDetails.city,
-              region: formData.metaDetails.region,
-              country: formData.metaDetails.country,
-              ip_address: formData.metaDetails.ipAddress
-            }
+            city: formData.metaDetails.city,
+            region: formData.metaDetails.region,
+            country: formData.metaDetails.country,
+            ip_address: formData.metaDetails.ipAddress,
+            browser: formData.metaDetails.browser,
+            device_type: formData.metaDetails.deviceType,
+            screen_resolution: formData.metaDetails.screenResolution,
+            timezone: formData.metaDetails.timeZone
           }
         })
         .select()
