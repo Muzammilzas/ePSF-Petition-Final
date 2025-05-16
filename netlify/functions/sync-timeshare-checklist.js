@@ -51,7 +51,7 @@ exports.handler = async function(event) {
     console.log('Initializing Google Sheets client...');
     const serviceAccount = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
     const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID;
-    const SHEET_NAME = 'Timeshare Scam Reports';
+    const SHEET_NAME = 'Timeshare Scam Checklist';
 
     console.log('Service account email:', serviceAccount.client_email);
     console.log('Spreadsheet ID:', SPREADSHEET_ID);
@@ -65,26 +65,25 @@ exports.handler = async function(event) {
     const client = await auth.getClient();
     const sheets = google.sheets({ version: 'v4', auth: client });
 
-    // Verify spreadsheet access and get sheet ID
-    console.log('Verifying spreadsheet access...');
-    let sheetId;
-    try {
-      const sheetInfo = await sheets.spreadsheets.get({
-        spreadsheetId: SPREADSHEET_ID
-      });
-      console.log('Spreadsheet title:', sheetInfo.data.properties.title);
-      console.log('Available sheets:', sheetInfo.data.sheets.map(sheet => sheet.properties.title));
+    // First, get all sheets to verify our target sheet exists
+    console.log('Getting list of all sheets...');
+    const spreadsheet = await sheets.spreadsheets.get({
+      spreadsheetId: SPREADSHEET_ID,
+    });
+    
+    const allSheets = spreadsheet.data.sheets.map(sheet => sheet.properties.title);
+    console.log('Available sheets:', allSheets);
 
-      // Check if our sheet exists and get its ID
-      const sheet = sheetInfo.data.sheets.find(s => s.properties.title === SHEET_NAME);
-      if (!sheet) {
-        throw new Error(`Sheet "${SHEET_NAME}" not found in spreadsheet`);
-      }
-      sheetId = sheet.properties.sheetId;
-    } catch (sheetError) {
-      console.error('Failed to access spreadsheet:', sheetError);
-      throw new Error(`Google Sheets access error: ${sheetError.message}`);
+    if (!allSheets.includes(SHEET_NAME)) {
+      throw new Error(`Sheet "${SHEET_NAME}" not found. Available sheets: ${allSheets.join(', ')}`);
     }
+
+    // Get sheet ID
+    const sheet = spreadsheet.data.sheets.find(s => s.properties.title === SHEET_NAME);
+    if (!sheet) {
+      throw new Error(`Sheet "${SHEET_NAME}" not found in spreadsheet`);
+    }
+    const sheetId = sheet.properties.sheetId;
 
     // Clear existing data (except headers)
     console.log('Clearing existing data...');
@@ -113,7 +112,7 @@ exports.handler = async function(event) {
         timeZone: 'America/New_York'
       });
 
-      return [
+      const row = [
         dateStr,
         timeStr,
         submission.full_name,
@@ -128,12 +127,16 @@ exports.handler = async function(event) {
         submission.meta_details?.device?.screen_resolution || 'N/A',
         submission.meta_details?.device?.timezone || 'N/A'
       ];
+
+      console.log('Prepared row:', row);
+      return row;
     });
 
     console.log(`Prepared ${rows.length} rows for sync`);
 
     if (rows.length > 0) {
       // Format date and time columns
+      console.log('Applying column formatting...');
       await sheets.spreadsheets.batchUpdate({
         spreadsheetId: SPREADSHEET_ID,
         requestBody: {
