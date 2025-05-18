@@ -167,7 +167,7 @@ const ThankYou: React.FC = () => {
           />
         </Box>
 
-        <Typography variant="h4" component="h1" gutterBottom align="center" color="primary">
+        <Typography variant="h4" component="h1" gutterBottom align="center" color="primary" id="petition-thank-you-message">
           Thank You for Signing!
         </Typography>
 

@@ -1008,17 +1008,17 @@ const ReportScamSection = () => {
                     startIcon={<ReportProblemIcon />}
                     fullWidth
                     sx={{
-                      bgcolor: theme.palette.primary.main,
+                      bgcolor: 'rgb(224, 172, 63)',
                       color: 'white',
                       py: 2,
                       px: 6,
                       textTransform: 'none',
                       '&:hover': {
-                        bgcolor: theme.palette.primary.dark
+                        bgcolor: 'rgb(200, 150, 50)'
                       }
                     }}
                   >
-                    Help others by speaking up — Report a Scam Today
+                    Report a Scam Today
                   </Button>
                 </Paper>
               </motion.div>
@@ -1425,6 +1425,103 @@ const ActionSection = () => {
   );
 };
 
+const ActionButtonsSection = () => {
+  const theme = useTheme();
+  const navigate = useNavigate();
+
+  return (
+    <Box 
+      sx={{ 
+        py: { xs: 8, md: 12 },
+        bgcolor: 'background.paper',
+        textAlign: 'center'
+      }}
+    >
+      <Container maxWidth="lg">
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={staggerContainer}
+        >
+          <motion.div variants={fadeInUp}>
+            <Typography
+              variant="h2"
+              component="h2"
+              sx={{
+                fontWeight: 700,
+                mb: 3,
+                fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
+                color: '#01BD9B'
+              }}
+            >
+              Your Voice Could Save Someone Else
+            </Typography>
+
+            <Typography
+              sx={{
+                fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem' },
+                mb: 6,
+                maxWidth: '1200px',
+                mx: 'auto',
+                color: 'text.secondary',
+                whiteSpace: 'nowrap',
+                px: 2
+              }}
+            >
+              Scammers rely on silence. But your report has the power to warn others, support reform, and stop the cycle.
+            </Typography>
+
+            <Grid container spacing={3} justifyContent="center">
+              <Grid item xs={12} sm={6} md={4}>
+                <Button
+                  component={Link}
+                  to="/consumer-rights"
+                  variant="contained"
+                  fullWidth
+                  sx={{
+                    py: 2,
+                    bgcolor: '#01BD9B',
+                    color: 'white',
+                    textTransform: 'none',
+                    fontSize: { xs: '1rem', sm: '1.1rem' },
+                    '&:hover': {
+                      bgcolor: 'rgb(0, 168, 137)'
+                    }
+                  }}
+                >
+                  Know Your Rights
+                </Button>
+              </Grid>
+              <Grid item xs={12} sm={6} md={4}>
+                <Button
+                  component={Link}
+                  to="/timeshare-scam-checklist"
+                  variant="outlined"
+                  fullWidth
+                  sx={{
+                    py: 2,
+                    borderColor: '#01BD9B',
+                    color: '#01BD9B',
+                    textTransform: 'none',
+                    fontSize: { xs: '1rem', sm: '1.1rem' },
+                    '&:hover': {
+                      borderColor: 'rgb(0, 168, 137)',
+                      bgcolor: 'rgba(1, 189, 155, 0.1)'
+                    }
+                  }}
+                >
+                  Download Our Free Checklist
+                </Button>
+              </Grid>
+            </Grid>
+          </motion.div>
+        </motion.div>
+      </Container>
+    </Box>
+  );
+};
+
 const Home2Page = () => {
   return (
     <Box>
@@ -1437,6 +1534,7 @@ const Home2Page = () => {
       <StayInformedSection />
       <WhyThisMattersSection />
       <ActionSection />
+      <ActionButtonsSection />
     </Box>
   );
 };

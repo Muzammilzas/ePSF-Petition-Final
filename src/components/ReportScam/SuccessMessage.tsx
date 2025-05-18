@@ -32,10 +32,10 @@ const SuccessMessage: React.FC = () => {
             color="success" 
             sx={{ fontSize: 64, mb: 2 }} 
           />
-          <Typography variant="h3" component="h1" color="primary" gutterBottom>
+          <Typography variant="h3" component="h1" color="primary" gutterBottom id="report-scam-success-message">
             Thank you. Your story matters.
           </Typography>
-          <Typography variant="body1" paragraph sx={{ maxWidth: 600 }} color="secondary">
+          <Typography variant="body1" paragraph sx={{ maxWidth: 600 }} color="secondary" id="report-scam-success-description">
             Your report has been submitted successfully.
           </Typography>
           <Typography variant="body1" sx={{ maxWidth: 600 }}>

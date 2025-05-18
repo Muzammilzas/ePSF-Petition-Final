@@ -614,6 +614,7 @@ const WhereScamsThrivePage = () => {
           onClose={() => setShowSuccessMessage(false)}
           severity="success"
           sx={{ width: '100%' }}
+          id="where-scams-thrive-success-alert"
         >
           Thank you! Your fact sheet has been sent to your email.
         </Alert>

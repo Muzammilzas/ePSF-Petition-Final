@@ -725,6 +725,7 @@ const BeforeYouSignPage = () => {
           onClose={() => setOpenSnackbar(false)}
           severity="success"
           sx={{ width: '100%' }}
+          id="before-you-sign-success-alert"
         >
           Thank you! Your guide has been sent to your email.
         </Alert>

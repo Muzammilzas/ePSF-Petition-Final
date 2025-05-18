@@ -82,7 +82,7 @@ export const REPORT_CONTENT = {
     "Share your experience anonymously (if you choose)",
     "Help us build a national case for stronger protections"
   ],
-  cta: "Help others by speaking up — Report a Scam Today"
+  cta: "Report a Scam Today"
 };
 
 export const RESOURCES = [

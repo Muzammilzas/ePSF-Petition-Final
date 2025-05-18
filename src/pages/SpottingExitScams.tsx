@@ -838,6 +838,7 @@ const SpottingExitScamsPage = () => {
             onClose={() => setOpenSnackbar(false)}
             severity="success"
             sx={{ width: '100%' }}
+            id="spotting-exit-scams-success-alert"
           >
             Thank you! Your guide has been sent to your email.
           </Alert>

@@ -315,7 +315,7 @@ const SignPetitionFormContent: React.FC = () => {
 
         {success ? (
           <Box sx={{ textAlign: 'center' }}>
-            <Alert severity="success" sx={{ mb: 2 }}>
+            <Alert severity="success" sx={{ mb: 2 }} id="petition-form-success-alert">
               Thank you for signing the petition!
             </Alert>
             <Button

@@ -88,12 +88,21 @@ const ReportScamSection: React.FC = () => {
                   variant="contained"
                   size="large"
                   startIcon={<ReportProblemIcon />}
+                  id="report-scam-home-button"
                   sx={{
                     py: 2,
                     px: 6,
                     fontSize: '1.2rem',
                     borderRadius: 2,
                     textTransform: 'none',
+                    bgcolor: 'rgb(224, 172, 63) !important',
+                    color: '#fff',
+                    '&:hover': {
+                      bgcolor: 'rgb(200, 150, 50) !important'
+                    },
+                    '&.MuiButton-contained': {
+                      bgcolor: 'rgb(224, 172, 63) !important'
+                    }
                   }}
                 >
                   {REPORT_CONTENT.cta}
