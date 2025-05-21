@@ -24,7 +24,6 @@ import DonationPage from './components/DonationPage';
 import ReportScamPage from './components/ReportScam/ReportScamPage';
 import ScamReportsAdmin from './components/Admin/ScamReportsAdmin';
 import SuccessMessage from './components/ReportScam/SuccessMessage';
-import AbandonedFormsAdmin from './components/Admin/AbandonedFormsAdmin';
 import FormsAdmin from './components/Admin/FormsAdmin';
 import Analytics from './components/Admin/Analytics';
 import WhereScamsThriveSubmissions from './pages/admin/WhereScamsThriveSubmissions';
@@ -276,14 +275,6 @@ const App: React.FC = () => {
                     element={
                       <ProtectedRoute>
                         <TimeshareScamChecklistSubmissions />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="/admin/abandoned-forms" 
-                    element={
-                      <ProtectedRoute>
-                        <AbandonedFormsAdmin />
                       </ProtectedRoute>
                     } 
                   />

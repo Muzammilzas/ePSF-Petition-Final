@@ -1,9 +1,20 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Box, Typography, Paper, Container } from '@mui/material';
 import { motion } from 'framer-motion';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 
 const SuccessMessage: React.FC = () => {
+  useEffect(() => {
+    // Google Analytics event tracking
+    if (typeof window !== 'undefined' && window.gtag) {
+      window.gtag('event', 'conversion', {
+        'send_to': 'AW-10958199184/_8lvCMT4hssaEJCzo-ko',
+        'value': 1.0,
+        'currency': 'USD'
+      });
+    }
+  }, []);
+
   return (
     <Box
       component={motion.div}

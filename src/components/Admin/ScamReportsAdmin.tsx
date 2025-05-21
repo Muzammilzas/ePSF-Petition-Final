@@ -39,7 +39,6 @@ import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import SyncIcon from '@mui/icons-material/Sync';
 import { supabase } from '../../services/supabase';
 import { formatCurrency } from '../../utils/formatters';
-import { AbandonedForm, deleteAbandonedForm, getAbandonedForms } from '../../services/abandonedFormService';
 
 interface ScamReport {
   id: number;
@@ -52,7 +51,6 @@ interface ScamReport {
   reporter_age_range?: string;
   speak_with_team: boolean;
   share_anonymously: boolean;
-  preferred_contact: 'Email' | 'Phone' | 'Either' | 'None';
   money_lost: boolean;
   amount_lost: number | null;
   date_occurred: string;
@@ -69,7 +67,7 @@ interface ScamReport {
 
 interface ScamTypeDetail {
   id: number;
-  report_id: number;
+  scam_report_id: number;
   scam_type: string;
   claimed_sale_amount?: number;
   amount?: number;
@@ -83,31 +81,27 @@ interface ScamTypeDetail {
 
 interface ContactMethod {
   id: number;
-  report_id: number;
-  method: string;
-  phone_number?: string;
-  email_address?: string;
-  evidence_file_url?: string;
-  social_media_platform?: string;
-  social_media_profile?: string;
-  location?: string;
-  event_type?: string;
+  scam_report_id: number;
+  contact_type: string;
+  contact_value: string;
 }
 
 interface MetaDetails {
+  id: number;
+  scam_report_id: number;
+  ip_address: string;
+  user_agent: string;
   browser: string;
+  os: string;
   device_type: string;
   screen_resolution: string;
-  user_agent: string;
   timezone: string;
   language: string;
-  ip_address: string;
   city: string;
   region: string;
   country: string;
-  latitude: number | null;
-  longitude: number | null;
-  created_at: string;
+  latitude: number;
+  longitude: number;
 }
 
 interface TabPanelProps {
@@ -156,12 +150,6 @@ const ScamReportsAdmin: React.FC = () => {
     searchTerm: '',
   });
   const [tabValue, setTabValue] = useState(0);
-  const [abandonedForms, setAbandonedForms] = useState<AbandonedForm[]>([]);
-  const [loadingAbandoned, setLoadingAbandoned] = useState(false);
-  const [selectedAbandonedForm, setSelectedAbandonedForm] = useState<AbandonedForm | null>(null);
-  const [abandonedFormDialogOpen, setAbandonedFormDialogOpen] = useState(false);
-  const [deleteAbandonedDialogOpen, setDeleteAbandonedDialogOpen] = useState(false);
-  const [selectedAbandonedFormId, setSelectedAbandonedFormId] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [syncSuccess, setSyncSuccess] = useState(false);
@@ -294,66 +282,46 @@ const ScamReportsAdmin: React.FC = () => {
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
-    if (newValue === 1 && abandonedForms.length === 0) {
-      fetchAbandonedForms();
-    }
   };
 
-  const fetchAbandonedForms = async () => {
-    setLoadingAbandoned(true);
-    try {
-      const forms = await getAbandonedForms();
-      setAbandonedForms(forms);
-    } catch (error) {
-      console.error('Error fetching abandoned forms:', error);
-      setAbandonedForms([]);
-    }
-    setLoadingAbandoned(false);
-  };
+  const exportToCsv = () => {
+    const csvData = reports.map(report => ({
+      'Date': new Date(report.created_at).toLocaleString(),
+      'Reporter Name': report.reporter_name,
+      'Reporter Email': report.reporter_email,
+      'City': report.reporter_city,
+      'State': report.reporter_state,
+      'Age Range': report.reporter_age_range || 'Not specified',
+      'Willing to Speak': report.speak_with_team ? 'Yes' : 'No',
+      'Share Anonymously': report.share_anonymously ? 'Yes' : 'No',
+      'Money Lost': report.money_lost ? 'Yes' : 'No',
+      'Amount Lost': report.amount_lost ? formatCurrency(report.amount_lost) : 'N/A',
+      'Date Occurred': report.date_occurred,
+      'Scammer Name': report.scammer_name,
+      'Company Name': report.company_name,
+      'Scammer Phone': report.scammer_phone,
+      'Scammer Email': report.scammer_email,
+      'Scammer Website': report.scammer_website,
+      'Reported Elsewhere': report.reported_elsewhere ? 'Yes' : 'No',
+      'Reported To': report.reported_to || 'N/A',
+      'Want Updates': report.want_updates ? 'Yes' : 'No'
+    }));
 
-  const handleViewAbandonedForm = (form: any) => {
-    setSelectedAbandonedForm(form);
-    setAbandonedFormDialogOpen(true);
-  };
-
-  const handleDeleteAbandonedForm = async () => {
-    if (!selectedAbandonedFormId) return;
-    
-    try {
-      const { success, error } = await deleteAbandonedForm(selectedAbandonedFormId);
-      
-      if (!success) {
-        console.error('Error deleting abandoned form:', error);
-        alert('Failed to delete abandoned form. Please try again.');
-        return;
-      }
-
-      // Refresh the abandoned forms list
-      await fetchAbandonedForms();
-      setDeleteAbandonedDialogOpen(false);
-      setSelectedAbandonedFormId(null);
-    } catch (error) {
-      console.error('Error deleting abandoned form:', error);
-      alert('Failed to delete abandoned form. Please try again.');
-    }
-  };
-
-  const exportToCSV = () => {
     // Create CSV header
     const headers = [
-      'Date Reported',
+      'Date',
       'Reporter Name',
-      'Location',
-      'Contact Info',
-      'Scammer Name',
-      'Company',
+      'Reporter Email',
+      'City',
+      'State',
+      'Age Range',
+      'Willing to Speak',
+      'Share Anonymously',
       'Money Lost',
       'Amount Lost',
-      'Willing to Speak',
-      'Age Range',
-      'Preferred Contact',
-      'Share Anonymously',
       'Date Occurred',
+      'Scammer Name',
+      'Company Name',
       'Scammer Phone',
       'Scammer Email',
       'Scammer Website',
@@ -362,43 +330,10 @@ const ScamReportsAdmin: React.FC = () => {
       'Want Updates'
     ];
 
-    // Transform reports data
-    const csvData = reports.map(report => [
-      new Date(report.created_at).toLocaleDateString('en-US', {
-        timeZone: 'America/New_York',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      }),
-      report.reporter_name,
-      `${report.reporter_city}, ${report.reporter_state}`,
-      `Email: ${report.reporter_email}, Phone: ${report.reporter_phone}`,
-      report.scammer_name,
-      report.company_name,
-      report.money_lost ? 'Yes' : 'No',
-      report.amount_lost ? formatCurrency(report.amount_lost) : 'N/A',
-      report.speak_with_team ? 'Yes' : 'No',
-      report.reporter_age_range || 'N/A',
-      report.preferred_contact,
-      report.share_anonymously ? 'Yes' : 'No',
-      new Date(report.date_occurred).toLocaleDateString('en-US', {
-        timeZone: 'America/New_York',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      }),
-      report.scammer_phone,
-      report.scammer_email,
-      report.scammer_website,
-      report.reported_elsewhere ? 'Yes' : 'No',
-      report.reported_to || 'N/A',
-      report.want_updates ? 'Yes' : 'No'
-    ]);
-
     // Combine headers and data
     const csvContent = [
       headers.join(','),
-      ...csvData.map(row => row.map(cell => `"${cell || ''}"`).join(','))
+      ...csvData.map(row => Object.values(row).map(cell => `"${cell || ''}"`).join(','))
     ].join('\n');
 
     // Create and download the file
@@ -549,6 +484,10 @@ const ScamReportsAdmin: React.FC = () => {
     }
   };
 
+  const getContactInfo = (report: ScamReport) => {
+    return report.reporter_email || 'Not provided';
+  };
+
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
@@ -570,7 +509,7 @@ const ScamReportsAdmin: React.FC = () => {
               variant="contained"
               color="primary"
               startIcon={<FileDownloadIcon />}
-              onClick={exportToCSV}
+              onClick={exportToCsv}
             >
               Export CSV
             </Button>
@@ -614,7 +553,6 @@ const ScamReportsAdmin: React.FC = () => {
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
           <Tabs value={tabValue} onChange={handleTabChange} aria-label="scam reports tabs">
             <Tab label="Completed Reports" />
-            <Tab label="Abandoned Forms" />
           </Tabs>
         </Box>
 
@@ -706,10 +644,7 @@ const ScamReportsAdmin: React.FC = () => {
                     <TableCell>{report.reporter_name || 'N/A'}</TableCell>
                     <TableCell>{`${report.reporter_city}, ${report.reporter_state}` || 'N/A'}</TableCell>
                     <TableCell>
-                      {report.preferred_contact === 'Email' ? report.reporter_email :
-                       report.preferred_contact === 'Phone' ? report.reporter_phone :
-                       report.preferred_contact === 'Either' ? `${report.reporter_email}, ${report.reporter_phone}` :
-                       'No Contact Preferred'}
+                      {getContactInfo(report)}
                     </TableCell>
                     <TableCell>{report.scammer_name || 'N/A'}</TableCell>
                     <TableCell>{report.company_name || 'N/A'}</TableCell>
@@ -762,93 +697,6 @@ const ScamReportsAdmin: React.FC = () => {
           </TableContainer>
         </TabPanel>
 
-        <TabPanel value={tabValue} index={1}>
-          {loadingAbandoned ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-              <CircularProgress />
-            </Box>
-          ) : (
-            <TableContainer component={Paper}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Date Reported</TableCell>
-                    <TableCell>Reporter Name</TableCell>
-                    <TableCell>Location</TableCell>
-                    <TableCell>Contact</TableCell>
-                    <TableCell>Scammer Name</TableCell>
-                    <TableCell>Company</TableCell>
-                    <TableCell>Money Lost</TableCell>
-                    <TableCell>Amount</TableCell>
-                    <TableCell>Willing to speak</TableCell>
-                    <TableCell align="center">Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {abandonedForms.map((form) => (
-                    <TableRow key={form.id}>
-                      <TableCell>{new Date(form.created_at).toLocaleDateString('en-US', {
-                        timeZone: 'America/New_York',
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit'
-                      })}</TableCell>
-                      <TableCell>{form.form_data?.fullName || 'N/A'}</TableCell>
-                      <TableCell>
-                        {form.form_data?.city && form.form_data?.state 
-                          ? `${form.form_data.city}, ${form.form_data.state}`
-                          : 'N/A'}
-                      </TableCell>
-                      <TableCell>
-                        {form.form_data?.preferredContact === 'Email' ? form.form_data.email :
-                         form.form_data?.preferredContact === 'Phone' ? form.form_data.phone :
-                         form.form_data?.preferredContact === 'Either' ? `${form.form_data.email}, ${form.form_data.phone}` :
-                         'No Contact Preferred'}
-                      </TableCell>
-                      <TableCell>{form.form_data?.scammerName || 'N/A'}</TableCell>
-                      <TableCell>{form.form_data?.companyName || 'N/A'}</TableCell>
-                      <TableCell>
-                        <Chip
-                          label={form.form_data?.moneyLost ? 'Yes' : 'No'}
-                          color={form.form_data?.moneyLost ? 'error' : 'success'}
-                          size="small"
-                        />
-                      </TableCell>
-                      <TableCell>{form.form_data?.amountLost ? formatCurrency(form.form_data.amountLost) : 'N/A'}</TableCell>
-                      <TableCell>
-                        <Chip
-                          label={form.form_data?.speakWithTeam ? 'Yes' : 'No'}
-                          color={form.form_data?.speakWithTeam ? 'primary' : 'default'}
-                          size="small"
-                        />
-                      </TableCell>
-                      <TableCell align="center">
-                        <IconButton
-                          onClick={() => handleViewAbandonedForm(form)}
-                          color="primary"
-                          size="small"
-                        >
-                          <VisibilityIcon />
-                        </IconButton>
-                        <IconButton
-                          onClick={() => {
-                            setSelectedAbandonedFormId(form.id);
-                            setDeleteAbandonedDialogOpen(true);
-                          }}
-                          color="error"
-                          size="small"
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
-        </TabPanel>
-
         {/* Details Dialog */}
         <Dialog
           open={!!selectedReport}
@@ -867,34 +715,26 @@ const ScamReportsAdmin: React.FC = () => {
                 })}
               </DialogTitle>
               <DialogContent>
-                <Box sx={{ mb: 3 }}>
+                <Box sx={{ mb: 4 }}>
                   <Typography variant="h6" gutterBottom>
                     Reporter Information
                   </Typography>
                   <Grid container spacing={2}>
                     <Grid item xs={12} sm={6}>
                       <Typography variant="subtitle2">Name</Typography>
-                      <Typography>{selectedReport.reporter_name || 'N/A'}</Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="subtitle2">Location</Typography>
-                      <Typography>{`${selectedReport.reporter_city}, ${selectedReport.reporter_state}` || 'N/A'}</Typography>
+                      <Typography>{selectedReport.reporter_name}</Typography>
                     </Grid>
                     <Grid item xs={12} sm={6}>
                       <Typography variant="subtitle2">Email</Typography>
-                      <Typography>{selectedReport.reporter_email || 'N/A'}</Typography>
+                      <Typography>{selectedReport.reporter_email}</Typography>
                     </Grid>
                     <Grid item xs={12} sm={6}>
-                      <Typography variant="subtitle2">Phone</Typography>
-                      <Typography>{selectedReport.reporter_phone || 'N/A'}</Typography>
+                      <Typography variant="subtitle2">Location</Typography>
+                      <Typography>{selectedReport.reporter_city}, {selectedReport.reporter_state}</Typography>
                     </Grid>
                     <Grid item xs={12} sm={6}>
                       <Typography variant="subtitle2">Age Range</Typography>
                       <Typography>{selectedReport.reporter_age_range || 'N/A'}</Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="subtitle2">Preferred Contact</Typography>
-                      <Typography>{selectedReport.preferred_contact}</Typography>
                     </Grid>
                     <Grid item xs={12} sm={6}>
                       <Typography variant="subtitle2">Willing to Speak with Team</Typography>
@@ -1137,42 +977,12 @@ const ScamReportsAdmin: React.FC = () => {
                       {reportDetails.contactMethods.map((contact, index) => (
                         <Paper key={index} sx={{ p: 2, mb: 1 }}>
                           <Typography variant="subtitle1" gutterBottom>
-                            {contact.method.replace(/_/g, ' ').toUpperCase()}
+                            {contact.contact_type.replace(/_/g, ' ').toUpperCase()}
                           </Typography>
-                          {contact.phone_number && (
+                          {contact.contact_value && (
                             <Typography>
-                              Phone Number: {contact.phone_number}
+                              {contact.contact_type === 'email' ? `Email Address: ${contact.contact_value}` : `Phone Number: ${contact.contact_value}`}
                             </Typography>
-                          )}
-                          {contact.email_address && (
-                            <Typography>
-                              Email Address: {contact.email_address}
-                            </Typography>
-                          )}
-                          {contact.social_media_platform && (
-                            <Typography>
-                              Platform: {contact.social_media_platform}
-                            </Typography>
-                          )}
-                          {contact.social_media_profile && (
-                            <Typography>
-                              Profile: {contact.social_media_profile}
-                            </Typography>
-                          )}
-                          {contact.location && (
-                            <Typography>
-                              Location: {contact.location}
-                            </Typography>
-                          )}
-                          {contact.event_type && (
-                            <Typography>
-                              Event Type: {contact.event_type}
-                            </Typography>
-                          )}
-                          {contact.evidence_file_url && (
-                            <Link href={contact.evidence_file_url} target="_blank" rel="noopener noreferrer">
-                              View Evidence
-                            </Link>
                           )}
                         </Paper>
                       ))}
@@ -1227,23 +1037,6 @@ const ScamReportsAdmin: React.FC = () => {
                                 <Typography>{`${reportDetails.metaDetails.latitude}, ${reportDetails.metaDetails.longitude}`}</Typography>
                               </Grid>
                             )}
-                            <Grid item xs={12}>
-                              <Typography variant="subtitle2">Submission Time</Typography>
-                              <Typography>
-                                {reportDetails.metaDetails.created_at
-                                  ? new Date(reportDetails.metaDetails.created_at).toLocaleString('en-US', {
-                                      timeZone: 'America/New_York',
-                                      year: 'numeric',
-                                      month: '2-digit',
-                                      day: '2-digit',
-                                      hour: '2-digit',
-                                      minute: '2-digit',
-                                      second: '2-digit',
-                                      hour12: true
-                                    })
-                                  : 'Not available'}
-                              </Typography>
-                            </Grid>
                           </Grid>
                         </Paper>
                       </Box>
@@ -1256,86 +1049,6 @@ const ScamReportsAdmin: React.FC = () => {
               </DialogActions>
             </>
           )}
-        </Dialog>
-
-        {/* Abandoned Form Details Dialog */}
-        <Dialog
-          open={abandonedFormDialogOpen}
-          onClose={() => setAbandonedFormDialogOpen(false)}
-          maxWidth="md"
-          fullWidth
-        >
-          <DialogTitle>Abandoned Form Details</DialogTitle>
-          <DialogContent>
-            {selectedAbandonedForm && (
-              <Box sx={{ mt: 2 }}>
-                <Typography variant="h6" gutterBottom>Form Progress</Typography>
-                <Typography>Current Step: {selectedAbandonedForm.current_step}</Typography>
-                <Typography>Last Updated: {new Date(selectedAbandonedForm.last_updated_at).toLocaleString('en-US', {
-                  timeZone: 'America/New_York',
-                  year: 'numeric',
-                  month: '2-digit',
-                  day: '2-digit',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  second: '2-digit',
-                  hour12: true
-                })}</Typography>
-                
-                <Typography variant="h6" sx={{ mt: 3 }} gutterBottom>Form Data</Typography>
-                <Box sx={{ mt: 1 }}>
-                  <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                    {JSON.stringify(selectedAbandonedForm.form_data, null, 2)}
-                  </pre>
-                </Box>
-              </Box>
-            )}
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setAbandonedFormDialogOpen(false)}>Close</Button>
-          </DialogActions>
-        </Dialog>
-
-        {/* Delete Abandoned Form Dialog */}
-        <Dialog
-          open={deleteAbandonedDialogOpen}
-          onClose={() => setDeleteAbandonedDialogOpen(false)}
-        >
-          <DialogTitle>Delete Abandoned Form</DialogTitle>
-          <DialogContent>
-            <Typography>
-              Are you sure you want to delete this abandoned form? This action cannot be undone.
-            </Typography>
-          </DialogContent>
-          <DialogActions>
-            <Button 
-              onClick={() => setDeleteAbandonedDialogOpen(false)}
-              variant="outlined"
-              sx={{ 
-                borderColor: '#01BD9B',
-                color: '#01BD9B',
-                '&:hover': {
-                  borderColor: '#01BD9B',
-                  backgroundColor: 'rgba(1, 189, 155, 0.04)',
-                }
-              }}
-            >
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleDeleteAbandonedForm} 
-              variant="contained"
-              sx={{ 
-                bgcolor: '#E0AC3F',
-                color: '#fff',
-                '&:hover': {
-                  bgcolor: '#c99a38',
-                }
-              }}
-            >
-              Delete
-            </Button>
-          </DialogActions>
         </Dialog>
 
         {/* Delete All Confirmation Dialog */}

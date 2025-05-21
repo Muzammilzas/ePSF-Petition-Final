@@ -14,7 +14,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { usePetition } from '../context/PetitionContext';
 import { addContactToBrevoList } from '../utils/brevo';
-import { sendSignatureNotification } from '../utils/email';
+import { sendSignatureNotification, sendSharePetitionEmail } from '../utils/email';
 import { trackPetitionSignature } from '../services/googleAnalytics';
 
 const getBrowserInfo = () => {
@@ -228,6 +228,12 @@ const SignPetitionFormContent: React.FC = () => {
           // Send email notification
           try {
             await sendSignatureNotification({
+              ...signatureData[0],
+              metadata,
+              created_at: new Date().toISOString()
+            });
+            // Send user confirmation/share email
+            await sendSharePetitionEmail({
               ...signatureData[0],
               metadata,
               created_at: new Date().toISOString()

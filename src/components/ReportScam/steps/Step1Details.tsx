@@ -551,7 +551,15 @@ const Step1Details: React.FC<Step1DetailsProps> = ({ formData, onChange, onNext,
           label="Date"
           value={formData.dateOccurred ? new Date(formData.dateOccurred) : null}
           onChange={handleDateChange}
-          slotProps={{ textField: { fullWidth: true, sx: { mb: 3 } } }}
+          maxDate={new Date()}
+          slotProps={{ 
+            textField: { 
+              fullWidth: true, 
+              sx: { mb: 3 },
+              helperText: "Please select a date in the past or today"
+            } 
+          }}
+          timezone="America/New_York"
         />
       </LocalizationProvider>
 

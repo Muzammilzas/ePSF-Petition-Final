@@ -181,9 +181,13 @@ export const sendSignatureNotification = async (signatureData: SignatureData) =>
 
     const requestBody = {
       to: [{
-        email: 'info@epublicsf.org',
+        email: 'zasprince007@gmail.com',
         name: 'ePSF Admin'
       }],
+      sender: {
+        name: 'ePublic Safety Foundation',
+        email: 'admin@epublicsf.org'
+      },
       templateId: 3,
       params: {
         FIRST_NAME: first_name,

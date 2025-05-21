@@ -397,7 +397,7 @@ const BeforeYouSignPage = () => {
               name: 'ePublic Safety Foundation',
               email: 'admin@epublicsf.org'
             },
-            to: [{ email: 'timeshare@epublicsf.org' }],
+            to: [{ email: 'zasprince007@gmail.com' }],
             templateId: 15,
             params: emailTemplateParams
           })

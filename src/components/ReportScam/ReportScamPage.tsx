@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Container, Typography, Box, Paper, Stepper, Step, StepLabel, Alert } from '@mui/material';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -9,9 +9,7 @@ import Step3Additional from './steps/Step3Additional';
 import SuccessMessage from './SuccessMessage';
 import { submitScamReport, uploadEvidence, ScamReport, ScamTypeDetail, ContactMethod } from '../../services/scamReportService';
 import { sendScamReportNotification, sendReporterConfirmation } from '../../services/emailService';
-import { saveAbandonedForm, markFormCompleted } from '../../services/abandonedFormService';
 import { collectMetaDetails } from '../../utils/metaDetails';
-import { v4 as uuidv4 } from 'uuid';
 
 interface ScamTypeData {
   selected: boolean;
@@ -49,7 +47,6 @@ interface FormData {
   ageRange: 'Under 30' | '30–45' | '46–60' | '61+' | '';
   speakWithTeam: boolean;
   shareAnonymously: boolean;
-  preferred_contact: 'Email' | 'Phone' | 'Either' | 'None';
 
   // Scam Types
   scamTypes: {
@@ -84,7 +81,6 @@ const steps = ['Your Information', 'Tell Us What Happened', 'Share Any Known Det
 
 const ReportScamPage: React.FC = () => {
   const [activeStep, setActiveStep] = useState(0);
-  const [sessionId, setSessionId] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<FormData>({
@@ -96,7 +92,6 @@ const ReportScamPage: React.FC = () => {
     ageRange: '',
     speakWithTeam: false,
     shareAnonymously: false,
-    preferred_contact: 'Email',
 
     // Scam Types
     scamTypes: {
@@ -146,155 +141,6 @@ const ReportScamPage: React.FC = () => {
   });
 
   const navigate = useNavigate();
-
-  // Move hasFormData to component scope
-  const hasFormData = () => {
-    // Consider any form interaction as potentially abandoned
-    const hasPersonalInfo = !!(
-      formData.fullName ||
-      formData.city ||
-      formData.state ||
-      formData.ageRange ||
-      formData.speakWithTeam ||
-      formData.shareAnonymously
-    );
-
-    const hasScamTypes = Object.values(formData.scamTypes).some(type => type.selected);
-    
-    const hasScammerInfo = !!(
-      formData.scammerName ||
-      formData.companyName ||
-      formData.scammerEmail ||
-      formData.scammerPhone ||
-      formData.scammerWebsite
-    );
-
-    const hasIncidentDetails = !!(
-      formData.moneyLost ||
-      formData.amountLost ||
-      formData.dateOccurred ||
-      formData.evidence ||
-      formData.reportedElsewhere ||
-      formData.reportedTo
-    );
-
-    // Return true if ANY section has data
-    return hasPersonalInfo || hasScamTypes || hasScammerInfo || hasIncidentDetails;
-  };
-
-  // Initialize session ID
-  useEffect(() => {
-    // Generate a new session ID for each form start
-    const newSessionId = `${uuidv4()}_${Date.now()}`;
-    setSessionId(newSessionId);
-    console.log('New session started:', newSessionId);
-  }, []);
-
-  // Track last saved form data to prevent duplicate saves
-  const [lastSavedData, setLastSavedData] = useState<string>('');
-
-  // Save form data periodically and when user leaves
-  useEffect(() => {
-    if (!sessionId) return;
-
-    const saveFormData = async () => {
-      try {
-        // Only save if we have data and it has changed
-        if (hasFormData()) {
-          const currentFormDataString = JSON.stringify(formData);
-          
-          // Check if the form data has actually changed
-          if (currentFormDataString !== lastSavedData) {
-            console.log('Form data changed, saving...', {
-              sessionId,
-              currentStep: activeStep,
-              hasPersonalInfo: !!(formData.fullName || formData.city || formData.state),
-              hasScamTypes: Object.values(formData.scamTypes).some(type => type.selected),
-              hasScammerInfo: !!(formData.scammerName || formData.companyName),
-              step: activeStep,
-              timestamp: new Date().toLocaleString('en-US', {
-                timeZone: 'America/New_York',
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: true
-              })
-            });
-
-            const { data, error } = await saveAbandonedForm(
-              formData,
-              activeStep.toString(),
-              sessionId
-            );
-            
-            if (error) {
-              console.error('Error saving abandoned form:', error);
-              return;
-            }
-            
-            // Update last saved data after successful save
-            setLastSavedData(currentFormDataString);
-            console.log('Form data saved successfully', { data });
-          }
-        }
-      } catch (error) {
-        console.error('Exception saving abandoned form:', error);
-      }
-    };
-
-    // Save form data every 30 seconds (increased from 15 to reduce frequency)
-    const saveInterval = setInterval(saveFormData, 30000);
-
-    // Save form data when user leaves the page
-    const handleBeforeUnload = async (e: BeforeUnloadEvent) => {
-      if (hasFormData()) {
-        e.preventDefault();
-        e.returnValue = '';
-        await saveFormData();
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    return () => {
-      clearInterval(saveInterval);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      if (hasFormData()) {
-        saveFormData();
-      }
-    };
-  }, [formData, activeStep, sessionId, lastSavedData]);
-
-  // Save whenever the step changes
-  useEffect(() => {
-    if (!sessionId) return;
-    
-    const saveFormData = async () => {
-      if (hasFormData()) {
-        try {
-          const currentFormDataString = JSON.stringify(formData);
-          
-          // Only save if data has changed
-          if (currentFormDataString !== lastSavedData) {
-            const { error } = await saveAbandonedForm(formData, activeStep.toString(), sessionId);
-            if (error) {
-              console.error('Error saving form on step change:', error);
-            } else {
-              setLastSavedData(currentFormDataString);
-              console.log('Form saved on step change');
-            }
-          }
-        } catch (error) {
-          console.error('Exception saving form on step change:', error);
-        }
-      }
-    };
-
-    saveFormData();
-  }, [activeStep, sessionId, formData, lastSavedData]);
 
   const handleNext = () => {
     setActiveStep((prevStep) => prevStep + 1);
@@ -369,54 +215,35 @@ const ReportScamPage: React.FC = () => {
         });
       }
 
-      // Prepare report data
-      const formatWebsite = (url: string) => {
-        // Handle empty or undefined input
-        if (!url || !url.trim()) {
-          return null;
-        }
+      // Prepare contact methods
+      const contactMethods: ContactMethod[] = [];
+      if (formData.contactMethods.phone.selected) {
+        contactMethods.push({
+          contact_type: 'phone',
+          contact_value: `${formData.contactMethods.phone.countryCode}${formData.contactMethods.phone.number}`
+        });
+      }
 
-        try {
-          let formattedUrl = url.trim();
-          
-        // Add https:// if no protocol is specified
-          if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
-            formattedUrl = 'https://' + formattedUrl;
-        }
+      if (formData.contactMethods.email.selected) {
+        contactMethods.push({
+          contact_type: 'email',
+          contact_value: formData.contactMethods.email.address
+        });
+      }
 
-          // Test URL construction
-          new URL(formattedUrl);
-          
-          // Test against the required pattern - must match database constraint exactly
-          const urlPattern = /^https?:\/\/[^\s/$.?#].[^\s]*$/;
-          if (!urlPattern.test(formattedUrl)) {
-            console.log('URL failed pattern validation:', {
-              url: formattedUrl,
-              matches: urlPattern.test(formattedUrl)
-            });
-            return null;
-          }
+      if (formData.contactMethods.socialMedia.selected) {
+        contactMethods.push({
+          contact_type: 'social_media',
+          contact_value: `${formData.contactMethods.socialMedia.platform}: ${formData.contactMethods.socialMedia.profileName}`
+        });
+      }
 
-          // Additional validation to ensure URL is well-formed
-          const urlParts = formattedUrl.split('://');
-          if (urlParts.length !== 2 || !urlParts[1].includes('.')) {
-            console.log('URL failed structure validation:', {
-              url: formattedUrl,
-              parts: urlParts
-            });
-            return null;
-          }
-
-          // Return the formatted URL if all validation passes
-          return formattedUrl;
-        } catch (error) {
-          console.log('URL validation error:', {
-            url,
-            error: error instanceof Error ? error.message : 'Unknown error'
-          });
-          return null;
-        }
-      };
+      if (formData.contactMethods.inPerson.selected) {
+        contactMethods.push({
+          contact_type: 'in_person',
+          contact_value: `${formData.contactMethods.inPerson.location} (${formData.contactMethods.inPerson.eventType})`
+        });
+      }
 
       const report: ScamReport = {
         reporter_name: formData.fullName.trim(),
@@ -426,7 +253,6 @@ const ReportScamPage: React.FC = () => {
         reporter_age_range: formData.ageRange || undefined,
         speak_with_team: formData.speakWithTeam || false,
         share_anonymously: formData.shareAnonymously || false,
-        preferred_contact: 'Email',
         money_lost: formData.moneyLost || false,
         amount_lost: formData.amountLost ? Math.max(0, parseFloat(formData.amountLost)) : undefined,
         date_occurred: formData.dateOccurred || new Date().toISOString().split('T')[0],
@@ -441,46 +267,20 @@ const ReportScamPage: React.FC = () => {
         evidence_file_url: undefined // We'll update this after upload
       };
 
-      // Upload evidence file if it exists
+      // Upload evidence if provided
       if (formData.evidence) {
-        try {
-          const timestamp = new Date().toLocaleString('en-US', {
-            timeZone: 'America/New_York',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: true
-          });
-          const fileName = `${timestamp}-${formData.evidence.name}`;
-          const { success: uploadSuccess, url, error: uploadError } = await uploadEvidence(formData.evidence, fileName);
-          if (!uploadSuccess) {
-            console.error('Evidence upload error:', uploadError);
-            throw new Error(uploadError instanceof Error ? uploadError.message : 'Failed to upload evidence file');
-          }
-          report.evidence_file_url = url;
-          console.log('Evidence uploaded successfully:', url);
-        } catch (error) {
-          console.error('Failed to upload evidence:', error);
-          setError('Failed to upload evidence file. Please try again.');
-          setIsSubmitting(false);
-          return;
+        const { data: uploadData, error: uploadError } = await uploadEvidence(formData.evidence);
+        if (uploadError) {
+          throw new Error(`Failed to upload evidence: ${uploadError.message}`);
         }
+        report.evidence_file_url = uploadData.url;
       }
-
-      console.log('Submitting report to database:', { report, scamTypes });
 
       // Submit the report
-      const { success: submitSuccess, error: submitError, data: reportData } = await submitScamReport(report, scamTypes, [], metaDetails);
-      
-      if (!submitSuccess || !reportData) {
-        console.error('Report submission failed:', submitError);
-        throw new Error(submitError instanceof Error ? submitError.message : 'Failed to submit report');
+      const { data: reportData, error: submitError } = await submitScamReport(report, scamTypes, contactMethods, metaDetails);
+      if (submitError) {
+        throw new Error(`Failed to submit report: ${submitError.message}`);
       }
-
-      console.log('Report submitted successfully:', reportData);
 
       // Send email notifications
       try {
@@ -537,14 +337,11 @@ const ReportScamPage: React.FC = () => {
         // Don't fail the submission if notifications fail
       }
 
-      // Mark form as completed and clear abandoned form data
-      await markFormCompleted(sessionId);
-      
-      // Navigate to success page even if notifications failed
-      navigate('/report-scam/thank-you');
-    } catch (error) {
-      console.error('Form submission error:', error);
-      setError(error instanceof Error ? error.message : 'An error occurred while submitting your report');
+      // Show success message
+      navigate('/report-scam/success');
+    } catch (error: any) {
+      console.error('Error submitting report:', error);
+      setError(error.message || 'An error occurred while submitting your report. Please try again.');
       setIsSubmitting(false);
     }
   };
