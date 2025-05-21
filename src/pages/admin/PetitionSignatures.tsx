@@ -332,21 +332,42 @@ const PetitionSignatures: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const { data: signaturesData, error: signaturesError } = await supabase
+      let query = supabase
         .from('signatures')
         .select(`
           *,
           signature_metadata (
             metadata
           )
-        `)
-        .order(sortBy, { ascending: sortOrder === 'asc' });
+        `);
+
+      // Apply sorting based on selected column
+      if (sortBy === 'created_date') {
+        // When sorting by date, apply primary sort on date and secondary on time
+        query = query.order('created_date', { ascending: sortOrder === 'asc' });
+        query = query.order('created_time', { ascending: sortOrder === 'asc' });
+      } else if (sortBy === 'first_name') {
+        query = query.order('first_name', { ascending: sortOrder === 'asc' });
+      } else if (sortBy === 'last_name') {
+        query = query.order('last_name', { ascending: sortOrder === 'asc' });
+      } else if (sortBy === 'email') {
+        query = query.order('email', { ascending: sortOrder === 'asc' });
+      } else {
+        // Default sort if sortBy is an unexpected value (shouldn't happen with dropdown)
+        console.warn(`Unexpected sortBy value: ${sortBy}. Applying default sort by created_date.`);
+        query = query.order('created_date', { ascending: sortOrder === 'asc' });
+        query = query.order('created_time', { ascending: sortOrder === 'asc' });
+      }
+
+      const { data: signaturesData, error: signaturesError } = await query;
 
       if (signaturesError) throw signaturesError;
 
       const processedSignatures = (signaturesData || []).map(signature => ({
         ...signature,
         metadata: signature.signature_metadata?.[0]?.metadata || null,
+        created_date: signature.created_date, 
+        created_time: signature.created_time,
       }));
 
       console.log('Fetched signatures:', processedSignatures);
