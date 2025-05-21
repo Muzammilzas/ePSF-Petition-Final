@@ -79,6 +79,20 @@ interface FormData {
 
 const steps = ['Your Information', 'Tell Us What Happened', 'Share Any Known Details', 'Make Your Report Go Further'];
 
+function formatWebsite(url: string): string | null {
+  if (!url) return null;
+  let formattedUrl = url.trim();
+  if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
+    formattedUrl = 'https://' + formattedUrl;
+  }
+  try {
+    new URL(formattedUrl);
+    return formattedUrl;
+  } catch {
+    return null;
+  }
+}
+
 const ReportScamPage: React.FC = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -219,29 +233,31 @@ const ReportScamPage: React.FC = () => {
       const contactMethods: ContactMethod[] = [];
       if (formData.contactMethods.phone.selected) {
         contactMethods.push({
-          contact_type: 'phone',
-          contact_value: `${formData.contactMethods.phone.countryCode}${formData.contactMethods.phone.number}`
+          method: 'phone',
+          phone_number: `${formData.contactMethods.phone.countryCode}${formData.contactMethods.phone.number}`
         });
       }
 
       if (formData.contactMethods.email.selected) {
         contactMethods.push({
-          contact_type: 'email',
-          contact_value: formData.contactMethods.email.address
+          method: 'email',
+          email_address: formData.contactMethods.email.address
         });
       }
 
       if (formData.contactMethods.socialMedia.selected) {
         contactMethods.push({
-          contact_type: 'social_media',
-          contact_value: `${formData.contactMethods.socialMedia.platform}: ${formData.contactMethods.socialMedia.profileName}`
+          method: 'social_media',
+          social_media_platform: formData.contactMethods.socialMedia.platform,
+          social_media_profile: formData.contactMethods.socialMedia.profileName
         });
       }
 
       if (formData.contactMethods.inPerson.selected) {
         contactMethods.push({
-          contact_type: 'in_person',
-          contact_value: `${formData.contactMethods.inPerson.location} (${formData.contactMethods.inPerson.eventType})`
+          method: 'in_person',
+          location: formData.contactMethods.inPerson.location,
+          event_type: formData.contactMethods.inPerson.eventType
         });
       }
 
@@ -269,11 +285,19 @@ const ReportScamPage: React.FC = () => {
 
       // Upload evidence if provided
       if (formData.evidence) {
-        const { data: uploadData, error: uploadError } = await uploadEvidence(formData.evidence);
-        if (uploadError) {
-          throw new Error(`Failed to upload evidence: ${uploadError.message}`);
+        const uploadResult = await uploadEvidence(formData.evidence, `evidence/${Date.now()}-${formData.evidence.name}`);
+        if (!uploadResult.success) {
+          let errMsg = 'Unknown error';
+          if (uploadResult.error) {
+            if (typeof uploadResult.error === 'object' && uploadResult.error !== null && 'message' in uploadResult.error) {
+              errMsg = (uploadResult.error as any).message;
+            } else if (typeof uploadResult.error === 'string') {
+              errMsg = uploadResult.error;
+            }
+          }
+          throw new Error(`Failed to upload evidence: ${errMsg}`);
         }
-        report.evidence_file_url = uploadData.url;
+        report.evidence_file_url = uploadResult.url;
       }
 
       // Submit the report
