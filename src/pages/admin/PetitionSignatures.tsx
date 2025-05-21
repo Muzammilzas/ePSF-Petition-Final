@@ -67,7 +67,6 @@ interface Signature {
   phone: string;
   zip_code: string;
   petition_id: string;
-  created_at: string;
   metadata: SignatureMetadata;
   created_date: string;
   created_time: string;
@@ -169,8 +168,7 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, signature 
       <DialogTitle>
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Typography variant="h6">
-            Signature Details - {/* Display created_date */}
-            {signature.created_date || 'N/A'}
+            Signature Details - {signature.created_date && signature.created_time ? `${signature.created_date} ${signature.created_time}` : 'N/A'}
           </Typography>
           <IconButton onClick={onClose} size="small">
             <CloseIcon />
@@ -211,8 +209,8 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, signature 
               <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                 Signed At
               </Typography>
-              <Typography variant="body1">{/* Display created_time */}
-                {signature.created_time || 'N/A'}
+              <Typography variant="body1">
+                {signature.created_date && signature.created_time ? `${signature.created_date} ${signature.created_time}` : 'N/A'}
               </Typography>
             </Grid>
           </Grid>
@@ -285,6 +283,14 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, signature 
             </Grid>
             <Grid item xs={6}>
               <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                Language
+              </Typography>
+              <Typography variant="body1">
+                {signature.metadata?.device?.language || 'N/A'}
+              </Typography>
+            </Grid>
+            <Grid item xs={6}>
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                 Timezone
               </Typography>
               <Typography variant="body1">
@@ -313,11 +319,12 @@ const PetitionSignatures: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [signatures, setSignatures] = useState<Signature[]>([]);
+  const [filteredSignatures, setFilteredSignatures] = useState<Signature[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [syncSuccess, setSyncSuccess] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState('created_at');
+  const [sortBy, setSortBy] = useState('created_date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const fetchSignatures = async () => {
@@ -333,13 +340,13 @@ const PetitionSignatures: React.FC = () => {
             metadata
           )
         `)
-        .order('created_date', { ascending: false }).order('created_time', { ascending: false });
+        .order(sortBy, { ascending: sortOrder === 'asc' });
 
       if (signaturesError) throw signaturesError;
 
       const processedSignatures = (signaturesData || []).map(signature => ({
         ...signature,
-        metadata: signature.metadata?.[0]?.metadata || null
+        metadata: signature.signature_metadata?.[0]?.metadata || null,
       }));
 
       console.log('Fetched signatures:', processedSignatures);
@@ -354,7 +361,24 @@ const PetitionSignatures: React.FC = () => {
 
   useEffect(() => {
     fetchSignatures();
-  }, []);
+  }, [sortBy, sortOrder]);
+
+  useEffect(() => {
+    if (searchTerm === '') {
+      setFilteredSignatures(signatures);
+    } else {
+      const searchLower = searchTerm.toLowerCase();
+      const filtered = signatures.filter(signature => {
+        return (
+          (signature.first_name && signature.first_name.toLowerCase().includes(searchLower)) ||
+          (signature.last_name && signature.last_name.toLowerCase().includes(searchLower)) ||
+          (signature.email && signature.email.toLowerCase().includes(searchLower)) ||
+          (signature.petition_id && signature.petition_id.toLowerCase().includes(searchLower))
+        );
+      });
+      setFilteredSignatures(filtered);
+    }
+  }, [searchTerm, signatures]);
 
   const handleViewDetails = (signature: Signature) => {
     setSelectedSignature(signature);
@@ -369,7 +393,10 @@ const PetitionSignatures: React.FC = () => {
         .eq('id', id);
 
       if (deleteError) throw deleteError;
-      await fetchSignatures();
+
+      setSignatures(prev => prev.filter(sig => sig.id !== id));
+      setDeleteDialogOpen(false);
+      setSelectedId(null);
     } catch (err: any) {
       console.error('Error deleting signature:', err);
       setError(err.message || 'Failed to delete signature');
@@ -378,13 +405,15 @@ const PetitionSignatures: React.FC = () => {
 
   const handleDeleteAll = async () => {
     try {
-      const { error: deleteError } = await supabase
+      const { error: deleteAllError } = await supabase
         .from('signatures')
         .delete()
-        .neq('id', ''); // Delete all records
+        .neq('id', '00000000-0000-0000-0000-000000000000');
 
-      if (deleteError) throw deleteError;
-      await fetchSignatures();
+      if (deleteAllError) throw deleteAllError;
+
+      setSignatures([]);
+      setDeleteAllDialogOpen(false);
     } catch (err: any) {
       console.error('Error deleting all signatures:', err);
       setError(err.message || 'Failed to delete all signatures');
@@ -392,10 +421,11 @@ const PetitionSignatures: React.FC = () => {
   };
 
   const handleSync = async () => {
-    setSyncing(true);
-    setSyncError(null);
-    setSyncSuccess(false);
     try {
+      setSyncing(true);
+      setSyncError(null);
+      setSyncSuccess(false);
+
       console.log('Starting sync process...');
       const response = await fetch('/.netlify/functions/sync-petition-signatures', {
         method: 'POST',
@@ -405,24 +435,42 @@ const PetitionSignatures: React.FC = () => {
       });
 
       console.log('Sync response status:', response.status);
-      const responseData = await response.json();
-      console.log('Sync response data:', responseData);
 
-      if (!response.ok) {
-        throw new Error(responseData.error || 'Failed to sync with Google Sheets');
+      const responseText = await response.text();
+      console.log('Raw response:', responseText);
+
+      let errorData;
+      try {
+        errorData = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Failed to parse response:', parseError);
+        throw new Error(`Invalid response from server: ${responseText}`);
       }
 
-      // Refresh the signatures data
-      await fetchSignatures();
+      if (!response.ok) {
+        throw new Error(errorData.error || errorData.details || 'Failed to sync signatures');
+      }
+
       setSyncSuccess(true);
-      console.log('Sync completed successfully:', responseData);
-    } catch (err: any) {
-      console.error('Sync error:', err);
-      setSyncError(err.message || 'Failed to sync with Google Sheets');
+      fetchSignatures();
+    } catch (error: any) {
+      console.error('Error syncing signatures:', error);
+      setSyncError(error.message || 'Failed to sync signatures');
     } finally {
       setSyncing(false);
     }
   };
+
+  useEffect(() => {
+    if (syncSuccess) {
+      const timer = setTimeout(() => setSyncSuccess(false), 3000);
+      return () => clearTimeout(timer);
+    }
+    if (syncError) {
+      const timer = setTimeout(() => setSyncError(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [syncSuccess, syncError]);
 
   const exportToCSV = () => {
     const headers = [
@@ -450,7 +498,6 @@ const PetitionSignatures: React.FC = () => {
       signature.phone || '',
       signature.zip_code || '',
       signature.petition_id,
-      // Use created_date and created_time for CSV export
       signature.created_date && signature.created_time
         ? `${signature.created_date} ${signature.created_time}`
         : '',
@@ -479,37 +526,26 @@ const PetitionSignatures: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  // Filter and sort signatures
-  const filteredSignatures = signatures
-    .filter(signature => {
-      if (!searchTerm) return true;
-      const searchLower = searchTerm.toLowerCase();
-      return (
-        signature.first_name.toLowerCase().includes(searchLower) ||
-        signature.last_name.toLowerCase().includes(searchLower) ||
-        signature.email.toLowerCase().includes(searchLower) ||
-        signature.petition_id.toLowerCase().includes(searchLower)
-      );
-    })
-    .sort((a, b) => {
-      const aValue = a[sortBy as keyof Signature];
-      const bValue = b[sortBy as keyof Signature];
-      const order = sortOrder === 'asc' ? 1 : -1;
-      
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return aValue.localeCompare(bValue) * order;
-      }
-      return 0;
-    });
+  if (loading) {
+    return (
+      <Container>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mt: 4 }}>
+          <CircularProgress />
+          <Typography variant="h6" sx={{ mt: 2 }}>
+            Loading signatures...
+          </Typography>
+        </Box>
+      </Container>
+    );
+  }
 
   return (
     <Container maxWidth="lg">
       <Paper elevation={3} sx={{ p: 3, mt: 4 }}>
-        {/* Header */}
         <Box sx={{ mb: 4 }}>
           <Button
             startIcon={<ArrowBackIcon />}
-            onClick={() => navigate('/admin/dashboard')}
+            onClick={() => navigate('/admin/forms')}
             sx={{ 
               mb: 2,
               backgroundColor: '#E0AC3F',
@@ -520,7 +556,7 @@ const PetitionSignatures: React.FC = () => {
             }}
             variant="contained"
           >
-            Back to Dashboard
+            Back to Forms
           </Button>
           
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -529,62 +565,46 @@ const PetitionSignatures: React.FC = () => {
             </Typography>
             <Box>
               <Button
-                onClick={fetchSignatures}
                 variant="contained"
-                sx={{ 
+                onClick={handleSync}
+                disabled={syncing}
+                startIcon={syncing ? <CircularProgress size={20} color="inherit" /> : <SyncIcon />}
+                sx={{
                   mr: 1,
-                  backgroundColor: '#01BD9B',
-                  color: '#FFFFFF',
+                  backgroundColor: syncing ? undefined : '#01BD9B',
+                  color: syncing ? undefined : '#FFFFFF',
                   '&:hover': {
-                    backgroundColor: '#01a989'
+                    backgroundColor: syncing ? undefined : '#01a989'
                   }
                 }}
               >
-                Refresh Data
+                {syncing ? 'Syncing...' : 'Sync to Sheet'}
               </Button>
-
               <Button
-                onClick={exportToCSV}
                 variant="contained"
+                onClick={exportToCSV}
+                disabled={signatures.length === 0}
                 startIcon={<FileDownloadIcon />}
                 sx={{ 
                   mr: 1,
-                  backgroundColor: '#4CAF50',
+                  backgroundColor: '#3f51b5',
                   color: '#FFFFFF',
                   '&:hover': {
-                    backgroundColor: '#45a049'
+                    backgroundColor: '#303f9f'
                   }
                 }}
               >
-                Export as CSV
+                Export CSV
               </Button>
-
               <Button
-                onClick={handleSync}
                 variant="contained"
-                startIcon={<SyncIcon />}
-                disabled={syncing}
-                sx={{ 
-                  mr: 1,
-                  backgroundColor: '#2196F3',
-                  color: '#FFFFFF',
-                  '&:hover': {
-                    backgroundColor: '#1976D2'
-                  }
-                }}
+                color="error"
+                onClick={() => setDeleteAllDialogOpen(true)}
+                disabled={signatures.length === 0}
+                startIcon={<DeleteIcon />}
               >
-                {syncing ? 'Syncing...' : 'Sync with Google Sheets'}
+                Delete All
               </Button>
-
-              {signatures.length > 0 && (
-                <Button
-                  variant="contained"
-                  color="error"
-                  onClick={() => setDeleteAllDialogOpen(true)}
-                >
-                  Delete All
-                </Button>
-              )}
             </Box>
           </Box>
           
@@ -599,28 +619,26 @@ const PetitionSignatures: React.FC = () => {
           </Alert>
         )}
 
-        {syncError && (
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {syncError}
-          </Alert>
-        )}
-
         <Snackbar
           open={syncSuccess}
-          autoHideDuration={6000}
+          autoHideDuration={3000}
           onClose={() => setSyncSuccess(false)}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         >
           <Alert 
             onClose={() => setSyncSuccess(false)} 
             severity="success"
             sx={{ width: '100%' }}
           >
-            Successfully synced with Google Sheets
+            Signatures synced successfully!
           </Alert>
         </Snackbar>
 
-        {/* Filters */}
+        <Snackbar open={!!syncError} autoHideDuration={5000} onClose={() => setSyncError(null)}>
+          <Alert onClose={() => setSyncError(null)} severity="error" sx={{ width: '100%' }}>
+            Sync failed: {syncError}
+          </Alert>
+        </Snackbar>
+
         <Box sx={{ mb: 3 }}>
           <Grid container spacing={2} alignItems="center">
             <Grid item xs={12} md={4}>
@@ -648,11 +666,10 @@ const PetitionSignatures: React.FC = () => {
                   label="Sort By"
                   onChange={(e) => setSortBy(e.target.value)}
                 >
-                  <MenuItem value="created_at">Date Signed</MenuItem>
+                  <MenuItem value="created_date">Date Signed</MenuItem>
                   <MenuItem value="first_name">First Name</MenuItem>
                   <MenuItem value="last_name">Last Name</MenuItem>
                   <MenuItem value="email">Email</MenuItem>
-                  <MenuItem value="petition_id">Petition ID</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -664,8 +681,8 @@ const PetitionSignatures: React.FC = () => {
                   label="Order"
                   onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
                 >
-                  <MenuItem value="asc">Ascending</MenuItem>
                   <MenuItem value="desc">Descending</MenuItem>
+                  <MenuItem value="asc">Ascending</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -682,45 +699,41 @@ const PetitionSignatures: React.FC = () => {
           </Grid>
         </Box>
 
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-            <CircularProgress />
-          </Box>
-        ) : (
-          <TableContainer>
-            <Table>
-              <TableHead>
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>#</TableCell>
+                <TableCell>First Name</TableCell>
+                <TableCell>Last Name</TableCell>
+                <TableCell>Email</TableCell>
+                <TableCell>Petition ID</TableCell>
+                <TableCell>Signed At (EST)</TableCell>
+                <TableCell align="center">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filteredSignatures.length === 0 ? (
                 <TableRow>
-                  <TableCell>Name</TableCell>
-                  <TableCell>Email</TableCell>
-                  <TableCell>Phone</TableCell>
-                  <TableCell>ZIP Code</TableCell>
-                  <TableCell>Petition ID</TableCell>
-                  <TableCell>Signed At (EST)</TableCell>
-                  <TableCell align="center">Actions</TableCell>
+                  <TableCell colSpan={7} align="center">No signatures found</TableCell>
                 </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredSignatures.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} align="center">No signatures found</TableCell>
-                  </TableRow>
-                ) : (
-                  filteredSignatures.map((signature) => (
-                    <TableRow key={signature.id}>
-                      <TableCell>{`${signature.first_name} ${signature.last_name}`}</TableCell>
-                      <TableCell>{signature.email}</TableCell>
-                      <TableCell>{signature.phone || 'N/A'}</TableCell>
-                      <TableCell>{signature.zip_code || 'N/A'}</TableCell>
-                      <TableCell>{signature.petition_id}</TableCell>
-                      <TableCell>
-                        {/* Display created_date and created_time */}
-                        {signature.created_date && signature.created_time
-                          ? `${signature.created_date} ${signature.created_time}`
-                          : 'N/A'}
-                      </TableCell>
-                      <TableCell align="center">
-                        <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
+              ) : (
+                filteredSignatures.map((signature, index) => (
+                  <TableRow
+                    key={signature.id}
+                    sx={{ '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' } }}
+                  >
+                    <TableCell>{index + 1}</TableCell>
+                    <TableCell>{signature.first_name}</TableCell>
+                    <TableCell>{signature.last_name}</TableCell>
+                    <TableCell>{signature.email}</TableCell>
+                    <TableCell>{signature.petition_id}</TableCell>
+                    <TableCell>
+                      {signature.created_date && signature.created_time ? `${signature.created_date} ${signature.created_time}` : 'N/A'}
+                    </TableCell>
+                    <TableCell align="center">
+                      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
+                        <Tooltip title="View Details">
                           <IconButton
                             size="small"
                             onClick={() => handleViewDetails(signature)}
@@ -728,6 +741,8 @@ const PetitionSignatures: React.FC = () => {
                           >
                             <VisibilityIcon />
                           </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete Signature">
                           <IconButton
                             size="small"
                             onClick={() => {
@@ -738,15 +753,15 @@ const PetitionSignatures: React.FC = () => {
                           >
                             <DeleteIcon />
                           </IconButton>
-                        </Box>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
+                        </Tooltip>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
       </Paper>
 
       <DetailsDialog
@@ -758,25 +773,17 @@ const PetitionSignatures: React.FC = () => {
       <DeleteConfirmationDialog
         open={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
-        onConfirm={() => {
-          if (selectedId) {
-            handleDelete(selectedId);
-            setDeleteDialogOpen(false);
-          }
-        }}
-        title="Delete Signature"
+        onConfirm={() => handleDelete(selectedId!)}
+        title="Confirm Deletion"
         message="Are you sure you want to delete this signature? This action cannot be undone."
       />
 
       <DeleteConfirmationDialog
         open={deleteAllDialogOpen}
         onClose={() => setDeleteAllDialogOpen(false)}
-        onConfirm={() => {
-          handleDeleteAll();
-          setDeleteAllDialogOpen(false);
-        }}
-        title="Delete All Signatures"
-        message="This will permanently delete all signatures. This action cannot be undone."
+        onConfirm={handleDeleteAll}
+        title="Confirm Deletion of All Signatures"
+        message="Are you absolutely sure you want to delete ALL signatures? This action cannot be undone."
         requireConfirmText={true}
       />
     </Container>

@@ -22,6 +22,8 @@ interface LocationState {
 interface SignatureData {
   id: string;
   created_at: string;
+  created_date: string;
+  created_time: string;
 }
 
 const ThankYou: React.FC = () => {
@@ -81,9 +83,10 @@ const ThankYou: React.FC = () => {
         // First get the latest signature number with proper typing
         const { data: latestSignature, error: signatureError } = await supabase
           .from('signatures')
-          .select('id, created_at')
+          .select('id, created_date, created_time')
           .eq('petition_id', id)
-          .order('created_at', { ascending: false })
+          .order('created_date', { ascending: false })
+          .order('created_time', { ascending: false })
           .limit(1)
           .returns<SignatureData[]>();
 
@@ -107,7 +110,8 @@ const ThankYou: React.FC = () => {
               .from('signatures')
               .select('*', { count: 'exact' })
               .eq('petition_id', id)
-              .lte('created_at', latestSignature[0].created_at);
+              .lte('created_date', latestSignature[0].created_date)
+              .filter('created_time', 'lte', latestSignature[0].created_time);
             
             if (position !== null) {
               setSignatureCount(position);
