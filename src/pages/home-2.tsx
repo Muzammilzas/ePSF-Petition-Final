@@ -18,6 +18,7 @@ import {
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { fadeInUp, staggerContainer } from '../components/Home/common/animations';
+import { Helmet } from 'react-helmet-async';
 
 // Icons
 import SecurityIcon from '@mui/icons-material/Security';
@@ -1524,18 +1525,27 @@ const ActionButtonsSection = () => {
 
 const Home2Page = () => {
   return (
-    <Box>
-      <HeroSection />
-      <WhoWeAreSection />
-      <TestimonialsSection />
-      <SignPetitionSection />
-      <KnowYourRightsSection />
-      <ReportScamSection />
-      <StayInformedSection />
-      <WhyThisMattersSection />
-      <ActionSection />
-      <ActionButtonsSection />
-    </Box>
+    <>
+      <Helmet>
+        <title>Home | ePSF</title>
+        <meta
+          name="description"
+          content="Take control of your timeshare safety. Explore tools, alerts, and guides to avoid scams and secure your rights."
+        />
+      </Helmet>
+      <Box>
+        <HeroSection />
+        <WhoWeAreSection />
+        <TestimonialsSection />
+        <SignPetitionSection />
+        <KnowYourRightsSection />
+        <ReportScamSection />
+        <StayInformedSection />
+        <WhyThisMattersSection />
+        <ActionSection />
+        <ActionButtonsSection />
+      </Box>
+    </>
   );
 };
 

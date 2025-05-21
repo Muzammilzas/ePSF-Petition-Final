@@ -4,6 +4,7 @@ import '../styles/landing-page.css';
 import { motion, useAnimation, useInView } from 'framer-motion';
 import { Avatar, Button } from '@mui/material';
 import { trackButtonClick } from '../services/googleAnalytics';
+import { Helmet } from 'react-helmet-async';
 
 // Animation variants
 const fadeIn = {
@@ -127,6 +128,13 @@ const PetitionPage: React.FC<PetitionPageProps> = () => {
 
   return (
     <div className="landing-page">
+      <Helmet>
+        <title>Sign the Petition | ePSF</title>
+        <meta
+          name="description"
+          content="Join the fight against timeshare scams. Sign our petition to protect consumers and hold companies accountable."
+        />
+      </Helmet>
       {/* Add Bootstrap Icons CDN */}
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" />
       

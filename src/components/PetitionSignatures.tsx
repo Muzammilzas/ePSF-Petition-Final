@@ -72,7 +72,7 @@ interface Signature {
   last_name: string;
   email: string;
   timeshare_name?: string;
-  created_at: string;
+  created_date: string;
   metadata?: SignatureMetadata;
   [key: string]: any; // Add index signature for sorting
 }
@@ -88,7 +88,7 @@ const PetitionSignatures: React.FC = () => {
   
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState('created_at');
+  const [sortBy, setSortBy] = useState('created_date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedSignature, setSelectedSignature] = useState<string | null>(null);
   const [metadataDialogOpen, setMetadataDialogOpen] = useState(false);
@@ -169,7 +169,7 @@ const PetitionSignatures: React.FC = () => {
             metadata
           )
         `)
-        .order('created_at', { ascending: false });
+        .order('created_date', { ascending: false });
       
       // Only filter by petition_id if we have one
       if (id) {
@@ -403,7 +403,7 @@ const PetitionSignatures: React.FC = () => {
       signature.last_name,
       signature.email,
       signature.petition_id,
-      new Date(signature.created_at).toLocaleString('en-US', {
+      new Date(signature.created_date).toLocaleString('en-US', {
         timeZone: 'America/New_York',
         year: 'numeric',
         month: '2-digit',
@@ -625,7 +625,7 @@ const PetitionSignatures: React.FC = () => {
                   label="Sort By"
                   onChange={(e) => setSortBy(e.target.value)}
                 >
-                  <MenuItem value="created_at">Date Signed</MenuItem>
+                  <MenuItem value="created_date">Date Signed</MenuItem>
                   <MenuItem value="first_name">First Name</MenuItem>
                   <MenuItem value="last_name">Last Name</MenuItem>
                   <MenuItem value="email">Email</MenuItem>
@@ -699,7 +699,7 @@ const PetitionSignatures: React.FC = () => {
                     <TableCell>{signature.email}</TableCell>
                     <TableCell>{signature.petition_id}</TableCell>
                     <TableCell>
-                      {new Date(signature.created_at).toLocaleString('en-US', {
+                      {new Date(signature.created_date).toLocaleString('en-US', {
                         timeZone: 'America/New_York',
                         year: 'numeric',
                         month: '2-digit',

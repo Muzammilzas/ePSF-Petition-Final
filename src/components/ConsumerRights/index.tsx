@@ -11,6 +11,7 @@ import DonationCta from './sections/DonationCta';
 import Success from './sections/Success';
 import Failure from './sections/Failure';
 import { colors } from './styles';
+import { Helmet } from 'react-helmet-async';
 
 // Define motion variants for page sections
 const pageVariants = {
@@ -29,6 +30,13 @@ const MotionBox = motion(Box);
 const ConsumerRights: React.FC = () => {
   return (
     <Box>
+      <Helmet>
+        <title>Consumer Rights | ePSF</title>
+        <meta
+          name="description"
+          content="Know your rights. Learn how to protect yourself from unfair timeshare practices and misleading contracts."
+        />
+      </Helmet>
       <MotionBox 
         initial="hidden"
         animate="visible"
