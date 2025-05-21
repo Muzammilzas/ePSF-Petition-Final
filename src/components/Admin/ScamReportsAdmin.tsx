@@ -63,6 +63,15 @@ interface ScamReport {
   reported_to: string | null;
   want_updates: boolean;
   evidence_file_url: string | null;
+  created_date: string;
+  created_time: string;
+  timezone: string;
+  language: string;
+  city: string;
+  region: string;
+  country: string;
+  latitude: number;
+  longitude: number;
 }
 
 interface ScamTypeDetail {
@@ -182,7 +191,7 @@ const ScamReportsAdmin: React.FC = () => {
       // Add pagination
       query = query
         .range(page * rowsPerPage, (page + 1) * rowsPerPage - 1)
-        .order('created_at', { ascending: false });
+        .order('created_date', { ascending: false }).order('created_time', { ascending: false });
 
       const { data, count, error } = await query;
 
@@ -358,7 +367,7 @@ const ScamReportsAdmin: React.FC = () => {
       const { data: allReports, error: reportsError } = await supabase
         .from('scam_reports')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_date', { ascending: false }).order('created_time', { ascending: false });
 
       if (reportsError) throw reportsError;
 
@@ -707,12 +716,7 @@ const ScamReportsAdmin: React.FC = () => {
           {selectedReport && (
             <>
               <DialogTitle>
-                Report Details - {new Date(selectedReport.created_at).toLocaleDateString('en-US', {
-                  timeZone: 'America/New_York',
-                  year: 'numeric',
-                  month: '2-digit',
-                  day: '2-digit'
-                })}
+                Report Details - {selectedReport.created_date || 'N/A'}
               </DialogTitle>
               <DialogContent>
                 <Box sx={{ mb: 4 }}>

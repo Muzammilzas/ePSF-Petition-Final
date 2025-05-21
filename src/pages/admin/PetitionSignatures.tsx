@@ -69,6 +69,8 @@ interface Signature {
   petition_id: string;
   created_at: string;
   metadata: SignatureMetadata;
+  created_date: string;
+  created_time: string;
 }
 
 interface DetailsDialogProps {
@@ -167,7 +169,8 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, signature 
       <DialogTitle>
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Typography variant="h6">
-            Signature Details - {formatDate(signature.created_at)}
+            Signature Details - {/* Display created_date */}
+            {signature.created_date || 'N/A'}
           </Typography>
           <IconButton onClick={onClose} size="small">
             <CloseIcon />
@@ -208,7 +211,9 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, signature 
               <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                 Signed At
               </Typography>
-              <Typography variant="body1">{formatDate(signature.created_at)}</Typography>
+              <Typography variant="body1">{/* Display created_time */}
+                {signature.created_time || 'N/A'}
+              </Typography>
             </Grid>
           </Grid>
 
@@ -320,21 +325,19 @@ const PetitionSignatures: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const { data, error: fetchError } = await supabase
+      const { data: signaturesData, error: signaturesError } = await supabase
         .from('signatures')
         .select(`
           *,
-          metadata:signature_metadata(metadata)
+          signature_metadata (
+            metadata
+          )
         `)
-        .order('created_at', { ascending: false });
+        .order('created_date', { ascending: false }).order('created_time', { ascending: false });
 
-      if (fetchError) {
-        console.error('Error fetching data:', fetchError);
-        throw fetchError;
-      }
+      if (signaturesError) throw signaturesError;
 
-      // Process signatures to include metadata
-      const processedSignatures = (data || []).map(signature => ({
+      const processedSignatures = (signaturesData || []).map(signature => ({
         ...signature,
         metadata: signature.metadata?.[0]?.metadata || null
       }));
@@ -447,7 +450,10 @@ const PetitionSignatures: React.FC = () => {
       signature.phone || '',
       signature.zip_code || '',
       signature.petition_id,
-      new Date(signature.created_at).toLocaleString(),
+      // Use created_date and created_time for CSV export
+      signature.created_date && signature.created_time
+        ? `${signature.created_date} ${signature.created_time}`
+        : '',
       signature.metadata?.device?.browser || '',
       signature.metadata?.device?.device_type || '',
       signature.metadata?.device?.screen_resolution || '',
@@ -707,7 +713,12 @@ const PetitionSignatures: React.FC = () => {
                       <TableCell>{signature.phone || 'N/A'}</TableCell>
                       <TableCell>{signature.zip_code || 'N/A'}</TableCell>
                       <TableCell>{signature.petition_id}</TableCell>
-                      <TableCell>{formatDate(signature.created_at)}</TableCell>
+                      <TableCell>
+                        {/* Display created_date and created_time */}
+                        {signature.created_date && signature.created_time
+                          ? `${signature.created_date} ${signature.created_time}`
+                          : 'N/A'}
+                      </TableCell>
                       <TableCell align="center">
                         <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
                           <IconButton

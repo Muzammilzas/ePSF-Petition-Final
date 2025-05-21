@@ -42,6 +42,8 @@ interface FormSubmission {
     screen_resolution?: string;
     time_zone?: string;
   };
+  created_date: string;
+  created_time: string;
 }
 
 interface DetailsDialogProps {
@@ -58,7 +60,7 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, submission
       <DialogTitle>
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Typography variant="h6">
-            Submission Details - {new Date(submission.created_at).toLocaleDateString()}
+            Submission Details - {submission.created_date || 'N/A'}
           </Typography>
           <IconButton onClick={onClose}>
             <CloseIcon />
@@ -109,6 +111,12 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, submission
               <Typography variant="subtitle2">IP Address</Typography>
               <Typography>{submission.meta_details?.ip_address || 'N/A'}</Typography>
             </Grid>
+            <Grid item xs={6}>
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                Submission Time
+              </Typography>
+              <Typography variant="body1">{submission.created_time || 'N/A'}</Typography>
+            </Grid>
           </Grid>
         </Box>
       </DialogContent>
@@ -131,7 +139,8 @@ const FreeChecklistSubmissions: React.FC = () => {
       const { data, error: fetchError } = await supabase
         .from('free_checklist_submissions')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_date', { ascending: false })
+        .order('created_time', { ascending: false });
 
       if (fetchError) throw fetchError;
       setSubmissions(data || []);
@@ -227,12 +236,16 @@ const FreeChecklistSubmissions: React.FC = () => {
                   submissions.map((submission) => (
                     <TableRow key={submission.id}>
                       <TableCell>
-                        {new Date(submission.created_at).toLocaleDateString()}
+                        {submission.created_date && submission.created_time
+                          ? `${submission.created_date} ${submission.created_time}`
+                          : 'N/A'}
                       </TableCell>
                       <TableCell>{submission.full_name}</TableCell>
                       <TableCell>{submission.email}</TableCell>
                       <TableCell>
-                        {new Date(submission.created_at).toLocaleString()}
+                        {submission.created_date && submission.created_time
+                          ? `${submission.created_date} ${submission.created_time}`
+                          : 'N/A'}
                       </TableCell>
                       <TableCell>{submission.newsletter_consent ? 'Yes' : 'No'}</TableCell>
                       <TableCell align="center">

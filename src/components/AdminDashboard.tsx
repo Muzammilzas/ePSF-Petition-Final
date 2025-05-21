@@ -95,7 +95,8 @@ const SignaturesDialog: React.FC<SignaturesDialogProps> = ({ open, onClose, peti
           .from('signatures')
           .select('*')
           .eq('petition_id', petitionId)
-          .order('created_at', { ascending: false });
+          .order('created_date', { ascending: false })
+          .order('created_time', { ascending: false });
 
         if (error) throw error;
         setSignatures(data || []);
@@ -149,12 +150,9 @@ const SignaturesDialog: React.FC<SignaturesDialogProps> = ({ open, onClose, peti
                     <TableCell>{signature.email}</TableCell>
                     <TableCell>{signature.timeshare_name || 'N/A'}</TableCell>
                     <TableCell>
-                      {new Date(signature.created_at).toLocaleDateString('en-US', {
-                        timeZone: 'America/New_York',
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit'
-                      })}
+                      {signature.created_date && signature.created_time 
+                        ? `${signature.created_date} ${signature.created_time}`
+                        : 'N/A'}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -290,7 +288,8 @@ const AdminDashboard: React.FC = () => {
             *,
             signatures:signatures(count)
           `)
-          .order('created_at', { ascending: false });
+          .order('created_date', { ascending: false })
+          .order('created_time', { ascending: false });
 
         if (petitionsError) throw petitionsError;
 
@@ -307,7 +306,8 @@ const AdminDashboard: React.FC = () => {
         const { data: signaturesData, error: signaturesError } = await supabase
           .from('signatures')
           .select('*')
-          .order('created_at', { ascending: false });
+          .order('created_date', { ascending: false })
+          .order('created_time', { ascending: false });
 
         if (signaturesError) throw signaturesError;
         setSignatures(signaturesData || []);
@@ -732,12 +732,7 @@ const AdminDashboard: React.FC = () => {
                     <TableCell>{formatNumber(petition.goal)}</TableCell>
                     <TableCell>{formatNumber(petition.signature_count || 0)}</TableCell>
                     <TableCell>
-                      {new Date(petition.created_at).toLocaleDateString('en-US', {
-                        timeZone: 'America/New_York',
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit'
-                      })}
+                      {petition.created_date || 'N/A'}
                     </TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
@@ -888,7 +883,11 @@ const AdminDashboard: React.FC = () => {
                       <TableCell>{signature.last_name || 'N/A'}</TableCell>
                       <TableCell>{signature.email}</TableCell>
                       <TableCell>{signature.petition_id}</TableCell>
-                      <TableCell>{formatDate(signature.created_at)}</TableCell>
+                      <TableCell>
+                        {signature.created_date && signature.created_time 
+                          ? `${signature.created_date} ${signature.created_time}`
+                          : 'N/A'}
+                      </TableCell>
                       <TableCell align="center">
                         <Button
                           variant="contained"

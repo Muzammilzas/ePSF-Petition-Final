@@ -47,6 +47,8 @@ interface FormSubmission {
     screen_resolution?: string;
     time_zone?: string;
   };
+  created_date: string;
+  created_time: string;
 }
 
 interface DetailsDialogProps {
@@ -132,7 +134,7 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, submission
       <DialogTitle>
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Typography variant="h6">
-            Submission Details - {new Date(submission.created_at).toLocaleDateString()}
+            Submission Details - {submission.created_date || 'N/A'}
           </Typography>
           <IconButton onClick={onClose}>
             <CloseIcon />
@@ -152,6 +154,14 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, submission
             <Grid item xs={6}>
               <Typography variant="subtitle2">Email</Typography>
               <Typography>{submission.email}</Typography>
+            </Grid>
+            <Grid item xs={6}>
+              <Typography variant="subtitle2">Submission Date</Typography>
+              <Typography>{submission.created_time || 'N/A'}</Typography>
+            </Grid>
+            <Grid item xs={6}>
+              <Typography variant="subtitle2">Newsletter Consent</Typography>
+              <Typography>{submission.newsletter_consent ? 'Yes' : 'No'}</Typography>
             </Grid>
             <Grid item xs={6}>
               <Typography variant="subtitle2">Location</Typography>
@@ -238,7 +248,7 @@ const WhereScamsThriveSubmissions: React.FC = () => {
       const { data, error: fetchError } = await supabase
         .from('where_scams_thrive_submissions')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_date', { ascending: false }).order('created_time', { ascending: false });
 
       if (fetchError) {
         console.error('Error fetching data:', fetchError);
@@ -272,7 +282,9 @@ const WhereScamsThriveSubmissions: React.FC = () => {
     const csvData = submissions.map(sub => [
       sub.full_name,
       sub.email,
-      new Date(sub.created_at).toLocaleString(),
+      sub.created_date && sub.created_time
+        ? `${sub.created_date} ${sub.created_time}`
+        : '',
       sub.newsletter_consent ? 'Yes' : 'No',
       [sub.meta_details?.city, sub.meta_details?.region, sub.meta_details?.country].filter(Boolean).join(', '),
       sub.meta_details?.device_type || 'N/A',
@@ -514,7 +526,9 @@ const WhereScamsThriveSubmissions: React.FC = () => {
                     submissions.map((submission) => (
                       <TableRow key={submission.id}>
                         <TableCell>
-                          {formatDateToEST(submission.created_at)}
+                          {submission.created_date && submission.created_time
+                            ? `${submission.created_date} ${submission.created_time}`
+                            : 'N/A'}
                         </TableCell>
                         <TableCell>{submission.full_name}</TableCell>
                         <TableCell>{submission.email}</TableCell>

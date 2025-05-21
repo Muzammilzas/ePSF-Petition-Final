@@ -362,7 +362,7 @@ const ReportScamPage: React.FC = () => {
       }
 
       // Show success message
-      navigate('/report-scam/success');
+      navigate('/report-scam/thank-you');
     } catch (error: any) {
       console.error('Error submitting report:', error);
       setError(error.message || 'An error occurred while submitting your report. Please try again.');

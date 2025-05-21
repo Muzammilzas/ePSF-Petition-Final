@@ -63,6 +63,8 @@ interface FormSubmission {
       ip_address?: string;
     };
   };
+  created_date: string;
+  created_time: string;
 }
 
 interface DetailsDialogProps {
@@ -170,7 +172,7 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, submission
             <Typography variant="h6" gutterBottom>User Information</Typography>
             <Typography><strong>Full Name:</strong> {submission.full_name}</Typography>
             <Typography><strong>Email:</strong> {submission.email}</Typography>
-            <Typography><strong>Submission Date:</strong> {formatDate(submission.created_at)}</Typography>
+            <Typography><strong>Submission Date:</strong> {submission.created_date && submission.created_time ? `${submission.created_date} ${submission.created_time}` : 'N/A'}</Typography>
             <Typography><strong>Newsletter Consent:</strong> {submission.newsletter_consent ? 'Yes' : 'No'}</Typography>
           </Grid>
 
@@ -221,7 +223,8 @@ const SpottingExitScamsSubmissions: React.FC = () => {
       const { data, error: fetchError } = await supabase
         .from('spotting_exit_scams_submissions')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_date', { ascending: false })
+        .order('created_time', { ascending: false });
 
       if (fetchError) throw fetchError;
       setSubmissions(data || []);
@@ -329,7 +332,7 @@ const SpottingExitScamsSubmissions: React.FC = () => {
       submission.full_name,
       submission.email,
       submission.newsletter_consent ? 'Yes' : 'No',
-      new Date(submission.created_at).toLocaleString(),
+      submission.created_date && submission.created_time ? `${submission.created_date} ${submission.created_time}` : '',
       submission.meta_details?.device?.browser || '',
       submission.meta_details?.device?.device_type || '',
       submission.meta_details?.device?.screen_resolution || '',
@@ -501,7 +504,7 @@ const SpottingExitScamsSubmissions: React.FC = () => {
                       <TableCell>{submission.full_name}</TableCell>
                       <TableCell>{submission.email}</TableCell>
                       <TableCell>
-                        {new Date(submission.created_at).toLocaleString()}
+                        {submission.created_date && submission.created_time ? `${submission.created_date} ${submission.created_time}` : 'N/A'}
                       </TableCell>
                       <TableCell>{submission.newsletter_consent ? 'Yes' : 'No'}</TableCell>
                       <TableCell align="center">

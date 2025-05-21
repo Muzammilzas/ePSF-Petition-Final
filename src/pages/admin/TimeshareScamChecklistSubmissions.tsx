@@ -44,6 +44,8 @@ interface FormSubmission {
     device: Record<string, string>;
     location: Record<string, string>;
   };
+  created_date: string;
+  created_time: string;
 }
 
 interface MetaDetail {
@@ -151,7 +153,7 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, submission
       <DialogTitle>
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Typography variant="h6">
-            Submission Details - {formatDate(submission.created_at)}
+            Submission Details - {submission.created_date || 'N/A'}
           </Typography>
           <IconButton onClick={onClose} size="small">
             <CloseIcon />
@@ -178,9 +180,15 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, submission
             </Grid>
             <Grid item xs={6}>
               <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                Submission Date
+              </Typography>
+              <Typography variant="body1">{submission.created_date || 'N/A'}</Typography>
+            </Grid>
+            <Grid item xs={6}>
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                 Submission Time
               </Typography>
-              <Typography variant="body1">{formatDate(submission.created_at)}</Typography>
+              <Typography variant="body1">{submission.created_time || 'N/A'}</Typography>
             </Grid>
             <Grid item xs={6}>
               <Typography variant="subtitle2" color="text.secondary" gutterBottom>
@@ -329,31 +337,17 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
     setError(null);
     try {
       const { data, error: fetchError } = await supabase
-        .from('timeshare_scam_checklist')
+        .from('timeshare_checklist_submissions')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_date', { ascending: false })
+        .order('created_time', { ascending: false });
 
       if (fetchError) {
         console.error('Error fetching data:', fetchError);
         throw fetchError;
       }
 
-      // Transform the data to match the expected FormSubmission interface
-      const submissions = (data || []).map(submission => ({
-        id: submission.id,
-        full_name: submission.full_name,
-        email: submission.email,
-        created_at: submission.created_at,
-        newsletter_consent: submission.newsletter_consent,
-        meta_details: submission.meta_details || {
-          user_info: {},
-          device: {},
-          location: {}
-        }
-      }));
-
-      console.log('Fetched submissions:', submissions);
-      setSubmissions(submissions);
+      setSubmissions(data || []);
     } catch (err: any) {
       console.error('Error in fetchSubmissions:', err);
       setError(err.message || 'Failed to load submissions');
@@ -440,6 +434,7 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
       'Email',
       'Newsletter Consent',
       'Submission Date',
+      'Submission Time',
       'Browser',
       'Device Type',
       'Screen Resolution',
@@ -455,7 +450,8 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
       submission.full_name,
       submission.email,
       submission.newsletter_consent ? 'Yes' : 'No',
-      new Date(submission.created_at).toLocaleString(),
+      submission.created_date || '',
+      submission.created_time || '',
       submission.meta_details?.device?.browser || '',
       submission.meta_details?.device?.device_type || '',
       submission.meta_details?.device?.screen_resolution || '',
@@ -627,7 +623,9 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
                       <TableCell>{submission.full_name}</TableCell>
                       <TableCell>{submission.email}</TableCell>
                       <TableCell>
-                        {formatDate(submission.created_at)}
+                        {submission.created_date && submission.created_time
+                          ? `${submission.created_date} ${submission.created_time}`
+                          : 'N/A'}
                       </TableCell>
                       <TableCell>{submission.newsletter_consent ? 'Yes' : 'No'}</TableCell>
                       <TableCell align="center">
