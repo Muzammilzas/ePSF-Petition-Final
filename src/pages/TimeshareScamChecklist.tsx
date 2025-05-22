@@ -376,6 +376,12 @@ const TimeshareScamChecklistPage = () => {
             full_name: formData.fullName,
             email: formData.email,
             newsletter_consent: formData.newsletterConsent,
+            created_date: new Date().toLocaleString('en-US', {
+              timeZone: 'America/New_York',
+              month: '2-digit',
+              day: '2-digit',
+              year: 'numeric'
+            }),
             meta_details: {
               user_info: {
                 name: formData.fullName,

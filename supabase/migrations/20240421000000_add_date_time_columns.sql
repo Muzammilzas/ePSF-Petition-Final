@@ -1,20 +1,11 @@
--- Drop existing columns if they exist
+-- Drop existing column if it exists
 ALTER TABLE timeshare_checklist_submissions
-DROP COLUMN IF EXISTS created_date,
-DROP COLUMN IF EXISTS created_time;
+DROP COLUMN IF EXISTS created_date;
 
--- Add created_date and created_time columns
+-- Add created_date column
 ALTER TABLE timeshare_checklist_submissions
-ADD COLUMN created_date DATE GENERATED ALWAYS AS (timezone('America/New_York', created_at)::date) STORED,
-ADD COLUMN created_time TIME GENERATED ALWAYS AS (timezone('America/New_York', created_at)::time) STORED;
+ADD COLUMN IF NOT EXISTS created_date VARCHAR(10) DEFAULT to_char(CURRENT_TIMESTAMP AT TIME ZONE 'America/New_York', 'MM/DD/YYYY');
 
--- Update existing records to populate the new columns
-UPDATE timeshare_checklist_submissions
-SET created_at = created_at
-WHERE created_at IS NOT NULL;
-
--- Create indexes for the new columns
+-- Create index for created_date
 DROP INDEX IF EXISTS idx_timeshare_checklist_submissions_created_date;
-DROP INDEX IF EXISTS idx_timeshare_checklist_submissions_created_time;
-CREATE INDEX idx_timeshare_checklist_submissions_created_date ON timeshare_checklist_submissions(created_date);
-CREATE INDEX idx_timeshare_checklist_submissions_created_time ON timeshare_checklist_submissions(created_time); 
+CREATE INDEX idx_timeshare_checklist_submissions_created_date ON timeshare_checklist_submissions(created_date); 

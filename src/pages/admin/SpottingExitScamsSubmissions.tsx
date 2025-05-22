@@ -37,7 +37,7 @@ interface FormSubmission {
   id: string;
   full_name: string;
   email: string;
-  created_at: string;
+  created_date: string;
   newsletter_consent: boolean;
   meta_details: {
     user_info?: {
@@ -63,8 +63,6 @@ interface FormSubmission {
       ip_address?: string;
     };
   };
-  created_date: string;
-  created_time: string;
 }
 
 interface DetailsDialogProps {
@@ -172,7 +170,7 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, submission
             <Typography variant="h6" gutterBottom>User Information</Typography>
             <Typography><strong>Full Name:</strong> {submission.full_name}</Typography>
             <Typography><strong>Email:</strong> {submission.email}</Typography>
-            <Typography><strong>Submission Date:</strong> {submission.created_date && submission.created_time ? `${submission.created_date} ${submission.created_time}` : 'N/A'}</Typography>
+            <Typography><strong>Submission Date:</strong> {submission.created_date || 'N/A'}</Typography>
             <Typography><strong>Newsletter Consent:</strong> {submission.newsletter_consent ? 'Yes' : 'No'}</Typography>
           </Grid>
 
@@ -216,18 +214,31 @@ const SpottingExitScamsSubmissions: React.FC = () => {
   const [syncError, setSyncError] = useState<string | null>(null);
   const [syncSuccess, setSyncSuccess] = useState(false);
 
-  const fetchSubmissions = async () => {
+  const fetchSubmissions = async (forceRefresh = false) => {
     setLoading(true);
     setError(null);
     try {
+      // Clear existing submissions first
+      setSubmissions([]);
+      
+      // Add timestamp to force cache refresh
+      const timestamp = new Date().getTime();
       const { data, error: fetchError } = await supabase
         .from('spotting_exit_scams_submissions')
-        .select('*')
+        .select('id, full_name, email, created_date, newsletter_consent, meta_details')
         .order('created_date', { ascending: false })
-        .order('created_time', { ascending: false });
+        .limit(1000) // Add limit to prevent infinite results
+        .range(0, 999); // Add range to force fresh data
 
-      if (fetchError) throw fetchError;
-      setSubmissions(data || []);
+      if (fetchError) {
+        console.error('Error fetching submissions:', fetchError);
+        throw fetchError;
+      }
+
+      // Filter out any null or undefined entries
+      const validData = (data || []).filter((entry: FormSubmission) => entry && entry.id);
+      console.log(`Fetched ${validData.length} submissions at ${timestamp}`);
+      setSubmissions(validData);
     } catch (err: any) {
       console.error('Error fetching submissions:', err);
       setError(err.message || 'Failed to load submissions');
@@ -264,17 +275,63 @@ const SpottingExitScamsSubmissions: React.FC = () => {
 
   const handleDeleteAll = async () => {
     try {
-      const { error: deleteError } = await supabase
-        .from('spotting_exit_scams_submissions')
-        .delete()
-        .neq('id', ''); // Delete all records
+      setLoading(true);
+      setError(null);
+      
+      console.log('Starting deletion process...');
 
-      if (deleteError) throw deleteError;
-      await fetchSubmissions();
+      // Get all IDs first
+      const { data: ids, error: idError } = await supabase
+        .from('spotting_exit_scams_submissions')
+        .select('id');
+
+      if (idError) {
+        console.error('Error fetching IDs:', idError);
+        throw idError;
+      }
+
+      if (!ids || ids.length === 0) {
+        console.log('No records to delete');
+        setDeleteAllDialogOpen(false);
+        return;
+      }
+
+      // Delete records in batches of 10
+      const batchSize = 10;
+      const idBatches = [];
+      for (let i = 0; i < ids.length; i += batchSize) {
+        idBatches.push(ids.slice(i, i + batchSize));
+      }
+
+      console.log(`Deleting ${ids.length} records in ${idBatches.length} batches`);
+
+      for (const batch of idBatches) {
+        const batchIds = batch.map(record => record.id);
+        const { error: deleteError } = await supabase
+          .from('spotting_exit_scams_submissions')
+          .delete()
+          .in('id', batchIds);
+
+        if (deleteError) {
+          console.error('Error deleting batch:', deleteError);
+          throw deleteError;
+        }
+      }
+
+      console.log('All batches deleted successfully');
+      
+      // Clear local state
+      setSubmissions([]);
       setDeleteAllDialogOpen(false);
+
+      // Refresh the data
+      await fetchSubmissions(true);
+
     } catch (err: any) {
-      console.error('Error deleting all submissions:', err);
+      console.error('Error in delete operation:', err);
       setError(err.message || 'Failed to delete all submissions');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -332,7 +389,7 @@ const SpottingExitScamsSubmissions: React.FC = () => {
       submission.full_name,
       submission.email,
       submission.newsletter_consent ? 'Yes' : 'No',
-      submission.created_date && submission.created_time ? `${submission.created_date} ${submission.created_time}` : '',
+      submission.created_date || '',
       submission.meta_details?.device?.browser || '',
       submission.meta_details?.device?.device_type || '',
       submission.meta_details?.device?.screen_resolution || '',
@@ -358,6 +415,17 @@ const SpottingExitScamsSubmissions: React.FC = () => {
     link.click();
     document.body.removeChild(link);
   };
+
+  // Add effect to refresh data periodically after deletion
+  useEffect(() => {
+    if (submissions.length === 0) {
+      const refreshTimer = setTimeout(() => {
+        fetchSubmissions(true);
+      }, 3000);
+
+      return () => clearTimeout(refreshTimer);
+    }
+  }, [submissions.length]);
 
   return (
     <Container maxWidth="lg">
@@ -386,7 +454,7 @@ const SpottingExitScamsSubmissions: React.FC = () => {
             </Typography>
             <Box>
               <Button
-                onClick={fetchSubmissions}
+                onClick={() => fetchSubmissions(true)}
                 variant="contained"
                 sx={{ 
                   mr: 1,
@@ -504,7 +572,7 @@ const SpottingExitScamsSubmissions: React.FC = () => {
                       <TableCell>{submission.full_name}</TableCell>
                       <TableCell>{submission.email}</TableCell>
                       <TableCell>
-                        {submission.created_date && submission.created_time ? `${submission.created_date} ${submission.created_time}` : 'N/A'}
+                        {submission.created_date || 'N/A'}
                       </TableCell>
                       <TableCell>{submission.newsletter_consent ? 'Yes' : 'No'}</TableCell>
                       <TableCell align="center">

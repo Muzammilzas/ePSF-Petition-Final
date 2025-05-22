@@ -37,15 +37,13 @@ interface FormSubmission {
   id: string;
   full_name: string;
   email: string;
-  created_at: string;
+  created_date: string;
   newsletter_consent: boolean;
   meta_details: {
     user_info: Record<string, string>;
     device: Record<string, string>;
     location: Record<string, string>;
   };
-  created_date: string;
-  created_time: string;
 }
 
 interface MetaDetail {
@@ -183,12 +181,6 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, submission
                 Submission Date
               </Typography>
               <Typography variant="body1">{submission.created_date || 'N/A'}</Typography>
-            </Grid>
-            <Grid item xs={6}>
-              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                Submission Time
-              </Typography>
-              <Typography variant="body1">{submission.created_time || 'N/A'}</Typography>
             </Grid>
             <Grid item xs={6}>
               <Typography variant="subtitle2" color="text.secondary" gutterBottom>
@@ -338,23 +330,15 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
     try {
       const { data, error: fetchError } = await supabase
         .from('timeshare_checklist_submissions')
-        .select('*')
-        .order('created_date', { ascending: false })
-        .order('created_time', { ascending: false });
+        .select('id, full_name, email, created_date, newsletter_consent, meta_details')
+        .order('created_date', { ascending: false });
 
       if (fetchError) {
         console.error('Error fetching data:', fetchError);
         throw fetchError;
       }
 
-      // Use the database-generated date and time
-      const formattedData = (data || []).map(submission => ({
-        ...submission,
-        created_date: submission.created_date,
-        created_time: submission.created_time
-      }));
-
-      setSubmissions(formattedData);
+      setSubmissions(data || []);
     } catch (err: any) {
       console.error('Error in fetchSubmissions:', err);
       setError(err.message || 'Failed to load submissions');
@@ -389,13 +373,29 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
 
   const handleDeleteAll = async () => {
     try {
+      // First get all IDs
+      const { data: allIds, error: fetchError } = await supabase
+        .from('timeshare_checklist_submissions')
+        .select('id');
+
+      if (fetchError) throw fetchError;
+
+      if (!allIds || allIds.length === 0) {
+        console.log('No records to delete');
+        setDeleteAllDialogOpen(false);
+        return;
+      }
+
+      // Then delete using in clause with all IDs
       const { error: deleteError } = await supabase
         .from('timeshare_checklist_submissions')
         .delete()
-        .neq('id', ''); // Delete all records
+        .in('id', allIds.map(record => record.id));
 
       if (deleteError) throw deleteError;
+      
       await fetchSubmissions();
+      setDeleteAllDialogOpen(false);
     } catch (err: any) {
       console.error('Error deleting all submissions:', err);
       setError(err.message || 'Failed to delete all submissions');
@@ -441,7 +441,6 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
       'Email',
       'Newsletter Consent',
       'Submission Date',
-      'Submission Time',
       'Browser',
       'Device Type',
       'Screen Resolution',
@@ -458,7 +457,6 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
       submission.email,
       submission.newsletter_consent ? 'Yes' : 'No',
       submission.created_date || '',
-      submission.created_time || '',
       submission.meta_details?.device?.browser || '',
       submission.meta_details?.device?.device_type || '',
       submission.meta_details?.device?.screen_resolution || '',
@@ -630,20 +628,7 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
                       <TableCell>{submission.full_name}</TableCell>
                       <TableCell>{submission.email}</TableCell>
                       <TableCell>
-                        {submission.created_date && submission.created_time ? (
-                          `${submission.created_date} ${submission.created_time.substring(0, 8)}`
-                        ) : (
-                          new Date(submission.created_at).toLocaleString('en-US', {
-                            year: 'numeric',
-                            month: '2-digit',
-                            day: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            second: '2-digit',
-                            hour12: true,
-                            timeZone: 'America/New_York'
-                          })
-                        )}
+                        {submission.created_date}
                       </TableCell>
                       <TableCell>{submission.newsletter_consent ? 'Yes' : 'No'}</TableCell>
                       <TableCell align="center">

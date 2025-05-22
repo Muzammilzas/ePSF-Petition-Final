@@ -253,7 +253,7 @@ const BeforeYouSignSubmissions: React.FC = () => {
   const [syncSuccess, setSyncSuccess] = useState(false);
   const [confirmText, setConfirmText] = useState('');
 
-  const fetchSubmissions = async () => {
+  const fetchSubmissions = async (refresh = false) => {
     setLoading(true);
     setError(null);
     try {
@@ -339,23 +339,64 @@ const BeforeYouSignSubmissions: React.FC = () => {
   };
 
   const handleDeleteAll = async () => {
-    setDeleteAllDialogOpen(true);
-  };
-
-  const handleConfirmDeleteAll = async () => {
     try {
-      const { error } = await supabase
+      setLoading(true);
+      setError(null);
+      
+      console.log('Starting deletion process...');
+
+      // Get all IDs first
+      const { data: ids, error: idError } = await supabase
         .from('before_you_sign_submissions')
-        .delete()
-        .neq('id', '');
+        .select('id');
 
-      if (error) throw error;
+      if (idError) {
+        console.error('Error fetching IDs:', idError);
+        throw idError;
+      }
 
+      if (!ids || ids.length === 0) {
+        console.log('No records to delete');
+        setDeleteAllDialogOpen(false);
+        return;
+      }
+
+      // Delete records in batches of 10
+      const batchSize = 10;
+      const idBatches = [];
+      for (let i = 0; i < ids.length; i += batchSize) {
+        idBatches.push(ids.slice(i, i + batchSize));
+      }
+
+      console.log(`Deleting ${ids.length} records in ${idBatches.length} batches`);
+
+      for (const batch of idBatches) {
+        const batchIds = batch.map(record => record.id);
+        const { error: deleteError } = await supabase
+          .from('before_you_sign_submissions')
+          .delete()
+          .in('id', batchIds);
+
+        if (deleteError) {
+          console.error('Error deleting batch:', deleteError);
+          throw deleteError;
+        }
+      }
+
+      console.log('All batches deleted successfully');
+      
+      // Clear local state
+      setSubmissions([]);
       setDeleteAllDialogOpen(false);
-      await fetchSubmissions();
+
+      // Refresh the data
+      await fetchSubmissions(true);
+
     } catch (err: any) {
-      console.error('Error deleting all submissions:', err);
+      console.error('Error in delete operation:', err);
       setError(err.message || 'Failed to delete all submissions');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -400,88 +441,58 @@ const BeforeYouSignSubmissions: React.FC = () => {
           <Button
             startIcon={<ArrowBackIcon />}
             onClick={() => navigate('/admin/forms')}
-            sx={{ 
-              mb: 2,
-              backgroundColor: '#E0AC3F',
-              color: '#FFFFFF',
-              '&:hover': {
-                backgroundColor: '#c99a38'
-              }
-            }}
+            sx={{ mb: 2 }}
             variant="contained"
           >
             Back to Forms
           </Button>
           
-          <Typography variant="h4" component="h1" gutterBottom>
-            Before You Sign - Submissions
-          </Typography>
-          
-          <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-            <Button
-              onClick={fetchSubmissions}
-              variant="contained"
-              sx={{ 
-                backgroundColor: '#01BD9B',
-                color: '#FFFFFF',
-                '&:hover': {
-                  backgroundColor: '#01a989'
-                }
-              }}
-            >
-              Refresh Data
-            </Button>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h4" component="h1">
+              Before You Sign - Submissions
+            </Typography>
+            <Box>
+              <Button
+                onClick={() => fetchSubmissions(true)}
+                variant="contained"
+                sx={{ 
+                  backgroundColor: '#01BD9B',
+                  color: '#FFFFFF',
+                  '&:hover': {
+                    backgroundColor: '#01a989'
+                  }
+                }}
+              >
+                Refresh Data
+              </Button>
 
-            <Button
-              onClick={handleExportCSV}
-              variant="contained"
-              startIcon={<FileDownloadIcon />}
-              sx={{ 
-                backgroundColor: '#4CAF50',
-                color: '#FFFFFF',
-                '&:hover': {
-                  backgroundColor: '#45a049'
-                }
-              }}
-            >
-              Export as CSV
-            </Button>
+              <Button
+                onClick={handleExportCSV}
+                variant="contained"
+                startIcon={<FileDownloadIcon />}
+                sx={{ 
+                  ml: 1,
+                  backgroundColor: '#4CAF50',
+                  color: '#FFFFFF',
+                  '&:hover': {
+                    backgroundColor: '#45a049'
+                  }
+                }}
+              >
+                Export as CSV
+              </Button>
 
-            <Button
-              onClick={handleSync}
-              variant="contained"
-              startIcon={<SyncIcon />}
-              disabled={syncing}
-              sx={{ 
-                backgroundColor: '#2196F3',
-                color: '#FFFFFF',
-                '&:hover': {
-                  backgroundColor: '#1976D2'
-                }
-              }}
-            >
-              {syncing ? 'Syncing...' : 'Sync with Google Sheets'}
-            </Button>
-
-            <Button
-              onClick={handleDeleteAll}
-              variant="contained"
-              startIcon={<DeleteIcon />}
-              disabled={submissions.length === 0}
-              sx={{ 
-                backgroundColor: '#ff4444',
-                color: '#FFFFFF',
-                '&:hover': {
-                  backgroundColor: '#cc0000'
-                },
-                '&.Mui-disabled': {
-                  bgcolor: '#ccc',
-                  color: '#666'
-                }
-              }}
-            >
-              Delete All
-            </Button>
+              {submissions.length > 0 && (
+                <Button
+                  variant="contained"
+                  color="error"
+                  onClick={() => setDeleteAllDialogOpen(true)}
+                  sx={{ ml: 1 }}
+                >
+                  Delete All
+                </Button>
+              )}
+            </Box>
           </Box>
         </Box>
 
@@ -632,7 +643,7 @@ const BeforeYouSignSubmissions: React.FC = () => {
           <DialogActions sx={{ px: 3, pb: 3 }}>
             <Button
               variant="contained"
-              onClick={handleConfirmDeleteAll}
+              onClick={handleDeleteAll}
               disabled={confirmText !== 'CONFIRM'}
               sx={{
                 bgcolor: '#ff4444',
