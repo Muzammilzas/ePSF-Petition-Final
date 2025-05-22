@@ -15,6 +15,7 @@ import {
   MenuItem,
   InputLabel,
   Grid,
+  Paper,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -75,6 +76,8 @@ const COUNTRY_LIST = getCountries().map(country => {
 }).sort((a, b) => a.name.localeCompare(b.name));
 
 const Step1Details: React.FC<Step1DetailsProps> = ({ formData, onChange, onNext, onBack }) => {
+  const [phoneError, setPhoneError] = React.useState('');
+
   const handleScamTypeChange = (type: keyof typeof formData.scamTypes) => {
     onChange('scamTypes', {
       ...formData.scamTypes,
@@ -142,15 +145,13 @@ const Step1Details: React.FC<Step1DetailsProps> = ({ formData, onChange, onNext,
     }
   };
 
-  const validatePhoneNumber = (phone: string, countryCode: string) => {
-    if (!phone.trim()) return false;
-    if (!countryCode) return false;
-    try {
-      const phoneNumber = parsePhoneNumber(phone, countryCode as CountryCode);
-      return phoneNumber?.isValid() || false;
-    } catch {
-      return false;
-    }
+  const validatePhoneNumber = (phone: string): boolean => {
+    // Basic phone number regex that requires:
+    // - Optional + at start
+    // - 10-15 digits
+    // - Can have spaces, dashes, or parentheses between numbers
+    const phoneRegex = /^\+?[\d\s-()]{10,15}$/;
+    return phoneRegex.test(phone.replace(/\s+/g, ''));
   };
 
   const isValid = () => {
@@ -365,7 +366,7 @@ const Step1Details: React.FC<Step1DetailsProps> = ({ formData, onChange, onNext,
         How did the scammer contact you?
       </Typography>
       <FormGroup sx={{ mb: 3 }}>
-        <Box sx={{ mb: 2 }}>
+        <Box sx={{ mb: 3 }}>
           <FormControlLabel
             control={
               <Checkbox
@@ -376,49 +377,32 @@ const Step1Details: React.FC<Step1DetailsProps> = ({ formData, onChange, onNext,
             label="Phone"
           />
           {formData.contactMethods.phone.selected && (
-            <Box sx={{ mb: 3 }}>
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={4}>
-                  <FormControl fullWidth>
-                    <InputLabel>Country</InputLabel>
-                    <Select
-                      value={formData.contactMethods.phone.countryCode || 'US'}
-                      label="Country"
-                      onChange={(e) => {
-                        handleContactDetailChange('phone', 'countryCode', e.target.value);
-                        handleContactDetailChange('phone', 'number', ''); // Reset phone when country changes
-                      }}
-                    >
-                      {COUNTRY_LIST.map(country => (
-                        <MenuItem key={country.code} value={country.code}>
-                          {country.name} (+{country.callingCode})
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
-                <Grid item xs={12} sm={8}>
+            <Box sx={{ mb: 2, ml: 4, mt: 1 }}>
                   <TextField
                     fullWidth
                     label="Phone Number"
+                type="tel"
+                placeholder="Enter phone number (e.g., +1 234 567 8900)"
                     value={formData.contactMethods.phone.number}
-                    onChange={(e) => handlePhoneChange(e.target.value)}
-                    required={formData.contactMethods.phone.selected}
-                    error={formData.contactMethods.phone.selected && formData.contactMethods.phone.number && !validatePhoneNumber(formData.contactMethods.phone.number, formData.contactMethods.phone.countryCode) || undefined}
-                    helperText={(() => {
-                      if (!formData.contactMethods.phone.selected) return '';
-                      if (!formData.contactMethods.phone.number) return 'Phone number is required';
-                      if (!formData.contactMethods.phone.countryCode) return 'Please select a country';
-                      return validatePhoneNumber(formData.contactMethods.phone.number, formData.contactMethods.phone.countryCode) ? '' : 'Invalid phone number for selected country';
-                    })()}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/[^\d\s+()-]/g, '');
+                  if (value && !validatePhoneNumber(value)) {
+                    setPhoneError('Please enter a valid phone number (10-15 digits)');
+                  } else {
+                    setPhoneError('');
+                  }
+                  handleContactDetailChange('phone', 'number', value);
+                }}
+                error={!!phoneError}
+                helperText={phoneError}
+                inputProps={{ maxLength: 20 }}
+                sx={{ mb: 1 }}
                   />
-                </Grid>
-              </Grid>
             </Box>
           )}
         </Box>
 
-        <Box sx={{ mb: 2 }}>
+        <Box sx={{ mb: 3 }}>
           <FormControlLabel
             control={
               <Checkbox
@@ -429,7 +413,7 @@ const Step1Details: React.FC<Step1DetailsProps> = ({ formData, onChange, onNext,
             label="Email"
           />
           {formData.contactMethods.email.selected && (
-            <Box sx={{ ml: 3 }}>
+            <Box sx={{ ml: 4, mt: 1 }}>
               <Typography variant="subtitle1" gutterBottom>
                 If they contacted you by email, what was the sender's email address?
               </Typography>
@@ -456,7 +440,7 @@ const Step1Details: React.FC<Step1DetailsProps> = ({ formData, onChange, onNext,
           )}
         </Box>
 
-        <Box sx={{ mb: 2 }}>
+        <Box sx={{ mb: 3 }}>
           <FormControlLabel
             control={
               <Checkbox
@@ -467,7 +451,7 @@ const Step1Details: React.FC<Step1DetailsProps> = ({ formData, onChange, onNext,
             label="Social Media"
           />
           {formData.contactMethods.socialMedia.selected && (
-            <Box sx={{ ml: 3 }}>
+            <Box sx={{ ml: 4, mt: 1 }}>
               <Typography variant="subtitle1" gutterBottom>
                 If you were sent to a website or link, please share it here
               </Typography>
@@ -483,7 +467,7 @@ const Step1Details: React.FC<Step1DetailsProps> = ({ formData, onChange, onNext,
           )}
         </Box>
 
-        <Box sx={{ mb: 2 }}>
+        <Box sx={{ mb: 1 }}>
           <FormControlLabel
             control={
               <Checkbox
@@ -494,7 +478,7 @@ const Step1Details: React.FC<Step1DetailsProps> = ({ formData, onChange, onNext,
             label="In Person"
           />
           {formData.contactMethods.inPerson.selected && (
-            <Box sx={{ ml: 3 }}>
+            <Box sx={{ ml: 4, mt: 1 }}>
               <TextField
                 fullWidth
                 label="Where did the encounter take place?"

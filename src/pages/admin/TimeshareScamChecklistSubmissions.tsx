@@ -347,7 +347,14 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
         throw fetchError;
       }
 
-      setSubmissions(data || []);
+      // Use the database-generated date and time
+      const formattedData = (data || []).map(submission => ({
+        ...submission,
+        created_date: submission.created_date,
+        created_time: submission.created_time
+      }));
+
+      setSubmissions(formattedData);
     } catch (err: any) {
       console.error('Error in fetchSubmissions:', err);
       setError(err.message || 'Failed to load submissions');
@@ -368,7 +375,7 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
   const handleDelete = async (id: string) => {
     try {
       const { error: deleteError } = await supabase
-        .from('timeshare_scam_checklist')
+        .from('timeshare_checklist_submissions')
         .delete()
         .eq('id', id);
 
@@ -383,7 +390,7 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
   const handleDeleteAll = async () => {
     try {
       const { error: deleteError } = await supabase
-        .from('timeshare_scam_checklist')
+        .from('timeshare_checklist_submissions')
         .delete()
         .neq('id', ''); // Delete all records
 
@@ -623,9 +630,20 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
                       <TableCell>{submission.full_name}</TableCell>
                       <TableCell>{submission.email}</TableCell>
                       <TableCell>
-                        {submission.created_date && submission.created_time
-                          ? `${submission.created_date} ${submission.created_time}`
-                          : 'N/A'}
+                        {submission.created_date && submission.created_time ? (
+                          `${submission.created_date} ${submission.created_time.substring(0, 8)}`
+                        ) : (
+                          new Date(submission.created_at).toLocaleString('en-US', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit',
+                            hour12: true,
+                            timeZone: 'America/New_York'
+                          })
+                        )}
                       </TableCell>
                       <TableCell>{submission.newsletter_consent ? 'Yes' : 'No'}</TableCell>
                       <TableCell align="center">

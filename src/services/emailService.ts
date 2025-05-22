@@ -206,7 +206,7 @@ export const sendReporterConfirmation = async (data: ScamReportEmailData) => {
     const newsletterBody = {
       sender: {
         name: 'ePublic Safety Foundation',
-        email: 'timeshare@epublicsf.org'
+        email: 'admin@epublicsf.org'
       },
       to: [{
         email: data.report.reporter_email,

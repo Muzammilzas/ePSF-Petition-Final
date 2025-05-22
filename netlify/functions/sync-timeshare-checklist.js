@@ -33,34 +33,26 @@ exports.handler = async function(event) {
       process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
-    // Get unsynced submissions from Supabase
-    console.log('Fetching unsynced submissions from Supabase...');
-    const { data: submissions, error: supabaseError } = await supabase
+    // Get unsynced submissions
+    const { data: submissions, error } = await supabase
       .from('timeshare_checklist_submissions')
       .select('*')
       .is('synced_at', null)
       .order('created_at', { ascending: true });
 
-    if (supabaseError) {
-      console.error('Supabase error:', supabaseError);
-      throw new Error(`Supabase error: ${supabaseError.message}`);
-    }
-
-    if (!submissions || submissions.length === 0) {
-      console.log('No new submissions to sync');
-      return {
-        statusCode: 200,
-        body: JSON.stringify({
-          message: 'No new submissions to sync',
-          details: {
-            totalSubmissions: 0,
-            syncedRows: 0
-          }
-        })
-      };
+    if (error) {
+      console.error('Error fetching submissions:', error);
+      throw error;
     }
 
     console.log(`Found ${submissions.length} unsynced submissions`);
+
+    if (submissions.length === 0) {
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ message: 'No new submissions to sync' })
+      };
+    }
 
     // Initialize Google Sheets
     console.log('Initializing Google Sheets client...');
@@ -126,14 +118,14 @@ exports.handler = async function(event) {
         submission.full_name,
         submission.email,
         submission.newsletter_consent ? 'Yes' : 'No',
-        submission.meta_details?.city || 'N/A',
-        submission.meta_details?.region || 'N/A',
-        submission.meta_details?.country || 'N/A',
-        submission.meta_details?.ip_address || 'N/A',
-        submission.meta_details?.browser || 'N/A',
-        submission.meta_details?.device_type || 'N/A',
-        submission.meta_details?.screen_resolution || 'N/A',
-        submission.meta_details?.timezone || 'N/A'
+        submission.meta_details?.location?.city || 'N/A',
+        submission.meta_details?.location?.region || 'N/A',
+        submission.meta_details?.location?.country || 'N/A',
+        submission.meta_details?.location?.ip_address || 'N/A',
+        submission.meta_details?.device?.browser || 'N/A',
+        submission.meta_details?.device?.device_type || 'N/A',
+        submission.meta_details?.device?.screen_resolution || 'N/A',
+        submission.meta_details?.device?.timezone || 'N/A'
       ];
     });
 

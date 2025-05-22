@@ -85,6 +85,7 @@ interface DeleteConfirmationDialogProps {
   title: string;
   message: string;
   requireConfirmText?: boolean;
+  selectedId?: string | null;
 }
 
 const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
@@ -94,6 +95,7 @@ const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
   title,
   message,
   requireConfirmText = false,
+  selectedId,
 }) => {
   const [confirmText, setConfirmText] = useState('');
   const isConfirmEnabled = !requireConfirmText || confirmText === 'CONFIRM';
@@ -135,7 +137,7 @@ const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
         <Button onClick={handleClose}>Cancel</Button>
         <Button
           onClick={handleConfirm}
-          disabled={!isConfirmEnabled}
+          disabled={!isConfirmEnabled || !selectedId}
           color="error"
           variant="contained"
         >
@@ -158,6 +160,11 @@ const formatDate = (dateString: string) => {
     hour12: true,
     timeZoneName: 'short'
   });
+};
+
+const getDateOnly = (dateString: string) => {
+  if (!dateString) return 'N/A';
+  return dateString.split('T')[0].split(' ')[0];
 };
 
 const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, signature }) => {
@@ -210,7 +217,7 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, signature 
                 Signed At
               </Typography>
               <Typography variant="body1">
-                {signature.created_date && signature.created_time ? `${signature.created_date} ${signature.created_time}` : 'N/A'}
+                {signature.created_date ? String(signature.created_date).split(' ')[0] : 'N/A'}
               </Typography>
             </Grid>
           </Grid>
@@ -313,9 +320,7 @@ const PetitionSignatures: React.FC = () => {
   const navigate = useNavigate();
   const [selectedSignature, setSelectedSignature] = useState<Signature | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteAllDialogOpen, setDeleteAllDialogOpen] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [signatures, setSignatures] = useState<Signature[]>([]);
@@ -406,34 +411,16 @@ const PetitionSignatures: React.FC = () => {
     setDetailsOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    try {
-      const { error: deleteError } = await supabase
-        .from('signatures')
-        .delete()
-        .eq('id', id);
-
-      if (deleteError) throw deleteError;
-
-      setSignatures(prev => prev.filter(sig => sig.id !== id));
-      setDeleteDialogOpen(false);
-      setSelectedId(null);
-    } catch (err: any) {
-      console.error('Error deleting signature:', err);
-      setError(err.message || 'Failed to delete signature');
-    }
-  };
-
   const handleDeleteAll = async () => {
     try {
       const { error: deleteAllError } = await supabase
         .from('signatures')
-        .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000');
+        .delete();  // Simple delete without any conditions will delete all records
 
       if (deleteAllError) throw deleteAllError;
 
       setSignatures([]);
+      setFilteredSignatures([]); // Also clear filtered signatures
       setDeleteAllDialogOpen(false);
     } catch (err: any) {
       console.error('Error deleting all signatures:', err);
@@ -519,8 +506,13 @@ const PetitionSignatures: React.FC = () => {
       signature.phone || '',
       signature.zip_code || '',
       signature.petition_id,
-      signature.created_date && signature.created_time
-        ? `${signature.created_date} ${signature.created_time}`
+      signature.created_date
+        ? new Date(signature.created_date).toLocaleDateString('en-US', {
+            timeZone: 'America/New_York',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+          })
         : '',
       signature.metadata?.device?.browser || '',
       signature.metadata?.device?.device_type || '',
@@ -545,6 +537,27 @@ const PetitionSignatures: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // Restore the direct delete handler
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this signature? This action cannot be undone.')) {
+      return;
+    }
+    try {
+      const { error: deleteError } = await supabase
+        .from('signatures')
+        .delete()
+        .eq('id', id);
+
+      if (deleteError) throw deleteError;
+
+      setSignatures(prev => prev.filter(sig => sig.id !== id));
+      setFilteredSignatures(prev => prev.filter(sig => sig.id !== id));
+    } catch (err: any) {
+      console.error('Error deleting signature:', err);
+      setError(err.message || 'Failed to delete signature');
+    }
   };
 
   if (loading) {
@@ -750,7 +763,7 @@ const PetitionSignatures: React.FC = () => {
                     <TableCell>{signature.email}</TableCell>
                     <TableCell>{signature.petition_id}</TableCell>
                     <TableCell>
-                      {signature.created_date && signature.created_time ? `${signature.created_date} ${signature.created_time}` : 'N/A'}
+                      {signature.created_date ? String(signature.created_date).split(' ')[0] : 'N/A'}
                     </TableCell>
                     <TableCell align="center">
                       <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
@@ -766,10 +779,7 @@ const PetitionSignatures: React.FC = () => {
                         <Tooltip title="Delete Signature">
                           <IconButton
                             size="small"
-                            onClick={() => {
-                              setSelectedId(signature.id);
-                              setDeleteDialogOpen(true);
-                            }}
+                            onClick={() => handleDelete(signature.id)}
                             sx={{ color: '#f44336' }}
                           >
                             <DeleteIcon />
@@ -789,14 +799,6 @@ const PetitionSignatures: React.FC = () => {
         open={detailsOpen}
         onClose={() => setDetailsOpen(false)}
         signature={selectedSignature}
-      />
-
-      <DeleteConfirmationDialog
-        open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
-        onConfirm={() => handleDelete(selectedId!)}
-        title="Confirm Deletion"
-        message="Are you sure you want to delete this signature? This action cannot be undone."
       />
 
       <DeleteConfirmationDialog

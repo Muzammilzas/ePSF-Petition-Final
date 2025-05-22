@@ -271,10 +271,10 @@ const WhereScamsThrivePage = () => {
         body: JSON.stringify({
           sender: {
             name: 'ePublic Safety Foundation',
-            email: 'timeshare@epublicsf.org'
+            email: 'admin@epublicsf.org'
           },
           to: [{ email: 'zasprince007@gmail.com' }],
-          templateId: 14,
+          templateId: 13,
           params: adminEmailParams.params
         })
       });

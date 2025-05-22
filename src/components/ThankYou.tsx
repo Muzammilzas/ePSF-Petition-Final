@@ -154,7 +154,10 @@ const ThankYou: React.FC = () => {
   }
 
   // Update the display logic
-  const displaySignatureNumber = signatureCount || currentPetition?.signature_count || 0;
+  const displaySignatureNumber = typeof signatureCount === 'number'
+    ? signatureCount
+    : (currentPetition?.signature_count || 0);
+  const formatNumber = (num: number) => num.toLocaleString();
   const progress = currentPetition ? (displaySignatureNumber / (currentPetition.goal || 2000)) * 100 : 0;
 
   return (
@@ -189,7 +192,7 @@ const ThankYou: React.FC = () => {
 
         <Box sx={{ mt: 4, mb: 4 }}>
           <Typography variant="h6" gutterBottom align="center">
-            {signatureCount} of {currentPetition?.goal || 2000} signatures collected
+            {formatNumber(displaySignatureNumber)} of {formatNumber(currentPetition?.goal || 2000)} signatures collected
           </Typography>
           <LinearProgress 
             variant="determinate" 

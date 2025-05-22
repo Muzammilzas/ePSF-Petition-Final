@@ -100,6 +100,10 @@ const PetitionSignatures: React.FC = () => {
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [syncSuccess, setSyncSuccess] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+
+  // Add isDeleteConfirmed computed value
+  const isDeleteConfirmed = deleteConfirmText === 'CONFIRM';
 
   useEffect(() => {
     fetchData();
@@ -436,7 +440,7 @@ const PetitionSignatures: React.FC = () => {
       const { error } = await supabase
         .from('signatures')
         .delete()
-        .neq('id', ''); // Delete all records
+        .not('petition_id', 'is', null); // Delete all records that have a petition_id (which all valid records should have)
 
       if (error) throw error;
 
@@ -756,24 +760,50 @@ const PetitionSignatures: React.FC = () => {
         {/* Delete All Confirmation Dialog */}
         <Dialog
           open={deleteAllDialogOpen}
-          onClose={() => setDeleteAllDialogOpen(false)}
+          onClose={() => {
+            setDeleteAllDialogOpen(false);
+            setDeleteConfirmText(''); // Reset the confirmation text when closing
+          }}
+          maxWidth="sm"
+          fullWidth
         >
-          <DialogTitle>Confirm Delete All</DialogTitle>
-          <DialogContent>
-            <Typography>
-              Are you sure you want to delete all signatures? This action cannot be undone.
+          <DialogTitle>
+            <Typography variant="h4" component="div">
+              Delete All Submissions
             </Typography>
+          </DialogTitle>
+          <DialogContent>
+            <Typography variant="body1" sx={{ mb: 3 }}>
+              This will permanently delete all submissions. This action cannot be undone.
+            </Typography>
+            <Typography variant="body1" sx={{ mb: 2 }}>
+              Type "CONFIRM" to delete all submissions
+            </Typography>
+            <TextField
+              fullWidth
+              placeholder="Type CONFIRM"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              sx={{ mb: 2 }}
+            />
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setDeleteAllDialogOpen(false)}>
+            <Button 
+              onClick={() => {
+                setDeleteAllDialogOpen(false);
+                setDeleteConfirmText(''); // Reset the confirmation text
+              }}
+              sx={{ mr: 1 }}
+            >
               Cancel
             </Button>
             <Button 
               onClick={handleDeleteAll}
               color="error"
               variant="contained"
+              disabled={!isDeleteConfirmed}
             >
-              Delete All
+              DELETE
             </Button>
           </DialogActions>
         </Dialog>

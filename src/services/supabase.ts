@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = 'https://lbqhvgvvxvrrooalywhz.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxicWh2Z3Z2eHZycm9vYWx5d2h6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEzNzc0NzEsImV4cCI6MjA1Njk1MzQ3MX0.LxFzvKRAnhRwTE52BiNPqq8APmSCFU6hW7avGWw43Xs';
 
 // Debug logging in development only
 if (import.meta.env.DEV) {
