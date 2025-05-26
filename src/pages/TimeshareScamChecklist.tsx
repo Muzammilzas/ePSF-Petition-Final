@@ -55,13 +55,13 @@ const TimeshareScamChecklistPage = () => {
         
         try {
           // Get IP details
-          const ipResponse = await fetch('https://api.ipify.org?format=json');
+        const ipResponse = await fetch('https://api.ipify.org?format=json');
           if (ipResponse.ok) {
             ipData = await ipResponse.json();
-            
+        
             // Only try location if we got IP
             if (ipData.ip) {
-              const locationResponse = await fetch(`https://ipapi.co/${ipData.ip}/json/`);
+        const locationResponse = await fetch(`https://ipapi.co/${ipData.ip}/json/`);
               if (locationResponse.ok) {
                 locationData = await locationResponse.json();
               }
@@ -293,41 +293,41 @@ const TimeshareScamChecklistPage = () => {
 
       // Try to add or update contact in Brevo (non-critical)
       try {
-        const contactData = {
-          email: formData.email,
-          attributes: {
-            FIRSTNAME: formData.fullName.split(' ')[0],
-            LASTNAME: formData.fullName.split(' ').slice(1).join(' '),
-            EMAIL: formData.email,
-            NEWSLETTER_CONSENT: formData.newsletterConsent,
-            DOWNLOAD_TIME: downloadTime,
-            LEAD_SOURCE: 'Timeshare Checklist Landing Page',
-            CITY: formData.metaDetails.city,
-            REGION: formData.metaDetails.region,
-            COUNTRY: formData.metaDetails.country,
-            IP_ADDRESS: formData.metaDetails.ipAddress,
-            BROWSER: formData.metaDetails.browser,
-            DEVICE_TYPE: formData.metaDetails.deviceType,
-            SCREEN_RESOLUTION: formData.metaDetails.screenResolution,
-            TIMEZONE: 'America/New_York'
-          },
-          listIds: [9],
-          updateEnabled: true,
-          emailBlacklisted: false
-        };
+      const contactData = {
+        email: formData.email,
+        attributes: {
+          FIRSTNAME: formData.fullName.split(' ')[0],
+          LASTNAME: formData.fullName.split(' ').slice(1).join(' '),
+          EMAIL: formData.email,
+          NEWSLETTER_CONSENT: formData.newsletterConsent,
+          DOWNLOAD_TIME: downloadTime,
+          LEAD_SOURCE: 'Timeshare Checklist Landing Page',
+          CITY: formData.metaDetails.city,
+          REGION: formData.metaDetails.region,
+          COUNTRY: formData.metaDetails.country,
+          IP_ADDRESS: formData.metaDetails.ipAddress,
+          BROWSER: formData.metaDetails.browser,
+          DEVICE_TYPE: formData.metaDetails.deviceType,
+          SCREEN_RESOLUTION: formData.metaDetails.screenResolution,
+          TIMEZONE: 'America/New_York'
+        },
+        listIds: [9],
+        updateEnabled: true,
+        emailBlacklisted: false
+      };
 
-        // Try to create contact first
-        const contactResponse = await fetch('https://api.brevo.com/v3/contacts', {
-          method: 'POST',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'api-key': import.meta.env.VITE_BREVO_API_KEY
-          },
-          body: JSON.stringify(contactData)
-        });
+      // Try to create contact first
+      const contactResponse = await fetch('https://api.brevo.com/v3/contacts', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'api-key': import.meta.env.VITE_BREVO_API_KEY
+        },
+        body: JSON.stringify(contactData)
+      });
 
-        let contactResult;
+      let contactResult;
         const responseText = await contactResponse.text();
         contactResult = responseText ? JSON.parse(responseText) : {};
         console.log('Brevo Contact API Response:', contactResult);
@@ -373,16 +373,16 @@ const TimeshareScamChecklistPage = () => {
         .from('timeshare_checklist_submissions')
         .insert([
           {
-            full_name: formData.fullName,
-            email: formData.email,
-            newsletter_consent: formData.newsletterConsent,
+          full_name: formData.fullName,
+          email: formData.email,
+          newsletter_consent: formData.newsletterConsent,
             created_date: new Date().toLocaleString('en-US', {
               timeZone: 'America/New_York',
               month: '2-digit',
               day: '2-digit',
               year: 'numeric'
             }),
-            meta_details: {
+          meta_details: {
               user_info: {
                 name: formData.fullName,
                 email: formData.email,
@@ -398,9 +398,9 @@ const TimeshareScamChecklistPage = () => {
                 language: navigator.language
               },
               location: {
-                city: formData.metaDetails.city,
-                region: formData.metaDetails.region,
-                country: formData.metaDetails.country,
+            city: formData.metaDetails.city,
+            region: formData.metaDetails.region,
+            country: formData.metaDetails.country,
                 ip_address: formData.metaDetails.ipAddress
               }
             }
@@ -466,26 +466,26 @@ const TimeshareScamChecklistPage = () => {
 
       // Only attempt to sync with Google Sheets if we're in production
       if (window.location.hostname !== 'localhost') {
-        try {
-          console.log('Syncing with Google Sheets...');
-          const sheetResponse = await fetch('/.netlify/functions/sync-timeshare-checklist', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          });
+      try {
+        console.log('Syncing with Google Sheets...');
+        const sheetResponse = await fetch('/.netlify/functions/sync-timeshare-checklist', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
 
-          if (!sheetResponse.ok) {
+        if (!sheetResponse.ok) {
             console.warn('Google Sheets sync skipped:', sheetResponse.status);
-          } else {
+        } else {
             try {
-              const syncResult = await sheetResponse.json();
-              console.log('Google Sheets sync successful:', syncResult);
+          const syncResult = await sheetResponse.json();
+          console.log('Google Sheets sync successful:', syncResult);
             } catch (parseError) {
               console.warn('Could not parse Google Sheets response:', parseError);
             }
-          }
-        } catch (sheetError) {
+        }
+      } catch (sheetError) {
           console.warn('Google Sheets sync skipped:', sheetError);
         }
       }
@@ -493,37 +493,37 @@ const TimeshareScamChecklistPage = () => {
       // Attempt to send notification through Brevo
       let emailSent = false;
       try {
-        const userResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
-          method: 'POST',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'api-key': import.meta.env.VITE_BREVO_API_KEY
+      const userResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'api-key': import.meta.env.VITE_BREVO_API_KEY
+        },
+        body: JSON.stringify({
+          sender: {
+            name: 'ePublic Safety Foundation',
+            email: 'info@epublicsf.org'
           },
-          body: JSON.stringify({
-            sender: {
-              name: 'ePublic Safety Foundation',
-              email: 'info@epublicsf.org'
-            },
-            to: [{ email: formData.email }],
-            templateId: 9,
-            params: {
-              Name: formData.fullName,
-              Email: formData.email,
-              'Download Time': downloadTime,
-              'Newsletter Consent': formData.newsletterConsent ? 'Yes' : 'No',
-              'Lead Source': 'Timeshare Checklist Landing Page',
-              City: formData.metaDetails.city,
-              Region: formData.metaDetails.region,
-              Country: formData.metaDetails.country,
-              'Ip Address': formData.metaDetails.ipAddress,
-              Browser: formData.metaDetails.browser,
-              'Device Type': formData.metaDetails.deviceType,
-              'Screen Resolution': formData.metaDetails.screenResolution,
-              TimeZone: formData.metaDetails.timeZone
-            }
-          })
-        });
+          to: [{ email: formData.email }],
+          templateId: 9,
+          params: {
+            Name: formData.fullName,
+            Email: formData.email,
+            'Download Time': downloadTime,
+            'Newsletter Consent': formData.newsletterConsent ? 'Yes' : 'No',
+            'Lead Source': 'Timeshare Checklist Landing Page',
+            City: formData.metaDetails.city,
+            Region: formData.metaDetails.region,
+            Country: formData.metaDetails.country,
+            'Ip Address': formData.metaDetails.ipAddress,
+            Browser: formData.metaDetails.browser,
+            'Device Type': formData.metaDetails.deviceType,
+            'Screen Resolution': formData.metaDetails.screenResolution,
+            TimeZone: formData.metaDetails.timeZone
+          }
+        })
+      });
 
         if (userResponse.ok) {
           emailSent = true;
@@ -536,7 +536,7 @@ const TimeshareScamChecklistPage = () => {
           console.warn('Email sending blocked - possibly by an ad blocker');
         } else {
           console.warn('Email sending failed:', error);
-        }
+      }
       }
 
       // Show appropriate success message

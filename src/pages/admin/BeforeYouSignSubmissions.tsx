@@ -373,8 +373,8 @@ const BeforeYouSignSubmissions: React.FC = () => {
       for (const batch of idBatches) {
         const batchIds = batch.map(record => record.id);
         const { error: deleteError } = await supabase
-          .from('before_you_sign_submissions')
-          .delete()
+        .from('before_you_sign_submissions')
+        .delete()
           .in('id', batchIds);
 
         if (deleteError) {
@@ -418,16 +418,20 @@ const BeforeYouSignSubmissions: React.FC = () => {
       console.log('Sync response data:', responseData);
 
       if (!response.ok) {
-        throw new Error(responseData.error || 'Failed to sync with Google Sheets');
+        // Extract detailed error message from the response
+        const errorMessage = responseData.details || responseData.error || 'Failed to sync with Google Sheets';
+        throw new Error(errorMessage);
       }
 
-      // Refresh the submissions data
+      // Even if there are no submissions to sync, this is still a success
       await fetchSubmissions();
       setSyncSuccess(true);
       console.log('Sync completed successfully:', responseData);
     } catch (err: any) {
       console.error('Sync error:', err);
-      setSyncError(err.message || 'Failed to sync with Google Sheets');
+      // Show the full error details to help with debugging
+      const errorMessage = err.message || 'Failed to sync with Google Sheets';
+      setSyncError(`Sync failed: ${errorMessage}`);
     } finally {
       setSyncing(false);
     }
@@ -456,6 +460,7 @@ const BeforeYouSignSubmissions: React.FC = () => {
                 onClick={() => fetchSubmissions(true)}
                 variant="contained"
                 sx={{ 
+                  mr: 1,
                   backgroundColor: '#01BD9B',
                   color: '#FFFFFF',
                   '&:hover': {
@@ -471,7 +476,7 @@ const BeforeYouSignSubmissions: React.FC = () => {
                 variant="contained"
                 startIcon={<FileDownloadIcon />}
                 sx={{ 
-                  ml: 1,
+                  mr: 1,
                   backgroundColor: '#4CAF50',
                   color: '#FFFFFF',
                   '&:hover': {
@@ -482,12 +487,28 @@ const BeforeYouSignSubmissions: React.FC = () => {
                 Export as CSV
               </Button>
 
+              <Button
+                onClick={handleSync}
+                variant="contained"
+                startIcon={<SyncIcon />}
+                disabled={syncing}
+                sx={{ 
+                  mr: 1,
+                  backgroundColor: '#2196F3',
+                  color: '#FFFFFF',
+                  '&:hover': {
+                    backgroundColor: '#1976D2'
+                  }
+                }}
+              >
+                {syncing ? 'Syncing...' : 'Sync with Google Sheets'}
+              </Button>
+
               {submissions.length > 0 && (
                 <Button
                   variant="contained"
                   color="error"
                   onClick={() => setDeleteAllDialogOpen(true)}
-                  sx={{ ml: 1 }}
                 >
                   Delete All
                 </Button>
@@ -554,13 +575,18 @@ const BeforeYouSignSubmissions: React.FC = () => {
                     submissions.map((submission) => (
                       <TableRow key={submission.id}>
                         <TableCell>
-                          {new Date(submission.created_at).toLocaleDateString()}
+                          {submission.created_date || 'N/A'}
                         </TableCell>
                         <TableCell>{submission.full_name}</TableCell>
                         <TableCell>{submission.email}</TableCell>
                         <TableCell>
                           {submission.created_date && submission.created_time
-                            ? `${submission.created_date} ${submission.created_time}`
+                            ? `${submission.created_date} ${new Date(`2000-01-01 ${submission.created_time}`).toLocaleString('en-US', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit',
+                                hour12: true
+                              })}`
                             : 'N/A'}
                         </TableCell>
                         <TableCell>{submission.newsletter_consent ? 'Yes' : 'No'}</TableCell>

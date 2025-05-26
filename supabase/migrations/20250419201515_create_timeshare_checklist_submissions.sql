@@ -34,10 +34,16 @@ CREATE TABLE IF NOT EXISTS timeshare_checklist_submissions (
 -- Set up RLS (Row Level Security)
 ALTER TABLE timeshare_checklist_submissions ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Enable insert for authenticated users only" ON timeshare_checklist_submissions;
+DROP POLICY IF EXISTS "Enable insert for all users" ON timeshare_checklist_submissions;
+DROP POLICY IF EXISTS "Enable read access for authenticated users only" ON timeshare_checklist_submissions;
+DROP POLICY IF EXISTS "Enable delete for authenticated users only" ON timeshare_checklist_submissions;
+
 -- Create policies
-CREATE POLICY "Enable insert for authenticated users only" 
+CREATE POLICY "Enable insert for all users" 
     ON timeshare_checklist_submissions FOR INSERT 
-    TO authenticated 
+    TO authenticated, anon
     WITH CHECK (true);
 
 CREATE POLICY "Enable read access for authenticated users only" 

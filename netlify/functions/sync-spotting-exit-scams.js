@@ -33,44 +33,26 @@ exports.handler = async function(event) {
       process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
-    // Get unsynced submissions from Supabase
-    console.log('Fetching unsynced submissions from Supabase...');
+    // Get ALL submissions from Supabase (not just unsynced ones)
+    console.log('Fetching all submissions from Supabase...');
     const { data: submissions, error: supabaseError } = await supabase
       .from('spotting_exit_scams_submissions')
       .select('*')
-      .is('synced_at', null)
-      .order('created_at', { ascending: true });
+      .order('created_date', { ascending: false })
+      .order('created_time', { ascending: false });
 
     if (supabaseError) {
       console.error('Supabase error:', supabaseError);
       throw new Error(`Supabase error: ${supabaseError.message}`);
     }
 
-    if (!submissions || submissions.length === 0) {
-      console.log('No new submissions to sync');
-      return {
-        statusCode: 200,
-        body: JSON.stringify({
-          message: 'No new submissions to sync',
-          details: {
-            totalSubmissions: 0,
-            syncedRows: 0
-          }
-        })
-      };
-    }
-
-    console.log(`Found ${submissions.length} unsynced submissions`);
+    console.log(`Found ${submissions?.length || 0} total submissions`);
 
     // Initialize Google Sheets
     console.log('Initializing Google Sheets client...');
     const serviceAccount = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
     const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID;
     const SHEET_NAME = 'Spotting Exit Scams';
-
-    console.log('Service account email:', serviceAccount.client_email);
-    console.log('Spreadsheet ID:', SPREADSHEET_ID);
-    console.log('Sheet name:', SHEET_NAME);
 
     const auth = new google.auth.GoogleAuth({
       credentials: serviceAccount,
@@ -98,86 +80,151 @@ exports.handler = async function(event) {
     if (!sheet) {
       throw new Error(`Sheet "${SHEET_NAME}" not found in spreadsheet`);
     }
-    const sheetId = sheet.properties.sheetId;
 
-    // Prepare all rows
+    // Clear existing data (except header)
+    console.log('Clearing existing data...');
+    await sheets.spreadsheets.values.clear({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_NAME}!A2:M`,
+    });
+
+    // Set up headers if sheet is empty
+    const headers = [
+      'Date',
+      'Time',
+      'Name',
+      'Email',
+      'Consent',
+      'City',
+      'Region',
+      'Country',
+      'IP Address',
+      'Browser',
+      'Device',
+      'Resolution',
+      'Timezone'
+    ];
+
+    // Check if headers exist
+    const headerResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_NAME}!A1:M1`,
+    });
+
+    if (!headerResponse.data.values) {
+      // Add headers if they don't exist
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${SHEET_NAME}!A1:M1`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+          values: [headers]
+        }
+      });
+    }
+
+    // Prepare rows for sync
     console.log('Preparing rows for sync...');
     const rows = submissions.map(submission => {
-      const estDate = new Date(submission.created_at);
-      
-      const dateStr = estDate.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        timeZone: 'America/New_York'
-      });
-      
-      const timeStr = estDate.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true,
-        timeZone: 'America/New_York'
-      });
-
       return [
-        dateStr,
-        timeStr,
+        submission.created_date || 'N/A',
+        submission.created_time || 'N/A',
         submission.full_name,
         submission.email,
         submission.newsletter_consent ? 'Yes' : 'No',
-        submission.meta_details?.city || 'N/A',
-        submission.meta_details?.region || 'N/A',
-        submission.meta_details?.country || 'N/A',
-        submission.meta_details?.ip_address || 'N/A',
-        submission.meta_details?.browser || 'N/A',
-        submission.meta_details?.device_type || 'N/A',
-        submission.meta_details?.screen_resolution || 'N/A',
-        submission.meta_details?.timezone || 'N/A'
+        submission.meta_details?.location?.city || 'N/A',
+        submission.meta_details?.location?.region || 'N/A',
+        submission.meta_details?.location?.country || 'N/A',
+        submission.meta_details?.location?.ip_address || 'N/A',
+        submission.meta_details?.device?.browser || 'N/A',
+        submission.meta_details?.device?.device_type || 'N/A',
+        submission.meta_details?.device?.screen_resolution || 'N/A',
+        submission.meta_details?.device?.timezone || 'N/A'
       ];
     });
 
-    console.log(`Prepared ${rows.length} rows for sync`);
+    if (rows.length > 0) {
+      // Write all rows
+      console.log('Writing rows to sheet...');
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${SHEET_NAME}!A2:M${rows.length + 1}`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+          values: rows
+        }
+      });
 
-    // Append all rows
-    console.log('Appending rows to sheet...');
-    const appendResponse = await sheets.spreadsheets.values.append({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A2:M`,
-      valueInputOption: 'USER_ENTERED',
-      insertDataOption: 'INSERT_ROWS',
-      requestBody: {
-        values: rows
-      }
-    });
+      // Apply formatting
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: SPREADSHEET_ID,
+        requestBody: {
+          requests: [
+            // Header formatting
+            {
+              repeatCell: {
+                range: {
+                  sheetId: sheet.properties.sheetId,
+                  startRowIndex: 0,
+                  endRowIndex: 1,
+                  startColumnIndex: 0,
+                  endColumnIndex: 13
+                },
+                cell: {
+                  userEnteredFormat: {
+                    backgroundColor: { red: 0.9, green: 0.9, blue: 0.9 },
+                    textFormat: { bold: true },
+                    horizontalAlignment: 'CENTER',
+                    verticalAlignment: 'MIDDLE'
+                  }
+                },
+                fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)'
+              }
+            },
+            // Data cell formatting
+            {
+              repeatCell: {
+                range: {
+                  sheetId: sheet.properties.sheetId,
+                  startRowIndex: 1,
+                  startColumnIndex: 0,
+                  endColumnIndex: 13
+                },
+                cell: {
+                  userEnteredFormat: {
+                    horizontalAlignment: 'LEFT',
+                    verticalAlignment: 'MIDDLE',
+                    padding: { top: 2, right: 3, bottom: 2, left: 3 }
+                  }
+                },
+                fields: 'userEnteredFormat(horizontalAlignment,verticalAlignment,padding)'
+              }
+            }
+          ]
+        }
+      });
+    }
 
-    console.log('Append response:', appendResponse.data);
-
-    // Mark submissions as synced
-    console.log('Marking submissions as synced...');
+    // Mark all submissions as synced
+    console.log('Marking all submissions as synced...');
     const now = new Date().toISOString();
-    const submissionIds = submissions.map(s => s.id);
-    
     const { error: updateError } = await supabase
       .from('spotting_exit_scams_submissions')
       .update({ synced_at: now })
-      .in('id', submissionIds);
+      .is('synced_at', null);
 
     if (updateError) {
       console.error('Error marking submissions as synced:', updateError);
-      throw new Error(`Failed to mark submissions as synced: ${updateError.message}`);
+      // Don't throw error here as the sync was successful
     }
 
-    console.log('Sync completed successfully');
     return {
       statusCode: 200,
       body: JSON.stringify({
         message: 'Sync completed successfully',
         details: {
           totalSubmissions: submissions.length,
-          syncedRows: rows.length,
-          spreadsheetId: SPREADSHEET_ID,
-          sheetName: SHEET_NAME
+          syncedRows: rows.length
         }
       })
     };

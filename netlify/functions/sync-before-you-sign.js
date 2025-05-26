@@ -33,25 +33,27 @@ exports.handler = async function(event) {
       process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
-    // Get unsynced submissions from Supabase
-    console.log('Fetching unsynced submissions from Supabase...');
+    // Get all submissions from Supabase (not just unsynced ones)
+    console.log('Fetching all submissions from Supabase...');
     const { data: submissions, error: supabaseError } = await supabase
       .from('before_you_sign_submissions')
       .select('*')
-      .is('synced_at', null)
-      .order('created_at', { ascending: true });
+      .order('created_date', { ascending: false })
+      .order('created_time', { ascending: false });
 
     if (supabaseError) {
       console.error('Supabase error:', supabaseError);
       throw new Error(`Supabase error: ${supabaseError.message}`);
     }
 
+    console.log('Raw submissions from database:', JSON.stringify(submissions, null, 2));
+
     if (!submissions || submissions.length === 0) {
-      console.log('No new submissions to sync');
+      console.log('No submissions to sync');
       return {
         statusCode: 200,
         body: JSON.stringify({
-          message: 'No new submissions to sync',
+          message: 'No submissions to sync',
           details: {
             totalSubmissions: 0,
             syncedRows: 0
@@ -60,7 +62,7 @@ exports.handler = async function(event) {
       };
     }
 
-    console.log(`Found ${submissions.length} unsynced submissions`);
+    console.log(`Found ${submissions.length} total submissions`);
 
     // Initialize Google Sheets
     console.log('Initializing Google Sheets client...');
@@ -100,73 +102,137 @@ exports.handler = async function(event) {
     }
     const sheetId = sheet.properties.sheetId;
 
-    // Prepare all rows
-    console.log('Preparing rows for sync...');
-    const rows = submissions.map(submission => {
-      const estDate = new Date(submission.created_at);
-      
-      const dateStr = estDate.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        timeZone: 'America/New_York'
-      });
-      
-      const timeStr = estDate.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true,
-        timeZone: 'America/New_York'
-      });
-
-      return [
-        dateStr,
-        timeStr,
-        submission.full_name,
-        submission.email,
-        submission.newsletter_consent ? 'Yes' : 'No',
-        submission.meta_details?.city || 'N/A',
-        submission.meta_details?.region || 'N/A',
-        submission.meta_details?.country || 'N/A',
-        submission.meta_details?.ip_address || 'N/A',
-        submission.meta_details?.browser || 'N/A',
-        submission.meta_details?.device_type || 'N/A',
-        submission.meta_details?.screen_resolution || 'N/A',
-        submission.meta_details?.timezone || 'N/A'
-      ];
+    // Clear entire sheet including headers
+    console.log('Clearing sheet...');
+    await sheets.spreadsheets.values.clear({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_NAME}!A1:M`,
     });
 
-    console.log(`Prepared ${rows.length} rows for sync`);
+    // Define headers
+    const headers = [
+      'Date',
+      'Time',
+      'Full Name',
+      'Email',
+      'Newsletter Consent',
+      'City',
+      'Region',
+      'Country',
+      'IP Address',
+      'Browser',
+      'Device Type',
+      'Screen Resolution',
+      'Timezone'
+    ];
 
-    // Append all rows
-    console.log('Appending rows to sheet...');
-    const appendResponse = await sheets.spreadsheets.values.append({
+    // Prepare all rows starting with headers
+    console.log('Preparing rows for sync...');
+    const rows = [
+      headers,
+      ...submissions.map(submission => {
+        console.log('Processing submission:', submission);
+        
+        // Use created_date directly
+        const dateStr = submission.created_date || new Date(submission.created_at).toLocaleString('en-US', {
+          timeZone: 'America/New_York',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        });
+
+        // Use created_time directly or format from created_at
+        const timeStr = submission.created_time || new Date(submission.created_at).toLocaleString('en-US', {
+          timeZone: 'America/New_York',
+          hour: 'numeric',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true
+        });
+
+        const row = [
+          dateStr,
+          timeStr,
+          submission.full_name,
+          submission.email,
+          submission.newsletter_consent ? 'Yes' : 'No',
+          submission.meta_details?.location?.city || 'N/A',
+          submission.meta_details?.location?.region || 'N/A',
+          submission.meta_details?.location?.country || 'N/A',
+          submission.meta_details?.location?.ip_address || 'N/A',
+          submission.meta_details?.device?.browser || 'N/A',
+          submission.meta_details?.device?.device_type || 'N/A',
+          submission.meta_details?.device?.screen_resolution || 'N/A',
+          submission.meta_details?.device?.timezone || 'N/A'
+        ];
+
+        console.log('Generated row:', row);
+        return row;
+      })
+    ];
+
+    console.log(`Prepared ${rows.length} rows for sync (including headers)`);
+    console.log('All rows:', JSON.stringify(rows, null, 2));
+
+    // Update with all rows including headers
+    console.log('Updating sheet with all data...');
+    const updateResponse = await sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A2:M`,
+      range: `${SHEET_NAME}!A1:M`,
       valueInputOption: 'USER_ENTERED',
-      insertDataOption: 'INSERT_ROWS',
       requestBody: {
         values: rows
       }
     });
 
-    console.log('Append response:', appendResponse.data);
-
-    // Mark submissions as synced
-    console.log('Marking submissions as synced...');
-    const now = new Date().toISOString();
-    const submissionIds = submissions.map(s => s.id);
-    
-    const { error: updateError } = await supabase
-      .from('before_you_sign_submissions')
-      .update({ synced_at: now })
-      .in('id', submissionIds);
-
-    if (updateError) {
-      console.error('Error marking submissions as synced:', updateError);
-      throw new Error(`Failed to mark submissions as synced: ${updateError.message}`);
-    }
+    // Apply formatting
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SPREADSHEET_ID,
+      requestBody: {
+        requests: [
+          // Header formatting
+          {
+            repeatCell: {
+              range: {
+                sheetId: sheet.properties.sheetId,
+                startRowIndex: 0,
+                endRowIndex: 1,
+                startColumnIndex: 0,
+                endColumnIndex: 13
+              },
+              cell: {
+                userEnteredFormat: {
+                  backgroundColor: { red: 0.9, green: 0.9, blue: 0.9 },
+                  textFormat: { bold: true },
+                  horizontalAlignment: 'CENTER',
+                  verticalAlignment: 'MIDDLE'
+                }
+              },
+              fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)'
+            }
+          },
+          // Data cell formatting
+          {
+            repeatCell: {
+              range: {
+                sheetId: sheet.properties.sheetId,
+                startRowIndex: 1,
+                startColumnIndex: 0,
+                endColumnIndex: 13
+              },
+              cell: {
+                userEnteredFormat: {
+                  horizontalAlignment: 'LEFT',
+                  verticalAlignment: 'MIDDLE',
+                  padding: { top: 2, right: 3, bottom: 2, left: 3 }
+                }
+              },
+              fields: 'userEnteredFormat(horizontalAlignment,verticalAlignment,padding)'
+            }
+          }
+        ]
+      }
+    });
 
     console.log('Sync completed successfully');
     return {
@@ -175,9 +241,7 @@ exports.handler = async function(event) {
         message: 'Sync completed successfully',
         details: {
           totalSubmissions: submissions.length,
-          syncedRows: rows.length,
-          spreadsheetId: SPREADSHEET_ID,
-          sheetName: SHEET_NAME
+          syncedRows: rows.length - 1 // Subtract 1 to not count headers
         }
       })
     };

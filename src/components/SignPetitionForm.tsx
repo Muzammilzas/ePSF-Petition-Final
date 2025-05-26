@@ -8,6 +8,7 @@ import {
   Container,
   Alert,
   LinearProgress,
+  Grid,
 } from '@mui/material';
 import { GoogleReCaptchaProvider, useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 import { useParams, Link, useNavigate } from 'react-router-dom';
@@ -295,14 +296,22 @@ const SignPetitionFormContent: React.FC = () => {
   return (
     <Container maxWidth="md">
       <Paper elevation={3} sx={{ p: 4, mt: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom align="center">
-          Sign the Petition
-        </Typography>
-        
         {currentPetition ? (
           <>
+            <Typography variant="h4" gutterBottom align="center" sx={{ color: '#01BD9B', fontWeight: 'bold', mb: 3 }}>
+              Take a Stand Against Timeshare Abuse
+            </Typography>
+
             <Typography variant="h5" gutterBottom align="center" color="primary">
               {currentPetition.title}
+            </Typography>
+
+            <Typography variant="h6" gutterBottom align="center" sx={{ color: '#555', mb: 4 }}>
+              Demand stronger protections from misleading contracts, shady sales tactics, and unexpected fees that trap families in unfair deals.
+            </Typography>
+
+            <Typography variant="h4" component="h1" gutterBottom align="center">
+              Sign the Petition
             </Typography>
 
             <Typography variant="body1" paragraph>
@@ -336,26 +345,44 @@ const SignPetitionFormContent: React.FC = () => {
           </Box>
         ) : (
           <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
             <TextField
               fullWidth
               label="First Name"
               name="first_name"
               value={formData.first_name}
               onChange={handleChange}
-              margin="normal"
               required
               disabled={loading}
-            />
+                  variant="outlined"
+                  size="small"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      backgroundColor: '#fff',
+                    }
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
             <TextField
               fullWidth
               label="Last Name"
               name="last_name"
               value={formData.last_name}
               onChange={handleChange}
-              margin="normal"
               required
               disabled={loading}
-            />
+                  variant="outlined"
+                  size="small"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      backgroundColor: '#fff',
+                    }
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
             <TextField
               fullWidth
               label="Email"
@@ -363,20 +390,36 @@ const SignPetitionFormContent: React.FC = () => {
               type="email"
               value={formData.email}
               onChange={handleChange}
-              margin="normal"
               required
               disabled={loading}
-            />
+                  variant="outlined"
+                  size="small"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      backgroundColor: '#fff',
+                    }
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
             <TextField
               fullWidth
-              label="What is the name of your Timeshare?"
+                  label="Timeshare Name"
               name="timeshare_name"
               value={formData.timeshare_name}
               onChange={handleChange}
-              margin="normal"
               required
               disabled={loading}
-            />
+                  variant="outlined"
+                  size="small"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      backgroundColor: '#fff',
+                    }
+                  }}
+                />
+              </Grid>
+            </Grid>
 
             <Button
               type="submit"
@@ -384,7 +427,14 @@ const SignPetitionFormContent: React.FC = () => {
               color="primary"
               fullWidth
               disabled={loading}
-              sx={{ mt: 3, mb: 2 }}
+              sx={{ 
+                mt: 3, 
+                mb: 2,
+                bgcolor: '#01BD9B',
+                '&:hover': {
+                  bgcolor: '#01a989'
+                }
+              }}
             >
               {loading ? 'Signing...' : 'Sign Petition'}
             </Button>
@@ -394,6 +444,22 @@ const SignPetitionFormContent: React.FC = () => {
             <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 2 }}>
               By signing, you're joining our movement to make a difference.
               This site is protected by reCAPTCHA.
+            </Typography>
+            
+            <Typography 
+              variant="h6" 
+              align="center" 
+              sx={{ 
+                mt: 4, 
+                mb: 3, 
+                color: '#01BD9B',
+                fontStyle: 'italic',
+                fontWeight: 500,
+                maxWidth: '90%',
+                mx: 'auto'
+              }}
+            >
+              "Everyone deserves transparency, honesty, and respect when making vacation investments. Let's hold the timeshare industry to higher standards."
             </Typography>
             
             <Box sx={{ mt: 4, p: 2, bgcolor: 'background.paper', border: '1px solid #e0e0e0', borderRadius: 1 }}>

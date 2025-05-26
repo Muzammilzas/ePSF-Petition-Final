@@ -38,6 +38,7 @@ interface FormSubmission {
   full_name: string;
   email: string;
   created_date: string;
+  created_time: string;
   newsletter_consent: boolean;
   meta_details: {
     user_info?: {
@@ -142,15 +143,33 @@ const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
 const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, submission }) => {
   if (!submission) return null;
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZoneName: 'short',
-    });
+  const formatDate = (dateStr: string) => {
+    try {
+      // Parse MM/DD/YYYY format
+      const [month, day, year] = dateStr.split('/');
+      return `${month}/${day}/${year}`;
+    } catch (error) {
+      return dateStr;
+    }
+  };
+
+  const formatTime = (timeStr: string) => {
+    try {
+      // If it's a number, convert it to proper time format
+      if (!isNaN(Number(timeStr))) {
+        const date = new Date();
+        date.setHours(Math.floor(Number(timeStr)));
+        date.setMinutes((Number(timeStr) % 1) * 60);
+        return date.toLocaleString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        });
+      }
+      return timeStr;
+    } catch (error) {
+      return timeStr;
+    }
   };
 
   return (
@@ -170,7 +189,8 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, submission
             <Typography variant="h6" gutterBottom>User Information</Typography>
             <Typography><strong>Full Name:</strong> {submission.full_name}</Typography>
             <Typography><strong>Email:</strong> {submission.email}</Typography>
-            <Typography><strong>Submission Date:</strong> {submission.created_date || 'N/A'}</Typography>
+            <Typography><strong>Submission Date:</strong> {formatDate(submission.created_date)}</Typography>
+            <Typography><strong>Submission Time:</strong> {formatTime(submission.created_time)}</Typography>
             <Typography><strong>Newsletter Consent:</strong> {submission.newsletter_consent ? 'Yes' : 'No'}</Typography>
           </Grid>
 
@@ -213,6 +233,37 @@ const SpottingExitScamsSubmissions: React.FC = () => {
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [syncSuccess, setSyncSuccess] = useState(false);
+  const [deleteSuccess, setDeleteSuccess] = useState(false);
+  const [deleteMessage, setDeleteMessage] = useState('');
+
+  const formatDate = (dateStr: string) => {
+    try {
+      // Parse MM/DD/YYYY format
+      const [month, day, year] = dateStr.split('/');
+      return `${month}/${day}/${year}`;
+    } catch (error) {
+      return dateStr;
+    }
+  };
+
+  const formatTime = (timeStr: string) => {
+    try {
+      // If it's a number, convert it to proper time format
+      if (!isNaN(Number(timeStr))) {
+        const date = new Date();
+        date.setHours(Math.floor(Number(timeStr)));
+        date.setMinutes((Number(timeStr) % 1) * 60);
+        return date.toLocaleString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        });
+      }
+      return timeStr;
+    } catch (error) {
+      return timeStr;
+    }
+  };
 
   const fetchSubmissions = async (forceRefresh = false) => {
     setLoading(true);
@@ -225,7 +276,7 @@ const SpottingExitScamsSubmissions: React.FC = () => {
       const timestamp = new Date().getTime();
       const { data, error: fetchError } = await supabase
         .from('spotting_exit_scams_submissions')
-        .select('id, full_name, email, created_date, newsletter_consent, meta_details')
+        .select('id, full_name, email, created_date, created_time, newsletter_consent, meta_details')
         .order('created_date', { ascending: false })
         .limit(1000) // Add limit to prevent infinite results
         .range(0, 999); // Add range to force fresh data
@@ -277,52 +328,27 @@ const SpottingExitScamsSubmissions: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
+      setDeleteSuccess(false);
+      setDeleteMessage('');
       
       console.log('Starting deletion process...');
 
-      // Get all IDs first
-      const { data: ids, error: idError } = await supabase
-        .from('spotting_exit_scams_submissions')
-        .select('id');
+      // Call the RPC function to delete all records
+      const { data: deletedCount, error: deleteError } = await supabase
+        .rpc('delete_all_spotting_exit_scams_submissions');
 
-      if (idError) {
-        console.error('Error fetching IDs:', idError);
-        throw idError;
+      if (deleteError) {
+        console.error('Error in delete operation:', deleteError);
+        throw deleteError;
       }
 
-      if (!ids || ids.length === 0) {
-        console.log('No records to delete');
-        setDeleteAllDialogOpen(false);
-        return;
-      }
-
-      // Delete records in batches of 10
-      const batchSize = 10;
-      const idBatches = [];
-      for (let i = 0; i < ids.length; i += batchSize) {
-        idBatches.push(ids.slice(i, i + batchSize));
-      }
-
-      console.log(`Deleting ${ids.length} records in ${idBatches.length} batches`);
-
-      for (const batch of idBatches) {
-        const batchIds = batch.map(record => record.id);
-        const { error: deleteError } = await supabase
-          .from('spotting_exit_scams_submissions')
-          .delete()
-          .in('id', batchIds);
-
-        if (deleteError) {
-          console.error('Error deleting batch:', deleteError);
-          throw deleteError;
-        }
-      }
-
-      console.log('All batches deleted successfully');
+      console.log(`Successfully deleted ${deletedCount} records`);
       
       // Clear local state
       setSubmissions([]);
       setDeleteAllDialogOpen(false);
+      setDeleteSuccess(true);
+      setDeleteMessage(`Successfully deleted ${deletedCount} submissions`);
 
       // Refresh the data
       await fetchSubmissions(true);
@@ -374,6 +400,7 @@ const SpottingExitScamsSubmissions: React.FC = () => {
       'Email',
       'Newsletter Consent',
       'Submission Date',
+      'Submission Time',
       'Browser',
       'Device Type',
       'Screen Resolution',
@@ -390,6 +417,7 @@ const SpottingExitScamsSubmissions: React.FC = () => {
       submission.email,
       submission.newsletter_consent ? 'Yes' : 'No',
       submission.created_date || '',
+      submission.created_time || '',
       submission.meta_details?.device?.browser || '',
       submission.meta_details?.device?.device_type || '',
       submission.meta_details?.device?.screen_resolution || '',
@@ -545,6 +573,21 @@ const SpottingExitScamsSubmissions: React.FC = () => {
           </Alert>
         </Snackbar>
 
+        <Snackbar
+          open={deleteSuccess}
+          autoHideDuration={6000}
+          onClose={() => setDeleteSuccess(false)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <Alert 
+            onClose={() => setDeleteSuccess(false)} 
+            severity="success"
+            sx={{ width: '100%' }}
+          >
+            {deleteMessage}
+          </Alert>
+        </Snackbar>
+
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
             <CircularProgress />
@@ -554,10 +597,12 @@ const SpottingExitScamsSubmissions: React.FC = () => {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Full Name</TableCell>
+                  <TableCell>Date</TableCell>
+                  <TableCell>Time</TableCell>
+                  <TableCell>Name</TableCell>
                   <TableCell>Email</TableCell>
-                  <TableCell>Submission Date</TableCell>
-                  <TableCell>Newsletter Consent</TableCell>
+                  <TableCell>Newsletter</TableCell>
+                  <TableCell>Location</TableCell>
                   <TableCell align="center">Actions</TableCell>
                 </TableRow>
               </TableHead>
@@ -569,12 +614,18 @@ const SpottingExitScamsSubmissions: React.FC = () => {
                 ) : (
                   submissions.map((submission) => (
                     <TableRow key={submission.id}>
+                      <TableCell>{formatDate(submission.created_date)}</TableCell>
+                      <TableCell>{formatTime(submission.created_time)}</TableCell>
                       <TableCell>{submission.full_name}</TableCell>
                       <TableCell>{submission.email}</TableCell>
-                      <TableCell>
-                        {submission.created_date || 'N/A'}
-                      </TableCell>
                       <TableCell>{submission.newsletter_consent ? 'Yes' : 'No'}</TableCell>
+                      <TableCell>
+                        {[
+                          submission.meta_details?.location?.city,
+                          submission.meta_details?.location?.region,
+                          submission.meta_details?.location?.country
+                        ].filter(Boolean).join(', ') || 'N/A'}
+                      </TableCell>
                       <TableCell align="center">
                         <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
                           <IconButton

@@ -370,16 +370,20 @@ const WhereScamsThriveSubmissions: React.FC = () => {
       console.log('Sync response data:', responseData);
 
       if (!response.ok) {
-        throw new Error(responseData.error || 'Failed to sync with Google Sheets');
+        // Extract detailed error message from the response
+        const errorMessage = responseData.details || responseData.error || 'Failed to sync with Google Sheets';
+        throw new Error(errorMessage);
       }
 
-      // Refresh the submissions data
+      // Even if there are no submissions to sync, this is still a success
       await fetchSubmissions();
       setSyncSuccess(true);
       console.log('Sync completed successfully:', responseData);
     } catch (err: any) {
       console.error('Sync error:', err);
-      setSyncError(err.message || 'Failed to sync with Google Sheets');
+      // Show the full error details to help with debugging
+      const errorMessage = err.message || 'Failed to sync with Google Sheets';
+      setSyncError(`Sync failed: ${errorMessage}`);
     } finally {
       setSyncing(false);
     }

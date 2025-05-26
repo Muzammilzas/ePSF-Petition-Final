@@ -19,6 +19,7 @@ import { motion } from 'framer-motion';
 import { fadeInUp, staggerContainer } from '../components/Home/common/animations';
 import { supabase } from '../services/supabase';
 import { GoogleReCaptchaProvider, useGoogleReCaptcha } from 'react-google-recaptcha-v3';
+import { collectMetaDetails } from '../utils/metaDetails';
 
 const getBrowserInfo = () => {
   const userAgent = navigator.userAgent;
@@ -56,86 +57,30 @@ const SpottingExitScamsPage = () => {
   const { executeRecaptcha } = useGoogleReCaptcha();
 
   useEffect(() => {
-    const getGeolocationData = async () => {
+    const getMetaDetails = async () => {
       try {
-        // Get IP address using ipify
-        const ipResponse = await fetch('https://api.ipify.org?format=json', {
-          mode: 'cors',
-          headers: {
-            'Accept': 'application/json'
-          }
-        });
-        const ipData = await ipResponse.json();
-        
-        // Get location data using ip-api (free, no key required)
-        try {
-          const geoResponse = await fetch(`https://ip-api.com/json/${ipData.ip}?fields=status,message,country,countryCode,region,regionName,city,lat,lon,timezone`, {
-            mode: 'cors',
-            headers: {
-              'Accept': 'application/json'
-            }
-          });
-          const geoData = await geoResponse.json();
-          
-          if (geoData.status === 'success') {
-            setLocationData({
-              ip_address: ipData.ip,
-              city: geoData.city || 'Not Available',
-              region: geoData.regionName || 'Not Available',
-              country: geoData.country || 'Not Available',
-              latitude: geoData.lat || null,
-              longitude: geoData.lon || null,
-              user_agent: navigator.userAgent,
-              browser: getBrowserInfo(),
-              device_type: getDeviceType(),
-              screen_resolution: `${window.screen.width}x${window.screen.height}`,
-              timezone: geoData.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
-              language: navigator.language
-            });
-            
-            console.log('Successfully collected location data:', geoData);
-          } else {
-            throw new Error('Geolocation failed');
-          }
-        } catch (geoError) {
-          console.error('Error getting location data:', geoError);
-          // Fallback to basic data if geolocation fails
-          setLocationData({
-            ip_address: ipData.ip,
-            city: 'Not Available',
-            region: 'Not Available',
-            country: 'Not Available',
-            latitude: null,
-            longitude: null,
-            user_agent: navigator.userAgent,
-            browser: getBrowserInfo(),
-            device_type: getDeviceType(),
-            screen_resolution: `${window.screen.width}x${window.screen.height}`,
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            language: navigator.language
-          });
-        }
+        const metaDetails = await collectMetaDetails();
+        setLocationData(metaDetails);
       } catch (error) {
-        console.error('Error getting IP address:', error);
-        // If everything fails, use basic device info
+        console.error('Error collecting meta details:', error);
         setLocationData({
+          browser: 'Not Available',
+          device_type: 'Not Available',
+          screen_resolution: 'Not Available',
+          user_agent: 'Not Available',
+          timezone: 'Not Available',
+          language: 'Not Available',
           ip_address: 'Not Available',
           city: 'Not Available',
           region: 'Not Available',
           country: 'Not Available',
           latitude: null,
-          longitude: null,
-          user_agent: navigator.userAgent,
-          browser: getBrowserInfo(),
-          device_type: getDeviceType(),
-          screen_resolution: `${window.screen.width}x${window.screen.height}`,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          language: navigator.language
+          longitude: null
         });
       }
     };
-    
-    getGeolocationData();
+
+    getMetaDetails();
   }, []);
 
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -307,195 +252,111 @@ const SpottingExitScamsPage = () => {
         return;
       }
 
-      console.log('Form Data being submitted:', formData);
-      console.log('Location Data:', locationData);
-
-      // First, add contact to Brevo contact list
-      const contactListData = {
-        email: formData.email,
-        attributes: {
-          NAME: formData.fullName,
-          EMAIL: formData.email,
-          NEWSLETTER_CONSENT: formData.newsletterConsent ? "Yes" : "No",
-          DOWNLOAD_TIME: new Date().toLocaleString('en-US', {
-            timeZone: 'America/New_York',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: true
-          }),
-          LEAD_SOURCE: 'Spotting Exit Scams Guide',
-          CITY: locationData?.city || 'Not Available',
-          REGION: locationData?.region || 'Not Available',
-          COUNTRY: locationData?.country || 'Not Available',
-          IP_ADDRESS: locationData?.ip_address || 'Not Available',
-          BROWSER: locationData?.browser || 'Not Available',
-          DEVICE_TYPE: locationData?.device_type || 'Not Available',
-          SCREEN_RESOLUTION: locationData?.screen_resolution || 'Not Available',
-          TIMEZONE: locationData?.timezone || 'Not Available'
-        },
-        listIds: [12],
-        updateEnabled: true,
-        emailBlacklisted: false
-      };
-
-      console.log('Contact List Data being sent to Brevo:', contactListData);
-
-      const contactResponse = await fetch('https://api.brevo.com/v3/contacts', {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'api-key': import.meta.env.VITE_BREVO_API_KEY
-        },
-        body: JSON.stringify(contactListData)
-      });
-
-      let contactResult;
-      try {
-        const responseText = await contactResponse.text();
-        contactResult = responseText ? JSON.parse(responseText) : {};
-        console.log('Brevo Contact API Response:', contactResult);
-        
-        // If we get a duplicate contact error, try to update the contact instead
-        if (!contactResponse.ok && contactResult.message?.includes('already exists')) {
-          // Try to update the existing contact
-          const updateResponse = await fetch(`https://api.brevo.com/v3/contacts/${formData.email}`, {
-            method: 'PUT',
-            headers: {
-              'Accept': 'application/json',
-              'Content-Type': 'application/json',
-              'api-key': import.meta.env.VITE_BREVO_API_KEY
-            },
-            body: JSON.stringify({
-              attributes: contactListData.attributes,
-              listIds: contactListData.listIds,
-              emailBlacklisted: false
-            })
-          });
-          
-          if (!updateResponse.ok) {
-            throw new Error('Failed to update existing contact');
-          }
-        } else if (!contactResponse.ok) {
-          throw new Error(contactResult.message || 'Failed to add contact');
-        }
-      } catch (error) {
-        console.error('Error parsing Brevo response:', error);
-        throw new Error('Failed to process contact');
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        throw new Error('Please enter a valid email address');
       }
 
-      // Save to Supabase
+      // Get fresh meta details
+      const metaDetails = await collectMetaDetails();
+      console.log('Collected meta details:', metaDetails);
+
+      // Create a date object in EST/EDT
+      const now = new Date();
+      
+      // Format date as MM/DD/YYYY
+      const dateFormatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/New_York',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+
+      const formattedDate = dateFormatter.format(now);
+
+      // Convert to EST/EDT time
+      const estTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+      const hours = estTime.getHours();
+      const minutes = estTime.getMinutes();
+      const seconds = estTime.getSeconds();
+      
+      // Convert to 12-hour format
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const hours12 = hours % 12 || 12; // Convert 0 to 12 for midnight
+      const formattedTime = `${hours12}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} ${ampm}`;
+
+      console.log('Formatted EST time:', formattedTime);
+
+      // Prepare Supabase data
       const supabaseData = {
         full_name: formData.fullName,
         email: formData.email,
         newsletter_consent: formData.newsletterConsent,
+        created_date: formattedDate,
+        created_time: formattedTime,
         meta_details: {
           user_info: {
             name: formData.fullName,
             email: formData.email,
-            download_time: new Date().toLocaleString('en-US', {
-              timeZone: 'America/New_York',
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit',
-              hour12: true
-            }),
+            download_time: formattedTime,
             newsletter_consent: formData.newsletterConsent
           },
           device: {
-            browser: locationData?.browser || 'Not Available',
-            device_type: locationData?.device_type || 'Not Available',
-            screen_resolution: locationData?.screen_resolution || 'Not Available',
-            user_agent: locationData?.user_agent || 'Not Available',
-            timezone: locationData?.timezone || 'Not Available',
-            language: locationData?.language || 'Not Available'
+            browser: metaDetails?.browser || 'Not Available',
+            device_type: metaDetails?.device_type || 'Not Available',
+            screen_resolution: metaDetails?.screen_resolution || 'Not Available',
+            user_agent: metaDetails?.user_agent || 'Not Available',
+            timezone: metaDetails?.timezone || 'Not Available',
+            language: metaDetails?.language || 'Not Available'
           },
           location: {
-            city: locationData?.city || 'Not Available',
-            region: locationData?.region || 'Not Available',
-            country: locationData?.country || 'Not Available',
-            latitude: locationData?.latitude || null,
-            longitude: locationData?.longitude || null,
-            ip_address: locationData?.ip_address || 'Not Available'
+            city: metaDetails?.city || 'Not Available',
+            region: metaDetails?.region || 'Not Available',
+            country: metaDetails?.country || 'Not Available',
+            latitude: metaDetails?.latitude || null,
+            longitude: metaDetails?.longitude || null,
+            ip_address: metaDetails?.ip_address || 'Not Available'
           }
         }
       };
 
       console.log('Data being sent to Supabase:', supabaseData);
 
-      // Try to insert into Supabase, but continue even if it fails
+      // Save to Supabase
+      const { error: supabaseError } = await supabase
+        .from('spotting_exit_scams_submissions')
+        .insert([supabaseData]);
+
+      if (supabaseError) {
+        console.error('Supabase Error:', supabaseError);
+        throw new Error('Failed to save your submission. Please try again.');
+      }
+
+      // Sync with Google Sheets
       try {
-        const { error: supabaseError } = await supabase
-          .from('spotting_exit_scams_submissions')
-          .insert([supabaseData]);
-
-        if (supabaseError) {
-          console.error('Supabase Error:', supabaseError);
-          // Continue with email sending even if Supabase fails
-        }
-
-        // Sync with Google Sheets
-        try {
-          console.log('Syncing with Google Sheets...');
-          const sheetResponse = await fetch('/.netlify/functions/sync-spotting-exit-scams', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          });
-
-          if (!sheetResponse.ok) {
-            const errorData = await sheetResponse.json();
-            console.error('Google Sheets sync failed:', errorData);
-            // Don't throw error here, continue with the rest of the submission
-          } else {
-            const syncResult = await sheetResponse.json();
-            console.log('Google Sheets sync successful:', syncResult);
+        console.log('Syncing with Google Sheets...');
+        const sheetResponse = await fetch('/.netlify/functions/sync-spotting-exit-scams', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
           }
-        } catch (sheetError) {
-          console.error('Error syncing with Google Sheets:', sheetError);
+        });
+
+        if (!sheetResponse.ok) {
+          const errorData = await sheetResponse.json();
+          console.error('Google Sheets sync failed:', errorData);
           // Don't throw error here, continue with the rest of the submission
+        } else {
+          const syncResult = await sheetResponse.json();
+          console.log('Google Sheets sync successful:', syncResult);
         }
-      } catch (error) {
-        console.error('Supabase Insert Error:', error);
-        // Continue with email sending even if Supabase fails
+      } catch (sheetError) {
+        console.error('Error syncing with Google Sheets:', sheetError);
+        // Don't throw error here, continue with the rest of the submission
       }
 
       // Send admin notification
-      const emailTemplateParams = {
-        name: formData.fullName,
-        email: formData.email,
-        downloadTime: new Date().toLocaleString('en-US', {
-          timeZone: 'America/New_York',
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: true
-        }),
-        newsletterConsent: formData.newsletterConsent ? "Yes" : "No",
-        leadSource: 'Spotting Exit Scams',
-        city: locationData?.city || 'Not Available',
-        region: locationData?.region || 'Not Available',
-        country: locationData?.country || 'Not Available',
-        ipAddress: locationData?.ip_address || 'Not Available',
-        browser: locationData?.browser || 'Not Available',
-        deviceType: locationData?.device_type || 'Not Available',
-        screenResolution: locationData?.screen_resolution || 'Not Available',
-        timeZone: locationData?.timezone || 'Not Available'
-      };
-
-      console.log('Email Template Params:', emailTemplateParams);
-
       const adminResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
         headers: {
@@ -510,18 +371,27 @@ const SpottingExitScamsPage = () => {
           },
           to: [{ email: 'zasprince007@gmail.com' }],
           templateId: 16,
-          params: emailTemplateParams
+          params: {
+            NAME: formData.fullName,
+            EMAIL: formData.email,
+            DOWNLOAD_TIME: formattedTime,
+            NEWSLETTER_CONSENT: formData.newsletterConsent ? "Yes" : "No",
+            LEAD_SOURCE: "Spotting Exit Scams Guide",
+            BROWSER: metaDetails?.browser || "Unknown",
+            DEVICE_TYPE: metaDetails?.device_type || "Unknown",
+            SCREEN_RESOLUTION: metaDetails?.screen_resolution || "Unknown",
+            TIMEZONE: metaDetails?.timezone || "Unknown",
+            IP_ADDRESS: metaDetails?.ip_address || "Unknown",
+            CITY: metaDetails?.city || "Unknown",
+            REGION: metaDetails?.region || "Unknown",
+            COUNTRY: metaDetails?.country || "Unknown"
+          }
         })
       });
 
-      let adminResult;
-      try {
-        const responseText = await adminResponse.text();
-        adminResult = responseText ? JSON.parse(responseText) : {};
-        console.log('Admin Email API Response:', adminResult);
-      } catch (error) {
-        console.error('Error parsing admin email response:', error);
-        adminResult = {};
+      if (!adminResponse.ok) {
+        console.error('Failed to send admin notification:', await adminResponse.json());
+        // Don't throw error here, continue with form submission
       }
 
       // Send user notification
@@ -539,18 +409,26 @@ const SpottingExitScamsPage = () => {
           },
           to: [{ email: formData.email }],
           templateId: 12,
-          params: emailTemplateParams
+          params: {
+            Name: formData.fullName,
+            Email: formData.email,
+            'Newsletter Consent': formData.newsletterConsent ? 'Yes' : 'No',
+            'Lead Source': 'Spotting Exit Scams Guide',
+            City: metaDetails?.city || 'Not Available',
+            Region: metaDetails?.region || 'Not Available',
+            Country: metaDetails?.country || 'Not Available',
+            'Ip Address': metaDetails?.ip_address || 'Not Available',
+            Browser: metaDetails?.browser || 'Not Available',
+            'Device Type': metaDetails?.device_type || 'Not Available',
+            'Screen Resolution': metaDetails?.screen_resolution || 'Not Available',
+            TimeZone: metaDetails?.timezone || 'Not Available'
+          }
         })
       });
 
-      let userResult;
-      try {
-        const responseText = await userResponse.text();
-        userResult = responseText ? JSON.parse(responseText) : {};
-        console.log('User Email API Response:', userResult);
-      } catch (error) {
-        console.error('Error parsing user email response:', error);
-        userResult = {};
+      if (!userResponse.ok) {
+        console.error('Failed to send user notification:', await userResponse.json());
+        throw new Error('Failed to send confirmation email');
       }
 
       setOpenSnackbar(true);

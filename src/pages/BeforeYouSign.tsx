@@ -281,6 +281,19 @@ const BeforeYouSignPage = () => {
         full_name: formData.fullName,
         email: formData.email,
         newsletter_consent: formData.newsletterConsent,
+        created_date: new Date().toLocaleString('en-US', {
+          timeZone: 'America/New_York',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        }).split(',')[0].trim(),
+        created_time: new Date().toLocaleString('en-US', {
+          timeZone: 'America/New_York',
+          hour: 'numeric',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true
+        }),
         meta_details: {
           user_info: {
             name: formData.fullName,

@@ -5,7 +5,9 @@ CREATE TABLE IF NOT EXISTS before_you_sign_submissions (
     newsletter_consent BOOLEAN DEFAULT false,
     meta_details JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW())
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()),
+    created_date TEXT,
+    created_time TEXT
 );
 
 -- Set up RLS (Row Level Security)
@@ -31,4 +33,8 @@ CREATE POLICY "Enable delete for authenticated users only"
 CREATE INDEX idx_before_you_sign_submissions_email ON before_you_sign_submissions(email);
 
 -- Create an index on created_at for faster sorting
-CREATE INDEX idx_before_you_sign_submissions_created_at ON before_you_sign_submissions(created_at); 
+CREATE INDEX idx_before_you_sign_submissions_created_at ON before_you_sign_submissions(created_at);
+
+-- Create indexes on created_date and created_time for faster sorting
+CREATE INDEX idx_before_you_sign_submissions_created_date ON before_you_sign_submissions(created_date);
+CREATE INDEX idx_before_you_sign_submissions_created_time ON before_you_sign_submissions(created_time); 

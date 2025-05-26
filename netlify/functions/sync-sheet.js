@@ -19,58 +19,85 @@ exports.handler = async function(event) {
   try {
     // Verify environment variables
     console.log('Verifying environment variables...');
-    if (!process.env.SUPABASE_URL) throw new Error('SUPABASE_URL is missing');
-    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error('SUPABASE_SERVICE_ROLE_KEY is missing');
-    if (!process.env.GOOGLE_SERVICE_ACCOUNT_JSON) throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON is missing');
-    if (!process.env.GOOGLE_SPREADSHEET_ID) throw new Error('GOOGLE_SPREADSHEET_ID is missing');
+    const requiredEnvVars = {
+      SUPABASE_URL: process.env.SUPABASE_URL,
+      SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+      GOOGLE_SERVICE_ACCOUNT_JSON: process.env.GOOGLE_SERVICE_ACCOUNT_JSON,
+      GOOGLE_SPREADSHEET_ID: process.env.GOOGLE_SPREADSHEET_ID
+    };
+
+    // Check each environment variable
+    Object.entries(requiredEnvVars).forEach(([key, value]) => {
+      if (!value) {
+        throw new Error(`${key} is missing`);
+      }
+      // Log first few characters of each env var to verify they're not empty
+      console.log(`${key} exists and starts with: ${value.substring(0, 10)}...`);
+    });
+
+    // Validate Google service account JSON
+    try {
+      const serviceAccount = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+      if (!serviceAccount.client_email || !serviceAccount.private_key) {
+        throw new Error('Invalid Google service account credentials - missing required fields');
+      }
+      console.log('Google service account JSON is valid');
+    } catch (parseError) {
+      throw new Error(`Invalid Google service account JSON: ${parseError.message}`);
+    }
 
     console.log('Environment variables verified');
 
-    // Initialize Supabase
+    // Initialize Supabase with additional options
     console.log('Initializing Supabase client...');
+    console.log('Supabase URL:', process.env.SUPABASE_URL);
     const supabase = createClient(
       process.env.SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
     );
 
-    // Get unsynced submissions from Supabase
-    console.log('Fetching unsynced submissions from Supabase...');
+    // Test Supabase connection
+    console.log('Testing Supabase connection...');
+    try {
+      const { data: testData, error: testError } = await supabase
+        .from('where_scams_thrive_submissions')
+        .select('count');
+
+      if (testError) {
+        throw new Error(`Supabase connection test failed: ${testError.message}`);
+      }
+      console.log('Supabase connection test successful');
+    } catch (testError) {
+      console.error('Supabase connection test error:', testError);
+      throw new Error(`Failed to connect to Supabase: ${testError.message}`);
+    }
+
+    // Get all submissions from Supabase (not just unsynced ones)
+    console.log('Fetching all submissions from Supabase...');
     const { data: submissions, error: supabaseError } = await supabase
       .from('where_scams_thrive_submissions')
       .select('*')
-      .is('synced_at', null)
-      .order('created_at', { ascending: true });
+      .order('created_date', { ascending: false })
+      .order('created_time', { ascending: false });
 
     if (supabaseError) {
       console.error('Supabase error:', supabaseError);
       throw new Error(`Supabase error: ${supabaseError.message}`);
     }
 
-    if (!submissions || submissions.length === 0) {
-      console.log('No new submissions to sync');
-      return {
-        statusCode: 200,
-        body: JSON.stringify({
-          message: 'No new submissions to sync',
-          details: {
-            totalSubmissions: 0,
-            syncedRows: 0
-          }
-        })
-      };
-    }
-
-    console.log(`Found ${submissions.length} unsynced submissions`);
+    console.log(`Found ${submissions?.length || 0} total submissions`);
 
     // Initialize Google Sheets
     console.log('Initializing Google Sheets client...');
     const serviceAccount = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
     const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID;
     const SHEET_NAME = 'Where Scam Thrive';
-
-    console.log('Service account email:', serviceAccount.client_email);
-    console.log('Spreadsheet ID:', SPREADSHEET_ID);
-    console.log('Sheet name:', SHEET_NAME);
 
     const auth = new google.auth.GoogleAuth({
       credentials: serviceAccount,
@@ -80,45 +107,31 @@ exports.handler = async function(event) {
     const client = await auth.getClient();
     const sheets = google.sheets({ version: 'v4', auth: client });
 
-    // First, get all sheets to verify our target sheet exists
-    console.log('Getting list of all sheets...');
+    // First, clear existing data (except header)
+    console.log('Clearing existing data...');
+    await sheets.spreadsheets.values.clear({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_NAME}!A2:M`,
+    });
+
+    // Get sheet ID for formatting
     const spreadsheet = await sheets.spreadsheets.get({
       spreadsheetId: SPREADSHEET_ID,
     });
     
-    const allSheets = spreadsheet.data.sheets.map(sheet => sheet.properties.title);
-    console.log('Available sheets:', allSheets);
-
-    if (!allSheets.includes(SHEET_NAME)) {
-      throw new Error(`Sheet "${SHEET_NAME}" not found. Available sheets: ${allSheets.join(', ')}`);
-    }
-
-    // Get sheet ID
     const sheet = spreadsheet.data.sheets.find(s => s.properties.title === SHEET_NAME);
     if (!sheet) {
       throw new Error(`Sheet "${SHEET_NAME}" not found in spreadsheet`);
     }
-    const sheetId = sheet.properties.sheetId;
 
     // Prepare all rows
     console.log('Preparing rows for sync...');
     const rows = submissions.map(submission => {
-      const estDate = new Date(submission.created_at);
-      
-      const dateStr = estDate.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        timeZone: 'America/New_York'
-      });
-      
-      const timeStr = estDate.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true,
-        timeZone: 'America/New_York'
-      });
+      // Use created_date directly
+      const dateStr = submission.created_date || 'N/A';
+
+      // Use created_time directly (it's already in HH:MM:SS format)
+      const timeStr = submission.created_time || 'N/A';
 
       return [
         dateStr,
@@ -139,34 +152,65 @@ exports.handler = async function(event) {
 
     console.log(`Prepared ${rows.length} rows for sync`);
 
-    // Append all rows
-    console.log('Appending rows to sheet...');
-    const appendResponse = await sheets.spreadsheets.values.append({
+    // Update with all rows
+    console.log('Updating sheet with all data...');
+    const updateResponse = await sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
       range: `${SHEET_NAME}!A2:M`,
       valueInputOption: 'USER_ENTERED',
-      insertDataOption: 'INSERT_ROWS',
       requestBody: {
         values: rows
       }
     });
 
-    console.log('Append response:', appendResponse.data);
-
-    // Mark submissions as synced
-    console.log('Marking submissions as synced...');
-    const now = new Date().toISOString();
-    const submissionIds = submissions.map(s => s.id);
-    
-    const { error: updateError } = await supabase
-      .from('where_scams_thrive_submissions')
-      .update({ synced_at: now })
-      .in('id', submissionIds);
-
-    if (updateError) {
-      console.error('Error marking submissions as synced:', updateError);
-      throw new Error(`Failed to mark submissions as synced: ${updateError.message}`);
-    }
+    // Apply formatting
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SPREADSHEET_ID,
+      requestBody: {
+        requests: [
+          // Header formatting
+          {
+            repeatCell: {
+              range: {
+                sheetId: sheet.properties.sheetId,
+                startRowIndex: 0,
+                endRowIndex: 1,
+                startColumnIndex: 0,
+                endColumnIndex: 13
+              },
+              cell: {
+                userEnteredFormat: {
+                  backgroundColor: { red: 0.9, green: 0.9, blue: 0.9 },
+                  textFormat: { bold: true },
+                  horizontalAlignment: 'CENTER',
+                  verticalAlignment: 'MIDDLE'
+                }
+              },
+              fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)'
+            }
+          },
+          // Data cell formatting
+          {
+            repeatCell: {
+              range: {
+                sheetId: sheet.properties.sheetId,
+                startRowIndex: 1,
+                startColumnIndex: 0,
+                endColumnIndex: 13
+              },
+              cell: {
+                userEnteredFormat: {
+                  horizontalAlignment: 'LEFT',
+                  verticalAlignment: 'MIDDLE',
+                  padding: { top: 2, right: 3, bottom: 2, left: 3 }
+                }
+              },
+              fields: 'userEnteredFormat(horizontalAlignment,verticalAlignment,padding)'
+            }
+          }
+        ]
+      }
+    });
 
     console.log('Sync completed successfully');
     return {
@@ -175,9 +219,7 @@ exports.handler = async function(event) {
         message: 'Sync completed successfully',
         details: {
           totalSubmissions: submissions.length,
-          syncedRows: rows.length,
-          spreadsheetId: SPREADSHEET_ID,
-          sheetName: SHEET_NAME
+          syncedRows: rows.length
         }
       })
     };
@@ -189,7 +231,7 @@ exports.handler = async function(event) {
       body: JSON.stringify({
         error: 'Sync failed',
         details: error.message,
-        stack: error.stack
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
       })
     };
   }
