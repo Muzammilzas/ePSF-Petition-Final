@@ -16,17 +16,18 @@ function gtag(...args: any[]) {
 
 // Initialize Google Analytics
 export const initializeGA = () => {
-  // Create and add the Google Analytics script
+  // Create and add the Google Analytics script for GTM
   const script1 = document.createElement('script');
   script1.async = true;
-  script1.src = 'https://www.googletagmanager.com/gtag/js?id=AW-10958199184';
+  script1.src = 'https://www.googletagmanager.com/gtag/js?id=GT-MRQKN668';
   
   const script2 = document.createElement('script');
   script2.innerHTML = `
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
-    gtag('config', 'AW-10958199184');
+    gtag('config', 'GT-MRQKN668');
+    gtag('config', 'G-0HD72NXL5V');
   `;
   
   // Add scripts to document head
@@ -37,7 +38,13 @@ export const initializeGA = () => {
 // Track page views
 export const trackPageView = (path: string) => {
   if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag('config', 'AW-10958199184', {
+    // Track in GTM
+    window.gtag('config', 'GT-MRQKN668', {
+      page_path: path,
+      send_page_view: true
+    });
+    // Track in GA4
+    window.gtag('config', 'G-0HD72NXL5V', {
       page_path: path,
       send_page_view: true
     });
@@ -47,10 +54,17 @@ export const trackPageView = (path: string) => {
 // Track button clicks
 export const trackButtonClick = (buttonName: string) => {
   if (typeof window !== 'undefined' && window.gtag) {
+    // Track in GTM
     window.gtag('event', 'click', {
       'event_category': 'button',
       'event_label': buttonName,
-      'send_to': 'AW-10958199184'
+      'send_to': 'GT-MRQKN668'
+    });
+    // Track in GA4
+    window.gtag('event', 'click', {
+      'event_category': 'button',
+      'event_label': buttonName,
+      'send_to': 'G-0HD72NXL5V'
     });
   }
 };
@@ -58,8 +72,15 @@ export const trackButtonClick = (buttonName: string) => {
 // Track petition signatures
 export const trackPetitionSignature = () => {
   if (typeof window !== 'undefined' && window.gtag) {
+    // Track in GTM
     window.gtag('event', 'conversion', {
-      'send_to': 'AW-10958199184/petition_signature'
+      'send_to': 'GT-MRQKN668/petition_signature'
+    });
+    // Track in GA4
+    window.gtag('event', 'conversion', {
+      'send_to': 'G-0HD72NXL5V',
+      'event_category': 'petition',
+      'event_label': 'signature'
     });
   }
 };
