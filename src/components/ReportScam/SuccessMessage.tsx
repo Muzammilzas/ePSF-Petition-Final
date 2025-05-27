@@ -7,15 +7,8 @@ const SuccessMessage: React.FC = () => {
   useEffect(() => {
     // Google Analytics event tracking
     if (typeof window !== 'undefined' && window.gtag) {
-      // Track in GTM
       window.gtag('event', 'conversion', {
-        'send_to': 'GT-MRQKN668',
-        'value': 1.0,
-        'currency': 'USD'
-      });
-      // Track in GA4
-      window.gtag('event', 'conversion', {
-        'send_to': 'G-0HD72NXL5V',
+        'send_to': 'G-4F6WJQT672',
         'event_category': 'form',
         'event_label': 'report_scam',
         'value': 1.0,
