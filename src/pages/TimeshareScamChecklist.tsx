@@ -289,100 +289,28 @@ const TimeshareScamChecklistPage = () => {
         timeZoneName: 'short'
       });
 
-      let brevoContactCreated = false;
-
-      // Try to add or update contact in Brevo (non-critical)
-      try {
-      const contactData = {
-        email: formData.email,
-        attributes: {
-          FIRSTNAME: formData.fullName.split(' ')[0],
-          LASTNAME: formData.fullName.split(' ').slice(1).join(' '),
-          EMAIL: formData.email,
-          NEWSLETTER_CONSENT: formData.newsletterConsent,
-          DOWNLOAD_TIME: downloadTime,
-          LEAD_SOURCE: 'Timeshare Checklist Landing Page',
-          CITY: formData.metaDetails.city,
-          REGION: formData.metaDetails.region,
-          COUNTRY: formData.metaDetails.country,
-          IP_ADDRESS: formData.metaDetails.ipAddress,
-          BROWSER: formData.metaDetails.browser,
-          DEVICE_TYPE: formData.metaDetails.deviceType,
-          SCREEN_RESOLUTION: formData.metaDetails.screenResolution,
-          TIMEZONE: 'America/New_York'
-        },
-        listIds: [9],
-        updateEnabled: true,
-        emailBlacklisted: false
-      };
-
-      // Try to create contact first
-      const contactResponse = await fetch('https://api.brevo.com/v3/contacts', {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'api-key': import.meta.env.VITE_BREVO_API_KEY
-        },
-        body: JSON.stringify(contactData)
-      });
-
-      let contactResult;
-        const responseText = await contactResponse.text();
-        contactResult = responseText ? JSON.parse(responseText) : {};
-        console.log('Brevo Contact API Response:', contactResult);
-        
-        // If we get a duplicate contact error, try to update the contact instead
-        if (!contactResponse.ok && contactResult.message?.includes('already exists')) {
-          // Try to update the existing contact
-          const updateResponse = await fetch(`https://api.brevo.com/v3/contacts/${formData.email}`, {
-            method: 'PUT',
-            headers: {
-              'Accept': 'application/json',
-              'Content-Type': 'application/json',
-              'api-key': import.meta.env.VITE_BREVO_API_KEY
-            },
-            body: JSON.stringify({
-              attributes: contactData.attributes,
-              listIds: contactData.listIds,
-              emailBlacklisted: false
-            })
-          });
-          
-          if (updateResponse.ok) {
-            brevoContactCreated = true;
-          } else {
-            console.warn('Failed to update existing contact');
-          }
-        } else if (contactResponse.ok) {
-          brevoContactCreated = true;
-        } else {
-          console.warn('Failed to add contact:', contactResult.message);
-        }
-      } catch (error) {
-        // Check if the error is due to being blocked
-        if (error instanceof TypeError && error.message === 'Failed to fetch') {
-          console.warn('Brevo contact creation blocked - possibly by an ad blocker');
-        } else {
-          console.warn('Error processing contact:', error);
-        }
-      }
-
       // Save to Supabase
       const { data: submissionData, error: submissionError } = await supabase
-        .from('timeshare_checklist_submissions')
+        .from('timeshare_scam_checklist')
         .insert([
           {
-          full_name: formData.fullName,
-          email: formData.email,
-          newsletter_consent: formData.newsletterConsent,
+            full_name: formData.fullName,
+            email: formData.email,
+            newsletter_consent: formData.newsletterConsent,
             created_date: new Date().toLocaleString('en-US', {
               timeZone: 'America/New_York',
               month: '2-digit',
               day: '2-digit',
               year: 'numeric'
             }),
-          meta_details: {
+            created_time: new Date().toLocaleString('en-US', {
+              timeZone: 'America/New_York',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+              hour12: true
+            }),
+            meta_details: {
               user_info: {
                 name: formData.fullName,
                 email: formData.email,
@@ -398,9 +326,9 @@ const TimeshareScamChecklistPage = () => {
                 language: navigator.language
               },
               location: {
-            city: formData.metaDetails.city,
-            region: formData.metaDetails.region,
-            country: formData.metaDetails.country,
+                city: formData.metaDetails.city,
+                region: formData.metaDetails.region,
+                country: formData.metaDetails.country,
                 ip_address: formData.metaDetails.ipAddress
               }
             }
@@ -415,135 +343,28 @@ const TimeshareScamChecklistPage = () => {
 
       console.log('Saved to Supabase:', submissionData);
 
-      // Send admin notification
-      const adminResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'api-key': import.meta.env.VITE_BREVO_API_KEY
-        },
-        body: JSON.stringify({
-          sender: {
-            name: 'ePublic Safety Foundation',
-            email: 'admin@epublicsf.org'
-          },
-          to: [{ email: 'zasprince007@gmail.com' }],
-          templateId: 13,
-          params: {
-            NAME: formData.fullName,
-            EMAIL: formData.email,
-            DOWNLOAD_TIME: new Date().toLocaleString('en-US', {
-              timeZone: 'America/New_York',
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit',
-              hour12: true
-            }),
-            NEWSLETTER_CONSENT: formData.newsletterConsent ? "Yes" : "No",
-            LEAD_SOURCE: "Timeshare Scam Checklist",
-            BROWSER: formData.metaDetails.browser || "Unknown",
-            DEVICE_TYPE: formData.metaDetails.deviceType || "Unknown",
-            SCREEN_RESOLUTION: formData.metaDetails.screenResolution || "Unknown",
-            TIMEZONE: formData.metaDetails.timeZone || "Unknown",
-            IP_ADDRESS: formData.metaDetails.ipAddress || "Unknown",
-            CITY: formData.metaDetails.city || "Unknown",
-            REGION: formData.metaDetails.region || "Unknown",
-            COUNTRY: formData.metaDetails.country || "Unknown"
-          }
-        })
-      });
-
-      if (!adminResponse.ok) {
-        console.error('Failed to send admin notification:', await adminResponse.json());
-        // Don't throw error, continue with form submission
-      } else {
-        console.log('Admin notification sent successfully');
-      }
-
-      // Only attempt to sync with Google Sheets if we're in production
-      if (window.location.hostname !== 'localhost') {
+      // Trigger Google Sheets sync
       try {
-        console.log('Syncing with Google Sheets...');
-        const sheetResponse = await fetch('/.netlify/functions/sync-timeshare-checklist', {
+        const syncResponse = await fetch('/.netlify/functions/sync-timeshare-checklist', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           }
         });
 
-        if (!sheetResponse.ok) {
-            console.warn('Google Sheets sync skipped:', sheetResponse.status);
+        if (!syncResponse.ok) {
+          console.warn('Google Sheets sync failed:', await syncResponse.text());
+          // Don't throw error, continue with form submission
         } else {
-            try {
-          const syncResult = await sheetResponse.json();
-          console.log('Google Sheets sync successful:', syncResult);
-            } catch (parseError) {
-              console.warn('Could not parse Google Sheets response:', parseError);
-            }
+          console.log('Google Sheets sync successful');
         }
-      } catch (sheetError) {
-          console.warn('Google Sheets sync skipped:', sheetError);
-        }
+      } catch (syncError) {
+        console.warn('Google Sheets sync error:', syncError);
+        // Don't throw error, continue with form submission
       }
 
-      // Attempt to send notification through Brevo
-      let emailSent = false;
-      try {
-      const userResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'api-key': import.meta.env.VITE_BREVO_API_KEY
-        },
-        body: JSON.stringify({
-          sender: {
-            name: 'ePublic Safety Foundation',
-            email: 'info@epublicsf.org'
-          },
-          to: [{ email: formData.email }],
-          templateId: 9,
-          params: {
-            Name: formData.fullName,
-            Email: formData.email,
-            'Download Time': downloadTime,
-            'Newsletter Consent': formData.newsletterConsent ? 'Yes' : 'No',
-            'Lead Source': 'Timeshare Checklist Landing Page',
-            City: formData.metaDetails.city,
-            Region: formData.metaDetails.region,
-            Country: formData.metaDetails.country,
-            'Ip Address': formData.metaDetails.ipAddress,
-            Browser: formData.metaDetails.browser,
-            'Device Type': formData.metaDetails.deviceType,
-            'Screen Resolution': formData.metaDetails.screenResolution,
-            TimeZone: formData.metaDetails.timeZone
-          }
-        })
-      });
-
-        if (userResponse.ok) {
-          emailSent = true;
-        } else {
-          console.warn('Email sending failed:', await userResponse.text());
-        }
-      } catch (error) {
-        // Check if the error is due to being blocked
-        if (error instanceof TypeError && error.message === 'Failed to fetch') {
-          console.warn('Email sending blocked - possibly by an ad blocker');
-        } else {
-          console.warn('Email sending failed:', error);
-      }
-      }
-
-      // Show appropriate success message
+      // Show success message
       setOpenSnackbar(true);
-      if (!emailSent || !brevoContactCreated) {
-        console.warn('Email service blocked - form submitted successfully but email delivery may be delayed');
-      }
 
       // Reset form
       setFormData({ 

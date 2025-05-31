@@ -79,7 +79,7 @@ const SpottingExitScamsPage = () => {
         });
       }
     };
-
+    
     getMetaDetails();
   }, []);
 
@@ -267,9 +267,9 @@ const SpottingExitScamsPage = () => {
       
       // Format date as MM/DD/YYYY
       const dateFormatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: 'America/New_York',
-        year: 'numeric',
-        month: '2-digit',
+            timeZone: 'America/New_York',
+            year: 'numeric',
+            month: '2-digit',
         day: '2-digit'
       });
 
@@ -280,7 +280,7 @@ const SpottingExitScamsPage = () => {
       const hours = estTime.getHours();
       const minutes = estTime.getMinutes();
       const seconds = estTime.getSeconds();
-      
+        
       // Convert to 12-hour format
       const ampm = hours >= 12 ? 'PM' : 'AM';
       const hours12 = hours % 12 || 12; // Convert 0 to 12 for midnight
@@ -324,36 +324,36 @@ const SpottingExitScamsPage = () => {
       console.log('Data being sent to Supabase:', supabaseData);
 
       // Save to Supabase
-      const { error: supabaseError } = await supabase
-        .from('spotting_exit_scams_submissions')
-        .insert([supabaseData]);
+        const { error: supabaseError } = await supabase
+          .from('spotting_exit_scams_submissions')
+          .insert([supabaseData]);
 
-      if (supabaseError) {
-        console.error('Supabase Error:', supabaseError);
+        if (supabaseError) {
+          console.error('Supabase Error:', supabaseError);
         throw new Error('Failed to save your submission. Please try again.');
-      }
-
-      // Sync with Google Sheets
-      try {
-        console.log('Syncing with Google Sheets...');
-        const sheetResponse = await fetch('/.netlify/functions/sync-spotting-exit-scams', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (!sheetResponse.ok) {
-          const errorData = await sheetResponse.json();
-          console.error('Google Sheets sync failed:', errorData);
-          // Don't throw error here, continue with the rest of the submission
-        } else {
-          const syncResult = await sheetResponse.json();
-          console.log('Google Sheets sync successful:', syncResult);
         }
-      } catch (sheetError) {
-        console.error('Error syncing with Google Sheets:', sheetError);
-        // Don't throw error here, continue with the rest of the submission
+
+        // Sync with Google Sheets
+        try {
+          console.log('Syncing with Google Sheets...');
+          const sheetResponse = await fetch('/.netlify/functions/sync-spotting-exit-scams', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (!sheetResponse.ok) {
+            const errorData = await sheetResponse.json();
+            console.error('Google Sheets sync failed:', errorData);
+            // Don't throw error here, continue with the rest of the submission
+          } else {
+            const syncResult = await sheetResponse.json();
+            console.log('Google Sheets sync successful:', syncResult);
+          }
+        } catch (sheetError) {
+          console.error('Error syncing with Google Sheets:', sheetError);
+          // Don't throw error here, continue with the rest of the submission
       }
 
       // Send admin notification

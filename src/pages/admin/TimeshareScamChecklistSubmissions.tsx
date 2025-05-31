@@ -38,6 +38,7 @@ interface FormSubmission {
   full_name: string;
   email: string;
   created_date: string;
+  created_time: string;
   newsletter_consent: boolean;
   meta_details: {
     user_info: Record<string, string>;
@@ -329,15 +330,17 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
     setError(null);
     try {
       const { data, error: fetchError } = await supabase
-        .from('timeshare_checklist_submissions')
-        .select('id, full_name, email, created_date, newsletter_consent, meta_details')
-        .order('created_date', { ascending: false });
+        .from('timeshare_scam_checklist')
+        .select('*')
+        .order('created_date', { ascending: false })
+        .order('created_time', { ascending: false });
 
       if (fetchError) {
         console.error('Error fetching data:', fetchError);
         throw fetchError;
       }
 
+      console.log('Fetched submissions:', data);
       setSubmissions(data || []);
     } catch (err: any) {
       console.error('Error in fetchSubmissions:', err);
@@ -359,7 +362,7 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
   const handleDelete = async (id: string) => {
     try {
       const { error: deleteError } = await supabase
-        .from('timeshare_checklist_submissions')
+        .from('timeshare_scam_checklist')
         .delete()
         .eq('id', id);
 
@@ -375,7 +378,7 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
     try {
       // First get all IDs
       const { data: allIds, error: fetchError } = await supabase
-        .from('timeshare_checklist_submissions')
+        .from('timeshare_scam_checklist')
         .select('id');
 
       if (fetchError) throw fetchError;
@@ -388,7 +391,7 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
 
       // Then delete using in clause with all IDs
       const { error: deleteError } = await supabase
-        .from('timeshare_checklist_submissions')
+        .from('timeshare_scam_checklist')
         .delete()
         .in('id', allIds.map(record => record.id));
 
@@ -612,7 +615,7 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
                 <TableRow>
                   <TableCell>Full Name</TableCell>
                   <TableCell>Email</TableCell>
-                  <TableCell>Submission Date (EST)</TableCell>
+                  <TableCell>Submission Date & Time (EST)</TableCell>
                   <TableCell>Newsletter Consent</TableCell>
                   <TableCell align="center">Actions</TableCell>
                 </TableRow>
@@ -628,7 +631,7 @@ const TimeshareScamChecklistSubmissions: React.FC = () => {
                       <TableCell>{submission.full_name}</TableCell>
                       <TableCell>{submission.email}</TableCell>
                       <TableCell>
-                        {submission.created_date}
+                        {`${submission.created_date} ${submission.created_time}`}
                       </TableCell>
                       <TableCell>{submission.newsletter_consent ? 'Yes' : 'No'}</TableCell>
                       <TableCell align="center">

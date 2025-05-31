@@ -33,7 +33,7 @@ CREATE POLICY "Enable delete for authenticated users only"
 CREATE INDEX idx_before_you_sign_submissions_email ON before_you_sign_submissions(email);
 
 -- Create an index on created_at for faster sorting
-CREATE INDEX idx_before_you_sign_submissions_created_at ON before_you_sign_submissions(created_at);
+CREATE INDEX idx_before_you_sign_submissions_created_at ON before_you_sign_submissions(created_at); 
 
 -- Create indexes on created_date and created_time for faster sorting
 CREATE INDEX idx_before_you_sign_submissions_created_date ON before_you_sign_submissions(created_date);

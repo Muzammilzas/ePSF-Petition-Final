@@ -162,9 +162,9 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, submission
         date.setMinutes((Number(timeStr) % 1) * 60);
         return date.toLocaleString('en-US', {
           hour: 'numeric',
-          minute: '2-digit',
+      minute: '2-digit',
           hour12: true
-        });
+    });
       }
       return timeStr;
     } catch (error) {
@@ -337,9 +337,9 @@ const SpottingExitScamsSubmissions: React.FC = () => {
       const { data: deletedCount, error: deleteError } = await supabase
         .rpc('delete_all_spotting_exit_scams_submissions');
 
-      if (deleteError) {
+        if (deleteError) {
         console.error('Error in delete operation:', deleteError);
-        throw deleteError;
+          throw deleteError;
       }
 
       console.log(`Successfully deleted ${deletedCount} records`);

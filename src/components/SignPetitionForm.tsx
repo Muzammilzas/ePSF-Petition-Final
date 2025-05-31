@@ -17,6 +17,7 @@ import { usePetition } from '../context/PetitionContext';
 import { addContactToBrevoList } from '../utils/brevo';
 import { sendSignatureNotification, sendSharePetitionEmail } from '../utils/email';
 import { trackPetitionSignature } from '../services/googleAnalytics';
+import { collectMetaDetails } from '../utils/metaDetails';
 
 const getBrowserInfo = () => {
   const userAgent = navigator.userAgent;
@@ -86,19 +87,26 @@ const SignPetitionFormContent: React.FC = () => {
   useEffect(() => {
     const getGeolocationData = async () => {
       try {
-        // Get IP address and basic location data
-        const ipResponse = await fetch('https://api.ipify.org?format=json');
-        const ipData = await ipResponse.json();
+        console.log('Starting location data collection...');
         
-        // Get more detailed location data
-        const geoResponse = await fetch(`https://ipapi.co/${ipData.ip}/json/`);
+        // Use ipapi.co directly instead of going through ipify first
+        const geoResponse = await fetch('https://ipapi.co/json/');
+        if (!geoResponse.ok) {
+          throw new Error(`Failed to fetch location data: ${geoResponse.status}`);
+        }
+        
         const geoData = await geoResponse.json();
+        console.log('Location data fetched:', geoData);
         
-        setLocationData({
-          ip_address: ipData.ip,
-          city: geoData.city,
-          region: geoData.region,
-          country: geoData.country_name,
+        if (geoData.error) {
+          throw new Error(`Location API error: ${geoData.error}`);
+        }
+
+        const locationInfo = {
+          ip_address: geoData.ip,
+          city: geoData.city || 'Unknown',
+          region: geoData.region || 'Unknown',
+          country: geoData.country_name || 'Unknown',
           latitude: geoData.latitude,
           longitude: geoData.longitude,
           user_agent: navigator.userAgent,
@@ -107,17 +115,39 @@ const SignPetitionFormContent: React.FC = () => {
           screen_resolution: `${window.screen.width}x${window.screen.height}`,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           language: navigator.language,
-        });
+        };
         
-        console.log('Collected location data:', geoData);
+        console.log('Setting location data:', locationInfo);
+        setLocationData(locationInfo);
       } catch (error) {
         console.error('Error fetching location data:', error);
-        // Still proceed even if geolocation fails
+        // Set default location data with device info even if location fetch fails
+        const defaultLocationInfo = {
+          ip_address: 'Unknown',
+          city: 'Unknown',
+          region: 'Unknown',
+          country: 'Unknown',
+          latitude: null,
+          longitude: null,
+          user_agent: navigator.userAgent,
+          browser: getBrowserInfo(),
+          device_type: getDeviceType(),
+          screen_resolution: `${window.screen.width}x${window.screen.height}`,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          language: navigator.language,
+        };
+        console.log('Setting default location data:', defaultLocationInfo);
+        setLocationData(defaultLocationInfo);
       }
     };
     
     getGeolocationData();
   }, []);
+
+  // Add a debug log for locationData changes
+  useEffect(() => {
+    console.log('Location data updated:', locationData);
+  }, [locationData]);
 
   useEffect(() => {
     // Debug environment variables
@@ -148,7 +178,6 @@ const SignPetitionFormContent: React.FC = () => {
     setError(null);
 
     try {
-      console.log('Executing reCAPTCHA...');
       // Execute reCAPTCHA with action
       const token = await executeRecaptcha('sign_petition');
       console.log('reCAPTCHA token received:', !!token);
@@ -157,95 +186,125 @@ const SignPetitionFormContent: React.FC = () => {
         throw new Error('Failed to execute reCAPTCHA');
       }
 
-      console.log('Submitting signature for petition:', id);
+      // Collect metadata using the shared utility
+      const metaDetails = await collectMetaDetails();
+      console.log('Collected metadata:', metaDetails);
+
+      // Format metadata for storage
+      const metadata = {
+        device: {
+          browser: metaDetails.browser,
+          device_type: metaDetails.device_type,
+          screen_resolution: metaDetails.screen_resolution,
+          user_agent: metaDetails.user_agent,
+          timezone: metaDetails.timezone,
+          language: metaDetails.language
+        },
+        location: {
+          city: metaDetails.city,
+          region: metaDetails.region,
+          country: metaDetails.country,
+          latitude: metaDetails.latitude,
+          longitude: metaDetails.longitude,
+          ip_address: metaDetails.ip_address
+        },
+        submission_date: new Date().toISOString()
+      };
       
-      // Prepare the basic signature data (required fields only)
+      // Prepare the signature data
       const signaturePayload = {
         petition_id: id,
         first_name: formData.first_name,
         last_name: formData.last_name,
         email: formData.email,
         timeshare_name: formData.timeshare_name,
+        meta_details: metadata,
+        created_date: new Date().toLocaleString('en-US', {
+          timeZone: 'America/New_York',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        }),
+        created_time: new Date().toLocaleString('en-US', {
+          timeZone: 'America/New_York',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        })
       };
-      
-      // Insert the signature with only the required fields
+
+      console.log('Submitting signature with payload:', signaturePayload);
+
+      // Insert the signature with metadata
       const { data: signatureData, error: signatureError } = await supabase
         .from('signatures')
         .insert([signaturePayload])
         .select();
 
-      if (signatureError) throw signatureError;
+      if (signatureError) {
+        console.error('Error creating signature:', signatureError);
+        if (signatureError.message.includes('timeshare_name')) {
+          throw new Error('Failed to save timeshare name. Please try again.');
+        }
+        throw signatureError;
+      }
       
-      console.log('Signature submitted successfully:', signatureData);
+      console.log('Signature created successfully:', signatureData);
 
       // Track the successful signature in Google Analytics
       trackPetitionSignature();
       
       // After the signature is submitted successfully and we have signatureData:
-      if (signatureData && signatureData.length > 0) {
+      try {
+        console.log('Adding contact to Brevo list...');
+        // Add contact to Brevo list
+        const brevoResult = await addContactToBrevoList(
+          formData.email,
+          formData.first_name,
+          formData.last_name
+        );
+        console.log('Brevo result:', brevoResult);
+
+        // Trigger Google Sheets sync
         try {
-          console.log('Adding contact to Brevo list...');
-          // Add contact to Brevo list
-          const brevoResult = await addContactToBrevoList(
-            formData.email,
-            formData.first_name,
-            formData.last_name
-          );
-          console.log('Brevo result:', brevoResult);
+          const syncResponse = await fetch('/.netlify/functions/sync-petition-signatures', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
 
-          // Collect metadata
-          const metadata = {
-            device: {
-              browser: getBrowserInfo(),
-              device_type: getDeviceType(),
-              screen_resolution: `${window.screen.width}x${window.screen.height}`,
-              user_agent: navigator.userAgent,
-              timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-              language: navigator.language
-            },
-            location: {
-              city: locationData?.city || 'Unknown',
-              region: locationData?.region || 'Unknown',
-              country: locationData?.country || 'Unknown',
-              latitude: locationData?.latitude || null,
-              longitude: locationData?.longitude || null,
-              ip_address: locationData?.ip_address || 'Unknown'
-            },
-            submission_date: new Date().toISOString()
-          };
-
-          // Store metadata
-          const { error: metadataError } = await supabase
-            .from('signature_metadata')
-            .insert([{
-              signature_id: signatureData[0].id,
-              metadata: metadata
-            }]);
-
-          if (metadataError) {
-            console.error('Error storing metadata:', metadataError);
+          if (!syncResponse.ok) {
+            console.warn('Google Sheets sync failed:', await syncResponse.text());
+            // Don't throw error, continue with form submission
+          } else {
+            console.log('Google Sheets sync successful');
           }
-
-          // Send email notification
-          try {
-            await sendSignatureNotification({
-              ...signatureData[0],
-              metadata,
-              created_at: new Date().toISOString()
-            });
-            // Send user confirmation/share email
-            await sendSharePetitionEmail({
-              ...signatureData[0],
-              metadata,
-              created_at: new Date().toISOString()
-            });
-            console.log('Email notification sent successfully');
-          } catch (emailError) {
-            console.error('Error sending email notification:', emailError);
-          }
-        } catch (error) {
-          console.error('Detailed Brevo error:', error);
+        } catch (syncError) {
+          console.warn('Google Sheets sync error:', syncError);
+          // Don't throw error, continue with form submission
         }
+
+        // Send email notification
+        try {
+          await sendSignatureNotification({
+            ...signatureData[0],
+            metadata,
+            created_at: new Date().toISOString()
+          });
+          // Send user confirmation/share email
+          await sendSharePetitionEmail({
+            ...signatureData[0],
+            metadata,
+            created_at: new Date().toISOString()
+          });
+          console.log('Email notification sent successfully');
+        } catch (emailError) {
+          console.error('Error sending email notification:', emailError);
+        }
+      } catch (error) {
+        console.error('Detailed Brevo error:', error);
       }
 
       // Count all signatures for this petition to get the accurate count

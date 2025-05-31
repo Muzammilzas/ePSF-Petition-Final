@@ -11,13 +11,13 @@ declare
   v_count integer;
 begin
   -- Start a transaction
-  begin
-    -- First count the records
-    select count(*) into v_count from public.spotting_exit_scams_submissions;
-    
-    -- Then delete with a true condition
+begin
+  -- First count the records
+  select count(*) into v_count from public.spotting_exit_scams_submissions;
+  
+  -- Then delete with a true condition
     delete from public.spotting_exit_scams_submissions;
-    
+  
     -- Return the number of deleted records
     return v_count;
   exception

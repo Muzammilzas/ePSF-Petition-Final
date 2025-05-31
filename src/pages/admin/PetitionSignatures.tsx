@@ -28,7 +28,7 @@ import {
   MenuItem,
   InputAdornment,
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -64,15 +64,15 @@ interface Signature {
   first_name: string;
   last_name: string;
   email: string;
-  phone: string;
-  zip_code: string;
+  timeshare_name?: string;
   petition_id: string;
-  metadata: SignatureMetadata;
+  meta_details?: SignatureMetadata;
   created_date: string;
   created_time: string;
+  metadata?: SignatureMetadata;
 }
 
-interface DetailsDialogProps {
+interface SignatureDetailsDialogProps {
   open: boolean;
   onClose: () => void;
   signature: Signature | null;
@@ -167,7 +167,11 @@ const getDateOnly = (dateString: string) => {
   return dateString.split('T')[0].split(' ')[0];
 };
 
-const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, signature }) => {
+const SignatureDetailsDialog: React.FC<SignatureDetailsDialogProps> = ({
+  open,
+  onClose,
+  signature
+}) => {
   if (!signature) return null;
 
   return (
@@ -202,15 +206,9 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, signature 
             </Grid>
             <Grid item xs={6}>
               <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                Phone
+                Timeshare Name
               </Typography>
-              <Typography variant="body1">{signature.phone || 'N/A'}</Typography>
-            </Grid>
-            <Grid item xs={6}>
-              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                ZIP Code
-              </Typography>
-              <Typography variant="body1">{signature.zip_code || 'N/A'}</Typography>
+              <Typography variant="body1">{signature.timeshare_name || 'N/A'}</Typography>
             </Grid>
             <Grid item xs={6}>
               <Typography variant="subtitle2" color="text.secondary" gutterBottom>
@@ -231,7 +229,7 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, signature 
                 City
               </Typography>
               <Typography variant="body1">
-                {signature.metadata?.location?.city || 'N/A'}
+                {signature.meta_details?.location?.city || 'N/A'}
               </Typography>
             </Grid>
             <Grid item xs={6}>
@@ -239,7 +237,7 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, signature 
                 Region
               </Typography>
               <Typography variant="body1">
-                {signature.metadata?.location?.region || 'N/A'}
+                {signature.meta_details?.location?.region || 'N/A'}
               </Typography>
             </Grid>
             <Grid item xs={6}>
@@ -247,7 +245,7 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, signature 
                 Country
               </Typography>
               <Typography variant="body1">
-                {signature.metadata?.location?.country || 'N/A'}
+                {signature.meta_details?.location?.country || 'N/A'}
               </Typography>
             </Grid>
             <Grid item xs={6}>
@@ -255,7 +253,7 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, signature 
                 IP Address
               </Typography>
               <Typography variant="body1">
-                {signature.metadata?.location?.ip_address || 'N/A'}
+                {signature.meta_details?.location?.ip_address || 'N/A'}
               </Typography>
             </Grid>
           </Grid>
@@ -269,7 +267,7 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, signature 
                 Browser
               </Typography>
               <Typography variant="body1">
-                {signature.metadata?.device?.browser || 'N/A'}
+                {signature.meta_details?.device?.browser || 'N/A'}
               </Typography>
             </Grid>
             <Grid item xs={6}>
@@ -277,7 +275,7 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, signature 
                 Device Type
               </Typography>
               <Typography variant="body1">
-                {signature.metadata?.device?.device_type || 'N/A'}
+                {signature.meta_details?.device?.device_type || 'N/A'}
               </Typography>
             </Grid>
             <Grid item xs={6}>
@@ -285,7 +283,7 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, signature 
                 Screen Resolution
               </Typography>
               <Typography variant="body1">
-                {signature.metadata?.device?.screen_resolution || 'N/A'}
+                {signature.meta_details?.device?.screen_resolution || 'N/A'}
               </Typography>
             </Grid>
             <Grid item xs={6}>
@@ -293,7 +291,7 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, signature 
                 Language
               </Typography>
               <Typography variant="body1">
-                {signature.metadata?.device?.language || 'N/A'}
+                {signature.meta_details?.device?.language || 'N/A'}
               </Typography>
             </Grid>
             <Grid item xs={6}>
@@ -301,7 +299,7 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, signature 
                 Timezone
               </Typography>
               <Typography variant="body1">
-                {signature.metadata?.device?.timezone || 'N/A'}
+                {signature.meta_details?.device?.timezone || 'N/A'}
               </Typography>
             </Grid>
           </Grid>
@@ -317,11 +315,12 @@ const DetailsDialog: React.FC<DetailsDialogProps> = ({ open, onClose, signature 
 };
 
 const PetitionSignatures: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [selectedSignature, setSelectedSignature] = useState<Signature | null>(null);
+  const [selectedSignature, setSelectedSignature] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [deleteAllDialogOpen, setDeleteAllDialogOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [signatures, setSignatures] = useState<Signature[]>([]);
   const [filteredSignatures, setFilteredSignatures] = useState<Signature[]>([]);
@@ -331,6 +330,10 @@ const PetitionSignatures: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('created_date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [metadataDialogOpen, setMetadataDialogOpen] = useState(false);
+  const [selectedMetadata, setSelectedMetadata] = useState<SignatureMetadata | null>(null);
+  const [metadataLoading, setMetadataLoading] = useState(false);
+  const [metadataError, setMetadataError] = useState<string | null>(null);
 
   const fetchSignatures = async () => {
     console.log('Starting to fetch signatures...');
@@ -339,47 +342,25 @@ const PetitionSignatures: React.FC = () => {
     try {
       let query = supabase
         .from('signatures')
-        .select(`
-          *,
-          signature_metadata (
-            metadata
-          )
-        `);
-
-      // Apply sorting based on selected column
-      if (sortBy === 'created_date') {
-        // When sorting by date, apply primary sort on date and secondary on time
-        query = query.order('created_date', { ascending: sortOrder === 'asc' });
-        query = query.order('created_time', { ascending: sortOrder === 'asc' });
-      } else if (sortBy === 'first_name') {
-        query = query.order('first_name', { ascending: sortOrder === 'asc' });
-      } else if (sortBy === 'last_name') {
-        query = query.order('last_name', { ascending: sortOrder === 'asc' });
-      } else if (sortBy === 'email') {
-        query = query.order('email', { ascending: sortOrder === 'asc' });
-      } else {
-        // Default sort if sortBy is an unexpected value (shouldn't happen with dropdown)
-        console.warn(`Unexpected sortBy value: ${sortBy}. Applying default sort by created_date.`);
-        query = query.order('created_date', { ascending: sortOrder === 'asc' });
-        query = query.order('created_time', { ascending: sortOrder === 'asc' });
+        .select('*')
+        .order('created_date', { ascending: sortOrder === 'asc' })
+        .order('created_time', { ascending: sortOrder === 'asc' });
+      
+      // Only filter by petition_id if we have one
+      if (id) {
+        query = query.eq('petition_id', id);
       }
-
+      
       const { data: signaturesData, error: signaturesError } = await query;
-
+      
       if (signaturesError) throw signaturesError;
-
-      const processedSignatures = (signaturesData || []).map(signature => ({
-        ...signature,
-        metadata: signature.signature_metadata?.[0]?.metadata || null,
-        created_date: signature.created_date, 
-        created_time: signature.created_time,
-      }));
-
-      console.log('Fetched signatures:', processedSignatures);
-      setSignatures(processedSignatures);
-    } catch (err: any) {
-      console.error('Error in fetchSignatures:', err);
-      setError(err.message || 'Failed to load signatures');
+      
+      setSignatures(signaturesData || []);
+      setFilteredSignatures(signaturesData || []);
+      
+    } catch (error: any) {
+      console.error('Error fetching data:', error);
+      setError(error.message);
     } finally {
       setLoading(false);
     }
@@ -399,6 +380,7 @@ const PetitionSignatures: React.FC = () => {
           (signature.first_name && signature.first_name.toLowerCase().includes(searchLower)) ||
           (signature.last_name && signature.last_name.toLowerCase().includes(searchLower)) ||
           (signature.email && signature.email.toLowerCase().includes(searchLower)) ||
+          (signature.timeshare_name && signature.timeshare_name.toLowerCase().includes(searchLower)) ||
           (signature.petition_id && signature.petition_id.toLowerCase().includes(searchLower))
         );
       });
@@ -407,7 +389,7 @@ const PetitionSignatures: React.FC = () => {
   }, [searchTerm, signatures]);
 
   const handleViewDetails = (signature: Signature) => {
-    setSelectedSignature(signature);
+    setSelectedSignature(signature.id);
     setDetailsOpen(true);
   };
 
@@ -485,8 +467,7 @@ const PetitionSignatures: React.FC = () => {
       'First Name',
       'Last Name',
       'Email',
-      'Phone',
-      'ZIP Code',
+      'Timeshare Name',
       'Petition ID',
       'Submission Date',
       'Browser',
@@ -503,8 +484,7 @@ const PetitionSignatures: React.FC = () => {
       signature.first_name,
       signature.last_name,
       signature.email,
-      signature.phone || '',
-      signature.zip_code || '',
+      signature.timeshare_name || '',
       signature.petition_id,
       signature.created_date
         ? new Date(signature.created_date).toLocaleDateString('en-US', {
@@ -514,14 +494,14 @@ const PetitionSignatures: React.FC = () => {
             day: '2-digit'
           })
         : '',
-      signature.metadata?.device?.browser || '',
-      signature.metadata?.device?.device_type || '',
-      signature.metadata?.device?.screen_resolution || '',
-      signature.metadata?.device?.timezone || '',
-      signature.metadata?.location?.city || '',
-      signature.metadata?.location?.region || '',
-      signature.metadata?.location?.country || '',
-      signature.metadata?.location?.ip_address || '',
+      signature.meta_details?.device?.browser || '',
+      signature.meta_details?.device?.device_type || '',
+      signature.meta_details?.device?.screen_resolution || '',
+      signature.meta_details?.device?.timezone || '',
+      signature.meta_details?.location?.city || '',
+      signature.meta_details?.location?.region || '',
+      signature.meta_details?.location?.country || '',
+      signature.meta_details?.location?.ip_address || '',
     ]);
 
     const csvContent = [
@@ -558,6 +538,30 @@ const PetitionSignatures: React.FC = () => {
       console.error('Error deleting signature:', err);
       setError(err.message || 'Failed to delete signature');
     }
+  };
+
+  const handleViewMeta = async (signature: Signature) => {
+    try {
+      setMetadataLoading(true);
+      setMetadataError(null);
+      
+      if (signature.meta_details) {
+        setSelectedSignature(signature.id);
+        setSelectedMetadata(signature.meta_details);
+        setMetadataDialogOpen(true);
+      } else {
+        setMetadataError('No metadata found for this signature');
+      }
+    } catch (error: any) {
+      console.error('Error in handleViewMeta:', error);
+      setMetadataError(error.message || 'Failed to load signature details');
+    } finally {
+      setMetadataLoading(false);
+    }
+  };
+
+  const handleDeleteSignature = async (signature: SignatureDetailsDialogProps['signature']) => {
+    // ... rest of the function code ...
   };
 
   if (loading) {
@@ -704,6 +708,7 @@ const PetitionSignatures: React.FC = () => {
                   <MenuItem value="first_name">First Name</MenuItem>
                   <MenuItem value="last_name">Last Name</MenuItem>
                   <MenuItem value="email">Email</MenuItem>
+                  <MenuItem value="timeshare_name">Timeshare Name</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -741,6 +746,7 @@ const PetitionSignatures: React.FC = () => {
                 <TableCell>First Name</TableCell>
                 <TableCell>Last Name</TableCell>
                 <TableCell>Email</TableCell>
+                <TableCell>Timeshare Name</TableCell>
                 <TableCell>Petition ID</TableCell>
                 <TableCell>Signed At (EST)</TableCell>
                 <TableCell align="center">Actions</TableCell>
@@ -749,7 +755,7 @@ const PetitionSignatures: React.FC = () => {
             <TableBody>
               {filteredSignatures.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center">No signatures found</TableCell>
+                  <TableCell colSpan={8} align="center">No signatures found</TableCell>
                 </TableRow>
               ) : (
                 filteredSignatures.map((signature, index) => (
@@ -761,9 +767,12 @@ const PetitionSignatures: React.FC = () => {
                     <TableCell>{signature.first_name}</TableCell>
                     <TableCell>{signature.last_name}</TableCell>
                     <TableCell>{signature.email}</TableCell>
+                    <TableCell>{signature.timeshare_name || 'N/A'}</TableCell>
                     <TableCell>{signature.petition_id}</TableCell>
                     <TableCell>
-                      {signature.created_date ? String(signature.created_date).split(' ')[0] : 'N/A'}
+                      {signature.created_date && signature.created_time 
+                        ? `${signature.created_date} ${signature.created_time}`
+                        : 'N/A'}
                     </TableCell>
                     <TableCell align="center">
                       <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
@@ -795,10 +804,10 @@ const PetitionSignatures: React.FC = () => {
         </TableContainer>
       </Paper>
 
-      <DetailsDialog
+      <SignatureDetailsDialog
         open={detailsOpen}
         onClose={() => setDetailsOpen(false)}
-        signature={selectedSignature}
+        signature={signatures.find(s => s.id === selectedSignature) || null}
       />
 
       <DeleteConfirmationDialog

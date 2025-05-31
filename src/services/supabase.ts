@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
+import { Database } from '../types/supabase';
 
-const supabaseUrl = 'https://lbqhvgvvxvrrooalywhz.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxicWh2Z3Z2eHZycm9vYWx5d2h6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEzNzc0NzEsImV4cCI6MjA1Njk1MzQ3MX0.LxFzvKRAnhRwTE52BiNPqq8APmSCFU6hW7avGWw43Xs';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Debug logging in development only
 if (import.meta.env.DEV) {
@@ -18,21 +19,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true
-  },
-  db: {
-    schema: 'public'
-  },
-  global: {
-    headers: {
-      'X-Client-Info': 'supabase-js-v2'
-    }
-  }
-});
+export const supabase = createClient<Database>(
+  supabaseUrl,
+  supabaseAnonKey
+);
 
 // Test the connection and log detailed errors in development
 if (import.meta.env.DEV) {

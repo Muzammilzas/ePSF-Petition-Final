@@ -453,39 +453,39 @@ const BeforeYouSignSubmissions: React.FC = () => {
           
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h4" component="h1">
-              Before You Sign - Submissions
-            </Typography>
+            Before You Sign - Submissions
+          </Typography>
             <Box>
-              <Button
+            <Button
                 onClick={() => fetchSubmissions(true)}
-                variant="contained"
-                sx={{ 
+              variant="contained"
+              sx={{ 
                   mr: 1,
-                  backgroundColor: '#01BD9B',
-                  color: '#FFFFFF',
-                  '&:hover': {
-                    backgroundColor: '#01a989'
-                  }
-                }}
-              >
-                Refresh Data
-              </Button>
+                backgroundColor: '#01BD9B',
+                color: '#FFFFFF',
+                '&:hover': {
+                  backgroundColor: '#01a989'
+                }
+              }}
+            >
+              Refresh Data
+            </Button>
 
-              <Button
-                onClick={handleExportCSV}
-                variant="contained"
-                startIcon={<FileDownloadIcon />}
-                sx={{ 
+            <Button
+              onClick={handleExportCSV}
+              variant="contained"
+              startIcon={<FileDownloadIcon />}
+              sx={{ 
                   mr: 1,
-                  backgroundColor: '#4CAF50',
-                  color: '#FFFFFF',
-                  '&:hover': {
-                    backgroundColor: '#45a049'
-                  }
-                }}
-              >
-                Export as CSV
-              </Button>
+                backgroundColor: '#4CAF50',
+                color: '#FFFFFF',
+                '&:hover': {
+                  backgroundColor: '#45a049'
+                }
+              }}
+            >
+              Export as CSV
+            </Button>
 
               <Button
                 onClick={handleSync}
@@ -505,13 +505,13 @@ const BeforeYouSignSubmissions: React.FC = () => {
               </Button>
 
               {submissions.length > 0 && (
-                <Button
-                  variant="contained"
+            <Button
+              variant="contained"
                   color="error"
                   onClick={() => setDeleteAllDialogOpen(true)}
-                >
-                  Delete All
-                </Button>
+            >
+              Delete All
+            </Button>
               )}
             </Box>
           </Box>

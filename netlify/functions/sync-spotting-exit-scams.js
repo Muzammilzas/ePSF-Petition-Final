@@ -147,13 +147,13 @@ exports.handler = async function(event) {
       // Write all rows
       console.log('Writing rows to sheet...');
       await sheets.spreadsheets.values.update({
-        spreadsheetId: SPREADSHEET_ID,
+      spreadsheetId: SPREADSHEET_ID,
         range: `${SHEET_NAME}!A2:M${rows.length + 1}`,
-        valueInputOption: 'USER_ENTERED',
-        requestBody: {
-          values: rows
-        }
-      });
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: rows
+      }
+    });
 
       // Apply formatting
       await sheets.spreadsheets.batchUpdate({

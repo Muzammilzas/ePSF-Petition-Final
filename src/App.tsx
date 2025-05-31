@@ -13,7 +13,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Unauthorized from './components/Unauthorized';
 import { PetitionProvider } from './context/PetitionContext';
 import { AuthProvider } from './context/AuthContext';
-import PetitionSignatures from './components/PetitionSignatures';
+import PetitionSignatures from './pages/admin/PetitionSignatures';
 import NotFound from './components/NotFound';
 import TestEmail from './components/TestEmail';
 import PetitionPage from './components/PetitionPage';

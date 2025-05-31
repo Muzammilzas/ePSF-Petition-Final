@@ -23,14 +23,20 @@ const getDeviceType = () => {
 
 export const collectMetaDetails = async () => {
   try {
-    // Get IP address and basic location data
-    const ipResponse = await fetch('https://api.ipify.org?format=json');
-    const ipData = await ipResponse.json();
+    // Get location data directly from ipapi.co
+    const geoResponse = await fetch('https://ipapi.co/json/');
+    if (!geoResponse.ok) {
+      throw new Error(`Failed to fetch location data: ${geoResponse.status}`);
+    }
     
-    // Get more detailed location data
-    const geoResponse = await fetch(`https://ipapi.co/${ipData.ip}/json/`);
     const geoData = await geoResponse.json();
+    console.log('Location data fetched:', geoData);
+    
+    if (geoData.error) {
+      throw new Error(`Location API error: ${geoData.error}`);
+    }
 
+    // Return all metadata
     return {
       browser: getBrowserInfo(),
       device_type: getDeviceType(),
@@ -38,12 +44,12 @@ export const collectMetaDetails = async () => {
       user_agent: navigator.userAgent,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       language: navigator.language,
-      ip_address: ipData.ip,
+      ip_address: geoData.ip || 'Unknown',
       city: geoData.city || 'Unknown',
       region: geoData.region || 'Unknown',
       country: geoData.country_name || 'Unknown',
-      latitude: geoData.latitude,
-      longitude: geoData.longitude
+      latitude: geoData.latitude || null,
+      longitude: geoData.longitude || null
     };
   } catch (error) {
     console.error('Error collecting meta details:', error);

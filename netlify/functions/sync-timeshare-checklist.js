@@ -33,36 +33,26 @@ exports.handler = async function(event) {
       process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
-    // Get unsynced submissions
-    const { data: submissions, error } = await supabase
-      .from('timeshare_checklist_submissions')
+    // Get all submissions from Supabase
+    console.log('Fetching all submissions from Supabase...');
+    const { data: submissions, error: supabaseError } = await supabase
+      .from('timeshare_scam_checklist')
       .select('*')
-      .is('synced_at', null)
-      .order('created_at', { ascending: true });
+      .order('created_date', { ascending: false })
+      .order('created_time', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching submissions:', error);
-      throw error;
+    if (supabaseError) {
+      console.error('Supabase error:', supabaseError);
+      throw new Error(`Supabase error: ${supabaseError.message}`);
     }
 
-    console.log(`Found ${submissions.length} unsynced submissions`);
-
-    if (submissions.length === 0) {
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ message: 'No new submissions to sync' })
-      };
-    }
+    console.log(`Found ${submissions?.length || 0} total submissions`);
 
     // Initialize Google Sheets
     console.log('Initializing Google Sheets client...');
     const serviceAccount = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
     const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID;
     const SHEET_NAME = 'Timeshare Scam Checklist';
-
-    console.log('Service account email:', serviceAccount.client_email);
-    console.log('Spreadsheet ID:', SPREADSHEET_ID);
-    console.log('Sheet name:', SHEET_NAME);
 
     const auth = new google.auth.GoogleAuth({
       credentials: serviceAccount,
@@ -72,116 +62,125 @@ exports.handler = async function(event) {
     const client = await auth.getClient();
     const sheets = google.sheets({ version: 'v4', auth: client });
 
-    // First, get all sheets to verify our target sheet exists
-    console.log('Getting list of all sheets...');
-    const spreadsheet = await sheets.spreadsheets.get({
-      spreadsheetId: SPREADSHEET_ID,
-    });
-    
-    const allSheets = spreadsheet.data.sheets.map(sheet => sheet.properties.title);
-    console.log('Available sheets:', allSheets);
-
-    if (!allSheets.includes(SHEET_NAME)) {
-      throw new Error(`Sheet "${SHEET_NAME}" not found. Available sheets: ${allSheets.join(', ')}`);
+    // Clear the entire sheet including headers
+    console.log('Clearing existing data...');
+    try {
+      await sheets.spreadsheets.values.clear({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${SHEET_NAME}!A1:M`,
+      });
+    } catch (clearError) {
+      console.error('Error clearing sheet:', clearError);
+      throw new Error(`Failed to clear sheet: ${clearError.message}`);
     }
 
-    // Get sheet ID
-    const sheet = spreadsheet.data.sheets.find(s => s.properties.title === SHEET_NAME);
-    if (!sheet) {
-      throw new Error(`Sheet "${SHEET_NAME}" not found in spreadsheet`);
-    }
-    const sheetId = sheet.properties.sheetId;
+    // Define headers
+    const headers = [
+      'Date',
+      'Time',
+      'name',
+      'Email',
+      'Consent',
+      'City',
+      'Region',
+      'Country',
+      'Ip Address',
+      'Browser',
+      'Device',
+      'Resolution',
+      'Timezone'
+    ];
 
-    // Prepare all rows
-    console.log('Preparing rows for sync...');
-    const rows = submissions.map(submission => {
-      const estDate = new Date(submission.created_at);
-      
-      const dateStr = estDate.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        timeZone: 'America/New_York'
-      });
-      
-      const timeStr = estDate.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true,
-        timeZone: 'America/New_York'
-      });
+    // Prepare the data rows
+    const dataRows = submissions ? submissions.map(submission => [
+      submission.created_date || '',  // Date
+      submission.created_time || '',  // Time
+      submission.full_name || '',     // name
+      submission.email || '',         // Email
+      submission.newsletter_consent ? 'Yes' : 'No',  // Consent
+      submission.meta_details?.location?.city || '',        // City
+      submission.meta_details?.location?.region || '',      // Region
+      submission.meta_details?.location?.country || '',     // Country
+      submission.meta_details?.location?.ip_address || '',  // Ip Address
+      submission.meta_details?.device?.browser || '',       // Browser
+      submission.meta_details?.device?.device_type || '',   // Device
+      submission.meta_details?.device?.screen_resolution || '', // Resolution
+      submission.meta_details?.device?.timezone || ''       // Timezone
+    ]) : [];
 
-      return [
-        dateStr,
-        timeStr,
-        submission.full_name,
-        submission.email,
-        submission.newsletter_consent ? 'Yes' : 'No',
-        submission.meta_details?.location?.city || 'N/A',
-        submission.meta_details?.location?.region || 'N/A',
-        submission.meta_details?.location?.country || 'N/A',
-        submission.meta_details?.location?.ip_address || 'N/A',
-        submission.meta_details?.device?.browser || 'N/A',
-        submission.meta_details?.device?.device_type || 'N/A',
-        submission.meta_details?.device?.screen_resolution || 'N/A',
-        submission.meta_details?.device?.timezone || 'N/A'
-      ];
-    });
+    // Combine headers and data
+    const allRows = [headers, ...dataRows];
 
-    console.log(`Prepared ${rows.length} rows for sync`);
-
-    // Append all rows
-    console.log('Appending rows to sheet...');
-    const appendResponse = await sheets.spreadsheets.values.append({
+    // Update Google Sheet with headers and data
+    console.log('Updating Google Sheet with headers and data...');
+    const updateResponse = await sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A2:M`,
-      valueInputOption: 'USER_ENTERED',
-      insertDataOption: 'INSERT_ROWS',
-      requestBody: {
-        values: rows
+      range: `${SHEET_NAME}!A1`,
+      valueInputOption: 'RAW',
+      resource: {
+        values: allRows
       }
     });
 
-    console.log('Append response:', appendResponse.data);
-
-    // Mark submissions as synced
-    console.log('Marking submissions as synced...');
-    const now = new Date().toISOString();
-    const submissionIds = submissions.map(s => s.id);
-    
-    const { error: updateError } = await supabase
-      .from('timeshare_checklist_submissions')
-      .update({ synced_at: now })
-      .in('id', submissionIds);
-
-    if (updateError) {
-      console.error('Error marking submissions as synced:', updateError);
-      throw new Error(`Failed to mark submissions as synced: ${updateError.message}`);
-    }
+    // Format headers (make them bold)
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SPREADSHEET_ID,
+      resource: {
+        requests: [
+          {
+            repeatCell: {
+              range: {
+                sheetId: 0,
+                startRowIndex: 0,
+                endRowIndex: 1,
+                startColumnIndex: 0,
+                endColumnIndex: 13
+              },
+              cell: {
+                userEnteredFormat: {
+                  textFormat: {
+                    bold: true
+                  },
+                  backgroundColor: {
+                    red: 0.9,
+                    green: 0.9,
+                    blue: 0.9
+                  }
+                }
+              },
+              fields: 'userEnteredFormat(textFormat,backgroundColor)'
+            }
+          },
+          {
+            autoResizeDimensions: {
+              dimensions: {
+                sheetId: 0,
+                dimension: 'COLUMNS',
+                startIndex: 0,
+                endIndex: 13
+              }
+            }
+          }
+        ]
+      }
+    });
 
     console.log('Sync completed successfully');
     return {
       statusCode: 200,
       body: JSON.stringify({
         message: 'Sync completed successfully',
-        details: {
-          totalSubmissions: submissions.length,
-          syncedRows: rows.length,
-          spreadsheetId: SPREADSHEET_ID,
-          sheetName: SHEET_NAME
-        }
+        updatedRows: updateResponse.data.updatedRows
       })
     };
 
   } catch (error) {
-    console.error('Sync error:', error);
+    console.error('Error in sync function:', error);
     return {
       statusCode: 500,
       body: JSON.stringify({
-        error: 'Sync failed',
-        details: error.message,
-        stack: error.stack
+        error: 'Internal server error',
+        details: error.message
       })
     };
   }
