@@ -57,4 +57,18 @@ export interface Signature {
   last_name: string;
   email: string;
   created_at: string;
+  meta_details?: {
+    browser: string;
+    device_type: string;
+    screen_resolution: string;
+    user_agent: string;
+    timezone: string;
+    language: string;
+    ip_address: string;
+    city: string;
+    region: string;
+    country: string;
+    latitude: number | null;
+    longitude: number | null;
+  };
 } 

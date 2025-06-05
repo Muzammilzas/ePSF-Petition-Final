@@ -40,7 +40,8 @@ import SearchIcon from '@mui/icons-material/Search';
 import { supabase } from '../../services/supabase';
 
 interface SignatureMetadata {
-  device: {
+  // Nested structure
+  device?: {
     browser: string;
     device_type: string;
     screen_resolution: string;
@@ -48,7 +49,7 @@ interface SignatureMetadata {
     timezone: string;
     language: string;
   };
-  location: {
+  location?: {
     city: string;
     region: string;
     country: string;
@@ -56,7 +57,21 @@ interface SignatureMetadata {
     longitude: number;
     ip_address: string;
   };
-  submission_date: string;
+  submission_date?: string;
+
+  // Flat structure (for backward compatibility)
+  browser?: string;
+  device_type?: string;
+  screen_resolution?: string;
+  user_agent?: string;
+  timezone?: string;
+  language?: string;
+  ip_address?: string;
+  city?: string;
+  region?: string;
+  country?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 interface Signature {
@@ -229,7 +244,7 @@ const SignatureDetailsDialog: React.FC<SignatureDetailsDialogProps> = ({
                 City
               </Typography>
               <Typography variant="body1">
-                {signature.meta_details?.location?.city || 'N/A'}
+                {signature.meta_details?.location?.city || signature.meta_details?.city || 'N/A'}
               </Typography>
             </Grid>
             <Grid item xs={6}>
@@ -237,7 +252,7 @@ const SignatureDetailsDialog: React.FC<SignatureDetailsDialogProps> = ({
                 Region
               </Typography>
               <Typography variant="body1">
-                {signature.meta_details?.location?.region || 'N/A'}
+                {signature.meta_details?.location?.region || signature.meta_details?.region || 'N/A'}
               </Typography>
             </Grid>
             <Grid item xs={6}>
@@ -245,7 +260,7 @@ const SignatureDetailsDialog: React.FC<SignatureDetailsDialogProps> = ({
                 Country
               </Typography>
               <Typography variant="body1">
-                {signature.meta_details?.location?.country || 'N/A'}
+                {signature.meta_details?.location?.country || signature.meta_details?.country || 'N/A'}
               </Typography>
             </Grid>
             <Grid item xs={6}>
@@ -253,7 +268,7 @@ const SignatureDetailsDialog: React.FC<SignatureDetailsDialogProps> = ({
                 IP Address
               </Typography>
               <Typography variant="body1">
-                {signature.meta_details?.location?.ip_address || 'N/A'}
+                {signature.meta_details?.location?.ip_address || signature.meta_details?.ip_address || 'N/A'}
               </Typography>
             </Grid>
           </Grid>
@@ -267,7 +282,7 @@ const SignatureDetailsDialog: React.FC<SignatureDetailsDialogProps> = ({
                 Browser
               </Typography>
               <Typography variant="body1">
-                {signature.meta_details?.device?.browser || 'N/A'}
+                {signature.meta_details?.device?.browser || signature.meta_details?.browser || 'N/A'}
               </Typography>
             </Grid>
             <Grid item xs={6}>
@@ -275,7 +290,7 @@ const SignatureDetailsDialog: React.FC<SignatureDetailsDialogProps> = ({
                 Device Type
               </Typography>
               <Typography variant="body1">
-                {signature.meta_details?.device?.device_type || 'N/A'}
+                {signature.meta_details?.device?.device_type || signature.meta_details?.device_type || 'N/A'}
               </Typography>
             </Grid>
             <Grid item xs={6}>
@@ -283,7 +298,7 @@ const SignatureDetailsDialog: React.FC<SignatureDetailsDialogProps> = ({
                 Screen Resolution
               </Typography>
               <Typography variant="body1">
-                {signature.meta_details?.device?.screen_resolution || 'N/A'}
+                {signature.meta_details?.device?.screen_resolution || signature.meta_details?.screen_resolution || 'N/A'}
               </Typography>
             </Grid>
             <Grid item xs={6}>
@@ -291,7 +306,7 @@ const SignatureDetailsDialog: React.FC<SignatureDetailsDialogProps> = ({
                 Language
               </Typography>
               <Typography variant="body1">
-                {signature.meta_details?.device?.language || 'N/A'}
+                {signature.meta_details?.device?.language || signature.meta_details?.language || 'N/A'}
               </Typography>
             </Grid>
             <Grid item xs={6}>
@@ -299,7 +314,7 @@ const SignatureDetailsDialog: React.FC<SignatureDetailsDialogProps> = ({
                 Timezone
               </Typography>
               <Typography variant="body1">
-                {signature.meta_details?.device?.timezone || 'N/A'}
+                {signature.meta_details?.device?.timezone || signature.meta_details?.timezone || 'N/A'}
               </Typography>
             </Grid>
           </Grid>

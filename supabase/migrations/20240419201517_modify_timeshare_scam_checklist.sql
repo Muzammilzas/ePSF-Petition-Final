@@ -10,4 +10,4 @@ SET
   created_time = to_char(created_at AT TIME ZONE 'America/New_York', 'HH12:MI:SS AM');
 
 -- Drop the created_at column
-ALTER TABLE timeshare_scam_checklist DROP COLUMN IF EXISTS created_at; 
+ALTER TABLE timeshare_scam_checklist DROP COLUMN IF EXISTS created_at;  

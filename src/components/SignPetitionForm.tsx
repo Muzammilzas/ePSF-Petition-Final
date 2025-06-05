@@ -187,38 +187,41 @@ const SignPetitionFormContent: React.FC = () => {
       }
 
       // Collect metadata using the shared utility
-      const metaDetails = await collectMetaDetails();
-      console.log('Collected metadata:', metaDetails);
+      let metaDetails;
+      try {
+        console.log('Starting meta details collection in form submission...');
+        metaDetails = await collectMetaDetails();
+        console.log('Successfully collected meta details:', metaDetails);
 
-      // Format metadata for storage
-      const metadata = {
-        device: {
-          browser: metaDetails.browser,
-          device_type: metaDetails.device_type,
-          screen_resolution: metaDetails.screen_resolution,
-          user_agent: metaDetails.user_agent,
-          timezone: metaDetails.timezone,
-          language: metaDetails.language
-        },
-        location: {
-          city: metaDetails.city,
-          region: metaDetails.region,
-          country: metaDetails.country,
-          latitude: metaDetails.latitude,
-          longitude: metaDetails.longitude,
-          ip_address: metaDetails.ip_address
-        },
-        submission_date: new Date().toISOString()
-      };
-      
-      // Prepare the signature data
+        // Validate the collected meta details
+        if (!metaDetails || !metaDetails.device || !metaDetails.location) {
+          console.warn('Meta details are incomplete:', metaDetails);
+          // Try collecting again
+          metaDetails = await collectMetaDetails();
+          console.log('Second attempt meta details:', metaDetails);
+        }
+      } catch (error) {
+        console.error('Error collecting meta details:', error);
+        // Continue with form submission even if meta details collection fails
+        // but try one more time with a delay
+        try {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          metaDetails = await collectMetaDetails();
+          console.log('Retry meta details:', metaDetails);
+        } catch (retryError) {
+          console.error('Retry error collecting meta details:', retryError);
+          metaDetails = null;
+        }
+      }
+
+      // Format metadata for storage - directly use the collected meta details
       const signaturePayload = {
         petition_id: id,
         first_name: formData.first_name,
         last_name: formData.last_name,
         email: formData.email,
         timeshare_name: formData.timeshare_name,
-        meta_details: metadata,
+        meta_details: metaDetails,
         created_date: new Date().toLocaleString('en-US', {
           timeZone: 'America/New_York',
           year: 'numeric',
@@ -234,7 +237,7 @@ const SignPetitionFormContent: React.FC = () => {
         })
       };
 
-      console.log('Submitting signature with payload:', signaturePayload);
+      console.log('Full signature payload:', JSON.stringify(signaturePayload, null, 2));
 
       // Insert the signature with metadata
       const { data: signatureData, error: signatureError } = await supabase
@@ -244,13 +247,14 @@ const SignPetitionFormContent: React.FC = () => {
 
       if (signatureError) {
         console.error('Error creating signature:', signatureError);
+        console.error('Error details:', JSON.stringify(signatureError, null, 2));
         if (signatureError.message.includes('timeshare_name')) {
           throw new Error('Failed to save timeshare name. Please try again.');
         }
         throw signatureError;
       }
       
-      console.log('Signature created successfully:', signatureData);
+      console.log('Signature created successfully. Response data:', JSON.stringify(signatureData, null, 2));
 
       // Track the successful signature in Google Analytics
       trackPetitionSignature();
@@ -290,13 +294,13 @@ const SignPetitionFormContent: React.FC = () => {
         try {
           await sendSignatureNotification({
             ...signatureData[0],
-            metadata,
+            metadata: metaDetails,
             created_at: new Date().toISOString()
           });
           // Send user confirmation/share email
           await sendSharePetitionEmail({
             ...signatureData[0],
-            metadata,
+            metadata: metaDetails,
             created_at: new Date().toISOString()
           });
           console.log('Email notification sent successfully');

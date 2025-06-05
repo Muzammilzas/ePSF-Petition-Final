@@ -20,6 +20,7 @@ export interface Database {
           timeshare_name: string
           created_date: string
           created_time: string
+          meta_details?: Json
         }
         Insert: {
           id?: string
@@ -31,6 +32,7 @@ export interface Database {
           timeshare_name: string
           created_date: string
           created_time: string
+          meta_details?: Json
         }
         Update: {
           id?: string
@@ -42,6 +44,7 @@ export interface Database {
           timeshare_name?: string
           created_date?: string
           created_time?: string
+          meta_details?: Json
         }
       }
       signature_metadata: {
