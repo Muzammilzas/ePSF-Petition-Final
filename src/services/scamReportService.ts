@@ -2,7 +2,8 @@ import { supabase } from './supabase';
 
 export interface ScamReport {
   id?: string; // UUID
-  created_at?: string;
+  created_date?: string;
+  created_time?: string;
   // Reporter Information
   reporter_name: string;
   reporter_email: string;
@@ -145,7 +146,8 @@ export const submitScamReport = async (
 
     console.log('Scam report inserted successfully:', {
       reportId: reportData.id,
-      createdAt: reportData.created_at
+      createdDate: reportData.created_date,
+      createdTime: reportData.created_time
     });
 
     // Insert scam types

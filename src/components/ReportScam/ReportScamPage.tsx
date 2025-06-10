@@ -10,6 +10,7 @@ import SuccessMessage from './SuccessMessage';
 import { submitScamReport, uploadEvidence, ScamReport, ScamTypeDetail, ContactMethod } from '../../services/scamReportService';
 import { sendScamReportNotification, sendReporterConfirmation } from '../../services/emailService';
 import { collectMetaDetails } from '../../utils/metaDetails';
+import { supabase } from '../../services/supabase';
 
 interface ScamTypeData {
   selected: boolean;
@@ -94,9 +95,9 @@ function formatWebsite(url: string): string | null {
 }
 
 const ReportScamPage: React.FC = () => {
-  const [activeStep, setActiveStep] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>({
     // Personal Information
     fullName: '',
@@ -153,24 +154,68 @@ const ReportScamPage: React.FC = () => {
     reportedTo: '',
     wantUpdates: false,
   });
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const navigate = useNavigate();
 
   const handleNext = () => {
-    setActiveStep((prevStep) => prevStep + 1);
+    setCurrentStep((prevStep) => prevStep + 1);
   };
 
   const handleBack = () => {
-    setActiveStep((prevStep) => prevStep - 1);
+    setCurrentStep((prevStep) => prevStep - 1);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (event?: React.FormEvent) => {
+    if (event) {
+      event.preventDefault();
+    }
     setIsSubmitting(true);
     setError(null);
 
     try {
+      // Collect meta details
+      const metaDetails = await collectMetaDetails();
+      console.log('Collected meta details:', metaDetails);
+
+      const report: ScamReport = {
+        reporter_name: formData.fullName.trim(),
+        reporter_email: formData.email.trim(),
+        reporter_city: formData.city.trim(),
+        reporter_state: formData.state.trim(),
+        reporter_age_range: formData.ageRange || undefined,
+        speak_with_team: formData.speakWithTeam || false,
+        share_anonymously: formData.shareAnonymously || false,
+        money_lost: formData.moneyLost || false,
+        amount_lost: formData.amountLost ? Math.max(0, parseFloat(formData.amountLost)) : undefined,
+        date_occurred: formData.dateOccurred || new Date().toISOString().split('T')[0],
+        scammer_name: (formData.scammerName || '').trim(),
+        company_name: (formData.companyName || '').trim(),
+        scammer_phone: (formData.scammerPhone || '').trim(),
+        scammer_email: (formData.scammerEmail || '').trim(),
+        scammer_website: formatWebsite(formData.scammerWebsite || ''),
+        reported_elsewhere: formData.reportedElsewhere || false,
+        reported_to: (formData.reportedTo || '').trim(),
+        want_updates: formData.wantUpdates || false,
+        evidence_file_url: undefined, // We'll update this after upload
+        created_date: new Date().toLocaleString('en-US', { 
+          timeZone: 'America/New_York',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        }).split(',')[0].replace(/\//g, '-'),
+        created_time: new Date().toLocaleString('en-US', {
+          timeZone: 'America/New_York',
+          hour12: true,
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hourCycle: 'h12'
+        })
+      };
+
       // Validate required fields
-      if (!formData.fullName || !formData.city || !formData.state) {
+      if (!report.reporter_name || !report.reporter_city || !report.reporter_state) {
         setError('Name, city, and state are required fields.');
         setIsSubmitting(false);
         return;
@@ -178,14 +223,11 @@ const ReportScamPage: React.FC = () => {
 
       // Email validation
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!formData.email || !emailRegex.test(formData.email.trim())) {
+      if (!report.reporter_email || !emailRegex.test(report.reporter_email.trim())) {
         setError('Please enter a valid email address.');
         setIsSubmitting(false);
         return;
       }
-
-      // Collect meta details
-      const metaDetails = await collectMetaDetails();
 
       // Prepare scam types
       const scamTypes: ScamTypeDetail[] = [];
@@ -260,28 +302,6 @@ const ReportScamPage: React.FC = () => {
           event_type: formData.contactMethods.inPerson.eventType
         });
       }
-
-      const report: ScamReport = {
-        reporter_name: formData.fullName.trim(),
-        reporter_email: formData.email.trim(),
-        reporter_city: formData.city.trim(),
-        reporter_state: formData.state.trim(),
-        reporter_age_range: formData.ageRange || undefined,
-        speak_with_team: formData.speakWithTeam || false,
-        share_anonymously: formData.shareAnonymously || false,
-        money_lost: formData.moneyLost || false,
-        amount_lost: formData.amountLost ? Math.max(0, parseFloat(formData.amountLost)) : undefined,
-        date_occurred: formData.dateOccurred || new Date().toISOString().split('T')[0],
-        scammer_name: (formData.scammerName || '').trim(),
-        company_name: (formData.companyName || '').trim(),
-        scammer_phone: (formData.scammerPhone || '').trim(),
-        scammer_email: (formData.scammerEmail || '').trim(),
-        scammer_website: formatWebsite(formData.scammerWebsite || ''),
-        reported_elsewhere: formData.reportedElsewhere || false,
-        reported_to: (formData.reportedTo || '').trim(),
-        want_updates: formData.wantUpdates || false,
-        evidence_file_url: undefined // We'll update this after upload
-      };
 
       // Upload evidence if provided
       if (formData.evidence) {
@@ -361,6 +381,29 @@ const ReportScamPage: React.FC = () => {
         // Don't fail the submission if notifications fail
       }
 
+      // Sync with Google Sheets
+      try {
+        console.log('Syncing with Google Sheets...');
+        const sheetResponse = await fetch('/.netlify/functions/sync-scam-reports', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!sheetResponse.ok) {
+          const errorData = await sheetResponse.json();
+          console.error('Google Sheets sync failed:', errorData);
+          // Don't throw error here, continue with the rest of the submission
+        } else {
+          const syncResult = await sheetResponse.json();
+          console.log('Google Sheets sync successful:', syncResult);
+        }
+      } catch (sheetError) {
+        console.error('Error syncing with Google Sheets:', sheetError);
+        // Don't throw error here, continue with the rest of the submission
+      }
+
       // Show success message
       navigate('/report-scam/thank-you');
     } catch (error: any) {
@@ -424,7 +467,7 @@ const ReportScamPage: React.FC = () => {
     }
   };
 
-  if (activeStep >= steps.length) {
+  if (currentStep >= steps.length) {
     return <SuccessMessage />;
   }
 
@@ -465,8 +508,8 @@ const ReportScamPage: React.FC = () => {
             Complete the steps below to submit your report.
           </Typography>
 
-          {activeStep < steps.length && (
-            <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
+          {currentStep < steps.length && (
+            <Stepper activeStep={currentStep} sx={{ mb: 4 }}>
               {steps.map((label) => (
                 <Step key={label}>
                   <StepLabel>{label}</StepLabel>
@@ -475,7 +518,7 @@ const ReportScamPage: React.FC = () => {
             </Stepper>
           )}
 
-          {getStepContent(activeStep)}
+          {getStepContent(currentStep)}
         </Paper>
       </Container>
     </Box>

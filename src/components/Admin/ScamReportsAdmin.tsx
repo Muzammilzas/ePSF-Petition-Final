@@ -42,7 +42,8 @@ import { formatCurrency } from '../../utils/formatters';
 
 interface ScamReport {
   id: number;
-  created_at: string;
+  created_date: string;
+  created_time: string;
   reporter_name: string;
   reporter_email: string;
   reporter_phone: string;
@@ -63,8 +64,6 @@ interface ScamReport {
   reported_to: string | null;
   want_updates: boolean;
   evidence_file_url: string | null;
-  created_date: string;
-  created_time: string;
   timezone: string;
   language: string;
   city: string;
@@ -164,6 +163,8 @@ const ScamReportsAdmin: React.FC = () => {
   const [syncSuccess, setSyncSuccess] = useState(false);
   const [deleteAllDialogOpen, setDeleteAllDialogOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleteMessage, setDeleteMessage] = useState('');
+  const [deleteSuccess, setDeleteSuccess] = useState(false);
 
   const fetchReports = async () => {
     try {
@@ -191,7 +192,8 @@ const ScamReportsAdmin: React.FC = () => {
       // Add pagination
       query = query
         .range(page * rowsPerPage, (page + 1) * rowsPerPage - 1)
-        .order('created_date', { ascending: false }).order('created_time', { ascending: false });
+        .order('created_date', { ascending: false })
+        .order('created_time', { ascending: false });
 
       const { data, count, error } = await query;
 
@@ -295,7 +297,13 @@ const ScamReportsAdmin: React.FC = () => {
 
   const exportToCsv = () => {
     const csvData = reports.map(report => ({
-      'Date': new Date(report.created_at).toLocaleString(),
+      'Date': report.created_date ? new Date(report.created_date).toLocaleDateString('en-US', {
+        timeZone: 'America/New_York',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }) : 'N/A',
+      'Time': report.created_time || 'N/A',
       'Reporter Name': report.reporter_name,
       'Reporter Email': report.reporter_email,
       'City': report.reporter_city,
@@ -319,6 +327,7 @@ const ScamReportsAdmin: React.FC = () => {
     // Create CSV header
     const headers = [
       'Date',
+      'Time',
       'Reporter Name',
       'Reporter Email',
       'City',
@@ -367,7 +376,8 @@ const ScamReportsAdmin: React.FC = () => {
       const { data: allReports, error: reportsError } = await supabase
         .from('scam_reports')
         .select('*')
-        .order('created_date', { ascending: false }).order('created_time', { ascending: false });
+        .order('created_date', { ascending: false })
+        .order('created_time', { ascending: false });
 
       if (reportsError) throw reportsError;
 
@@ -456,45 +466,126 @@ const ScamReportsAdmin: React.FC = () => {
   };
 
   const handleDeleteAll = async () => {
-    if (deleteConfirmText !== 'CONFIRM') {
-      return;
-    }
-
     try {
-      // Delete all related records first due to foreign key constraints
-      await supabase
+      console.log('Starting delete all process...');
+      
+      // Delete all contact methods first
+      const { error: contactMethodsError } = await supabase
         .from('contact_methods')
         .delete()
-        .neq('id', '');
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Use a valid UUID
 
-      await supabase
+      if (contactMethodsError) {
+        console.error('Error deleting contact methods:', contactMethodsError);
+        throw contactMethodsError;
+      }
+
+      // Delete all scam types
+      const { error: scamTypesError } = await supabase
         .from('scam_types')
         .delete()
-        .neq('id', '');
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Use a valid UUID
 
-      await supabase
+      if (scamTypesError) {
+        console.error('Error deleting scam types:', scamTypesError);
+        throw scamTypesError;
+      }
+
+      // Delete all metadata
+      const { error: metadataError } = await supabase
         .from('scam_report_metadata')
         .delete()
-        .neq('id', '');
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Use a valid UUID
 
-      const { error } = await supabase
+      if (metadataError) {
+        console.error('Error deleting metadata:', metadataError);
+        throw metadataError;
+      }
+
+      // Finally delete all reports
+      const { error: reportsError } = await supabase
         .from('scam_reports')
         .delete()
-        .neq('id', '');
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Use a valid UUID
 
-      if (error) throw error;
+      if (reportsError) {
+        console.error('Error deleting reports:', reportsError);
+        throw reportsError;
+      }
 
+      console.log('Successfully deleted all reports and related data');
       setDeleteAllDialogOpen(false);
-      setDeleteConfirmText('');
-      await fetchReports(); // Refresh the list
-    } catch (error: any) {
+      setDeleteMessage('All reports have been successfully deleted');
+      setDeleteSuccess(true);
+      fetchReports(); // Refresh the list
+    } catch (error) {
       console.error('Error deleting all reports:', error);
-      alert('Failed to delete all reports. Please try again.');
+      setDeleteMessage('Failed to delete all reports. Please try again.');
+      setDeleteSuccess(false);
     }
   };
 
   const getContactInfo = (report: ScamReport) => {
     return report.reporter_email || 'Not provided';
+  };
+
+  const formatDate = (date: string | null) => {
+    if (!date) return 'N/A';
+    try {
+      // Since the date is already in EST/EDT, we don't need to convert it
+      const [month, day, year] = date.split('/');
+      return `${month}/${day}/${year}`;
+    } catch (error) {
+      console.error('Error formatting date:', error, date);
+      return 'N/A';
+    }
+  };
+
+  const formatTime = (time: string | null) => {
+    if (!time) return 'N/A';
+    try {
+      // Convert 24-hour time to 12-hour format with AM/PM
+      const [hours, minutes, seconds] = time.split(':');
+      const hour = parseInt(hours, 10);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const hour12 = hour % 12 || 12;
+      return `${hour12.toString().padStart(2, '0')}:${minutes}:${seconds} ${ampm} EST`;
+    } catch (error) {
+      console.error('Error formatting time:', error, time);
+      return 'N/A';
+    }
+  };
+
+  const formatDateTime = (date: string | null, time: string | null) => {
+    const formattedDate = formatDate(date);
+    const formattedTime = formatTime(time);
+    if (formattedDate === 'N/A' || formattedTime === 'N/A') return 'N/A';
+    return `${formattedDate} ${formattedTime}`;
+  };
+
+  const formatDateOnly = (date: string | null) => {
+    if (!date) return 'N/A';
+    try {
+      // Handle date string in YYYY-MM-DD format
+      if (date.includes('-')) {
+        const [year, month, day] = date.split('-');
+        return `${month}/${day}/${year}`;
+      }
+      // Handle date string in MM/DD/YYYY format
+      if (date.includes('/')) {
+        const [month, day, year] = date.split('/');
+        return `${month}/${day}/${year}`;
+      }
+      return 'N/A';
+    } catch (error) {
+      console.error('Error formatting date:', error, date);
+      return 'N/A';
+    }
+  };
+
+  const formatContactType = (type: string | null | undefined) => {
+    if (!type) return 'N/A';
+    return type.replace(/_/g, ' ').toUpperCase();
   };
 
   return (
@@ -644,14 +735,11 @@ const ScamReportsAdmin: React.FC = () => {
               <TableBody>
                 {reports.map((report) => (
                   <TableRow key={report.id}>
-                    <TableCell>{new Date(report.created_at).toLocaleDateString('en-US', {
-                      timeZone: 'America/New_York',
-                      year: 'numeric',
-                      month: '2-digit',
-                      day: '2-digit'
-                    })}</TableCell>
+                    <TableCell>
+                      {formatDateOnly(report.created_date)}
+                    </TableCell>
                     <TableCell>{report.reporter_name || 'N/A'}</TableCell>
-                    <TableCell>{`${report.reporter_city}, ${report.reporter_state}` || 'N/A'}</TableCell>
+                    <TableCell>{report.reporter_city && report.reporter_state ? `${report.reporter_city}, ${report.reporter_state}` : (report.reporter_city || report.reporter_state || 'N/A')}</TableCell>
                     <TableCell>
                       {getContactInfo(report)}
                     </TableCell>
@@ -716,7 +804,7 @@ const ScamReportsAdmin: React.FC = () => {
           {selectedReport && (
             <>
               <DialogTitle>
-                Report Details - {selectedReport.created_date || 'N/A'}
+                Report Details - {formatDateTime(selectedReport.created_date, selectedReport.created_time)}
               </DialogTitle>
               <DialogContent>
                 <Box sx={{ mb: 4 }}>
@@ -734,7 +822,7 @@ const ScamReportsAdmin: React.FC = () => {
                     </Grid>
                     <Grid item xs={12} sm={6}>
                       <Typography variant="subtitle2">Location</Typography>
-                      <Typography>{selectedReport.reporter_city}, {selectedReport.reporter_state}</Typography>
+                      <Typography>{selectedReport.reporter_city && selectedReport.reporter_state ? `${selectedReport.reporter_city}, ${selectedReport.reporter_state}` : (selectedReport.reporter_city || selectedReport.reporter_state || 'N/A')}</Typography>
                     </Grid>
                     <Grid item xs={12} sm={6}>
                       <Typography variant="subtitle2">Age Range</Typography>
@@ -794,12 +882,9 @@ const ScamReportsAdmin: React.FC = () => {
                   <Grid container spacing={2}>
                     <Grid item xs={12} sm={6}>
                       <Typography variant="subtitle2">Date Occurred</Typography>
-                      <Typography>{new Date(selectedReport.date_occurred).toLocaleDateString('en-US', {
-                        timeZone: 'America/New_York',
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit'
-                      })}</Typography>
+                      <Typography>
+                        {formatDate(selectedReport.date_occurred)}
+                      </Typography>
                     </Grid>
                     <Grid item xs={12} sm={6}>
                       <Typography variant="subtitle2">Money Lost</Typography>
@@ -981,7 +1066,7 @@ const ScamReportsAdmin: React.FC = () => {
                       {reportDetails.contactMethods.map((contact, index) => (
                         <Paper key={index} sx={{ p: 2, mb: 1 }}>
                           <Typography variant="subtitle1" gutterBottom>
-                            {contact.contact_type.replace(/_/g, ' ').toUpperCase()}
+                            {formatContactType(contact.contact_type)}
                           </Typography>
                           {contact.contact_value && (
                             <Typography>
@@ -1058,54 +1143,47 @@ const ScamReportsAdmin: React.FC = () => {
         {/* Delete All Confirmation Dialog */}
         <Dialog
           open={deleteAllDialogOpen}
-          onClose={() => {
-            setDeleteAllDialogOpen(false);
-            setDeleteConfirmText('');
-          }}
-          maxWidth="sm"
-          fullWidth
+          onClose={() => setDeleteAllDialogOpen(false)}
         >
-          <DialogTitle sx={{ fontSize: '2rem', fontWeight: 'bold', pt: 3, px: 3 }}>
-            Delete All Submissions
-          </DialogTitle>
-          <DialogContent sx={{ pb: 4 }}>
-            <Typography variant="body1" sx={{ mb: 3 }}>
-              This will permanently delete all submissions. This action cannot be undone.
+          <DialogTitle>Delete All Reports</DialogTitle>
+          <DialogContent>
+            <Typography sx={{ mb: 2 }}>
+              Are you sure you want to delete all reports? This action cannot be undone.
             </Typography>
-            <Typography variant="body1" sx={{ mb: 2, color: 'text.secondary' }}>
-              Type "CONFIRM" to delete all submissions
+            <Typography sx={{ mb: 2 }} color="error">
+              Type 'CONFIRM' to proceed with deletion:
             </Typography>
             <TextField
               fullWidth
-              variant="outlined"
-              placeholder="Type CONFIRM"
               value={deleteConfirmText}
               onChange={(e) => setDeleteConfirmText(e.target.value)}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  backgroundColor: '#fff'
-                }
-              }}
+              error={deleteConfirmText !== '' && deleteConfirmText !== 'CONFIRM'}
+              helperText={deleteConfirmText !== '' && deleteConfirmText !== 'CONFIRM' ? 'Please type CONFIRM exactly' : ''}
             />
+            {deleteMessage && (
+              <Alert 
+                severity={deleteSuccess ? 'success' : 'error'} 
+                sx={{ mt: 2 }}
+              >
+                {deleteMessage}
+              </Alert>
+            )}
           </DialogContent>
-          <DialogActions sx={{ px: 3, pb: 3 }}>
+          <DialogActions>
+            <Button onClick={() => {
+              setDeleteAllDialogOpen(false);
+              setDeleteConfirmText('');
+              setDeleteMessage('');
+            }}>
+              Cancel
+            </Button>
             <Button
-              variant="contained"
               onClick={handleDeleteAll}
               disabled={deleteConfirmText !== 'CONFIRM'}
-              sx={{
-                bgcolor: '#ff4444',
-                color: '#fff',
-                '&:hover': {
-                  bgcolor: '#cc0000',
-                },
-                '&.Mui-disabled': {
-                  bgcolor: '#ccc',
-                  color: '#666'
-                }
-              }}
+              color="error"
+              variant="contained"
             >
-              DELETE
+              Delete All
             </Button>
           </DialogActions>
         </Dialog>

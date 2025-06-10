@@ -33,37 +33,54 @@ exports.handler = async function(event) {
       process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
-    // Get unsynced submissions from Supabase
-    console.log('Fetching unsynced submissions from Supabase...');
+    // Get all submissions from Supabase
+    console.log('Fetching submissions from Supabase...');
     const { data: submissions, error: supabaseError } = await supabase
       .from('scam_reports')
       .select(`
         *,
-        scam_report_metadata (*)
+        scam_types (
+          id,
+          scam_type,
+          claimed_sale_amount,
+          amount,
+          promised_services,
+          tactics,
+          limited_time_or_threat,
+          promised_refund,
+          contacted_after_other_company,
+          description
+        ),
+        contact_methods (
+          id,
+          method,
+          phone_number,
+          email_address,
+          social_media_platform,
+          social_media_profile,
+          location,
+          event_type
+        ),
+        meta_details:scam_report_metadata (
+          browser,
+          device_type,
+          timezone,
+          language,
+          city,
+          region,
+          country,
+          ip_address,
+          latitude,
+          longitude
+        )
       `)
-      .is('synced_at', null)
-      .order('created_at', { ascending: true });
+      .order('created_date', { ascending: false })
+      .order('created_time', { ascending: false });
 
     if (supabaseError) {
       console.error('Supabase error:', supabaseError);
       throw new Error(`Supabase error: ${supabaseError.message}`);
     }
-
-    if (!submissions || submissions.length === 0) {
-      console.log('No new submissions to sync');
-      return {
-        statusCode: 200,
-        body: JSON.stringify({
-          message: 'No new submissions to sync',
-          details: {
-            totalSubmissions: 0,
-            syncedRows: 0
-          }
-        })
-      };
-    }
-
-    console.log(`Found ${submissions.length} unsynced submissions`);
 
     // Initialize Google Sheets
     console.log('Initializing Google Sheets client...');
@@ -103,85 +120,233 @@ exports.handler = async function(event) {
     }
     const sheetId = sheet.properties.sheetId;
 
-    // Prepare all rows
-    console.log('Preparing rows for sync...');
-    const rows = submissions.map(submission => {
-      const estDate = new Date(submission.created_at);
-      
-      const dateStr = estDate.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        timeZone: 'America/New_York'
-      });
-      
-      const timeStr = estDate.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true,
-        timeZone: 'America/New_York'
-      });
+    // Clear the entire sheet
+    console.log('Clearing existing data...');
+    await sheets.spreadsheets.values.clear({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_NAME}!A1:AH`,
+    });
 
-      const metadata = submission.scam_report_metadata?.[0] || {};
+    // Define headers
+    const headers = [
+      'Date',
+      'Time',
+      'Reporter Name',
+      'Reporter Email',
+      'Reporter City',
+      'Reporter State',
+      'Reporter Age Range',
+      'Willing to Speak',
+      'Share Anonymously',
+      'Money Lost',
+      'Amount Lost',
+      'Date Occurred',
+      'Scammer Name',
+      'Company Name',
+      'Scammer Phone',
+      'Scammer Email',
+      'Scammer Website',
+      'Reported Elsewhere',
+      'Reported To',
+      'Want Updates',
+      'Evidence URL',
+      'Browser',
+      'Device Type',
+      'Timezone',
+      'Language',
+      'City',
+      'Region',
+      'Country',
+      'IP Address',
+      'Latitude',
+      'Longitude',
+      'Scam Types',
+      'Contact Methods'
+    ];
+
+    // Always write headers
+    console.log('Writing headers...');
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_NAME}!A1`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [headers]
+      }
+    });
+
+    // Apply header formatting
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SPREADSHEET_ID,
+      requestBody: {
+        requests: [
+          // Header formatting
+          {
+            repeatCell: {
+              range: {
+                sheetId: sheetId,
+                startRowIndex: 0,
+                endRowIndex: 1,
+                startColumnIndex: 0,
+                endColumnIndex: headers.length
+              },
+              cell: {
+                userEnteredFormat: {
+                  backgroundColor: { red: 0.9, green: 0.9, blue: 0.9 },
+                  textFormat: { bold: true },
+                  horizontalAlignment: 'CENTER',
+                  verticalAlignment: 'MIDDLE'
+                }
+              },
+              fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)'
+            }
+          },
+          // Auto-resize columns
+          {
+            autoResizeDimensions: {
+              dimensions: {
+                sheetId: sheetId,
+                dimension: 'COLUMNS',
+                startIndex: 0,
+                endIndex: headers.length
+              }
+            }
+          }
+        ]
+      }
+    });
+
+    // If there are no submissions, return after writing headers
+    if (!submissions || submissions.length === 0) {
+      console.log('No submissions found, leaving sheet with headers only');
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          message: 'Sync completed successfully - no data to sync',
+          details: {
+            totalSubmissions: 0,
+            syncedRows: 0,
+            spreadsheetId: SPREADSHEET_ID,
+            sheetName: SHEET_NAME
+          }
+        })
+      };
+    }
+
+    // Function to format time
+    const formatTime = (time) => {
+      if (!time) return '';
+      try {
+        // Convert 24-hour time to 12-hour format with AM/PM
+        const [hours, minutes, seconds] = time.split(':');
+        const hour = parseInt(hours, 10);
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        const hour12 = hour % 12 || 12;
+        return `${hour12.toString().padStart(2, '0')}:${minutes}:${seconds} ${ampm} EST`;
+      } catch (error) {
+        console.error('Error formatting time:', error);
+        return '';
+      }
+    };
+
+    // Function to format date
+    const formatDate = (date) => {
+      if (!date) return '';
+      try {
+        // Date is already in MM/DD/YYYY format
+        return date;
+      } catch (error) {
+        console.error('Error formatting date:', error);
+        return '';
+      }
+    };
+
+    // Format data for Google Sheets
+    const formattedData = submissions.map(report => {
+      const scamTypes = report.scam_types || [];
+      const contactMethods = report.contact_methods || [];
+      const metadata = report.meta_details?.[0] || {};
+      
+      const scamTypesList = scamTypes.map(st => st.scam_type).join(', ');
+      const contactMethodsList = contactMethods.map(cm => cm.method).join(', ');
 
       return [
-        dateStr,
-        timeStr,
-        submission.full_name,
-        submission.email,
-        submission.phone || 'N/A',
-        submission.company_name || 'N/A',
-        submission.company_phone || 'N/A',
-        submission.company_address || 'N/A',
-        submission.company_website || 'N/A',
-        submission.scam_type || 'N/A',
-        submission.scam_details || 'N/A',
-        submission.newsletter_consent ? 'Yes' : 'No',
+        formatDate(report.created_date),
+        formatTime(report.created_time),
+        report.reporter_name || 'N/A',
+        report.reporter_email || 'N/A',
+        report.reporter_city || 'N/A',
+        report.reporter_state || 'N/A',
+        report.reporter_age_range || 'N/A',
+        report.speak_with_team ? 'Yes' : 'No',
+        report.share_anonymously ? 'Yes' : 'No',
+        report.money_lost ? 'Yes' : 'No',
+        report.amount_lost ? `$${report.amount_lost}` : 'N/A',
+        report.date_occurred || 'N/A',
+        report.scammer_name || 'N/A',
+        report.company_name || 'N/A',
+        report.scammer_phone || 'N/A',
+        report.scammer_email || 'N/A',
+        report.scammer_website || 'N/A',
+        report.reported_elsewhere ? 'Yes' : 'No',
+        report.reported_to || 'N/A',
+        report.want_updates ? 'Yes' : 'No',
+        report.evidence_file_url || 'N/A',
+        metadata.browser || 'N/A',
+        metadata.device_type || 'N/A',
+        metadata.timezone || 'N/A',
+        metadata.language || 'N/A',
         metadata.city || 'N/A',
         metadata.region || 'N/A',
         metadata.country || 'N/A',
         metadata.ip_address || 'N/A',
-        metadata.browser || 'N/A',
-        metadata.device_type || 'N/A',
-        metadata.screen_resolution || 'N/A',
-        metadata.timezone || 'N/A',
-        metadata.language || 'N/A',
-        metadata.user_agent || 'N/A',
         metadata.latitude || 'N/A',
-        metadata.longitude || 'N/A'
+        metadata.longitude || 'N/A',
+        scamTypesList || 'N/A',
+        contactMethodsList || 'N/A'
       ];
     });
 
-    console.log(`Prepared ${rows.length} rows for sync`);
+    // Write data if we have submissions
+    if (formattedData.length > 0) {
+      console.log('Writing data...');
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${SHEET_NAME}!A2`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+          values: formattedData
+        }
+      });
 
-    // Append all rows
-    console.log('Appending rows to sheet...');
-    const appendResponse = await sheets.spreadsheets.values.append({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A2:X`,
-      valueInputOption: 'USER_ENTERED',
-      insertDataOption: 'INSERT_ROWS',
-      requestBody: {
-        values: rows
-      }
-    });
-
-    console.log('Append response:', appendResponse.data);
-
-    // Mark submissions as synced
-    console.log('Marking submissions as synced...');
-    const now = new Date().toISOString();
-    const submissionIds = submissions.map(s => s.id);
-    
-    const { error: updateError } = await supabase
-      .from('scam_reports')
-      .update({ synced_at: now })
-      .in('id', submissionIds);
-
-    if (updateError) {
-      console.error('Error marking submissions as synced:', updateError);
-      throw new Error(`Failed to mark submissions as synced: ${updateError.message}`);
+      // Apply data formatting
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: SPREADSHEET_ID,
+        requestBody: {
+          requests: [
+            // Data cell formatting
+            {
+              repeatCell: {
+                range: {
+                  sheetId: sheetId,
+                  startRowIndex: 1,
+                  startColumnIndex: 0,
+                  endColumnIndex: headers.length
+                },
+                cell: {
+                  userEnteredFormat: {
+                    horizontalAlignment: 'LEFT',
+                    verticalAlignment: 'MIDDLE',
+                    padding: { top: 2, right: 3, bottom: 2, left: 3 },
+                    wrapStrategy: 'WRAP'
+                  }
+                },
+                fields: 'userEnteredFormat(horizontalAlignment,verticalAlignment,padding,wrapStrategy)'
+              }
+            }
+          ]
+        }
+      });
     }
 
     console.log('Sync completed successfully');
@@ -191,7 +356,7 @@ exports.handler = async function(event) {
         message: 'Sync completed successfully',
         details: {
           totalSubmissions: submissions.length,
-          syncedRows: rows.length,
+          syncedRows: formattedData.length,
           spreadsheetId: SPREADSHEET_ID,
           sheetName: SHEET_NAME
         }
