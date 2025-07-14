@@ -216,7 +216,7 @@ const PetitionPage: React.FC<PetitionPageProps> = () => {
               variants={scaleIn}
             >
               <img 
-                src="/images/ePSF Google ad images (1) (1).png" 
+                src="/images/Petition/petition-3.webp" 
                 alt="Timeshare contract with scam stamp"
                 className="hero-img"
               />
