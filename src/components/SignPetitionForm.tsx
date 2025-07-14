@@ -194,7 +194,7 @@ const SignPetitionFormContent: React.FC = () => {
         console.log('Successfully collected meta details:', metaDetails);
 
         // Validate the collected meta details
-        if (!metaDetails || !metaDetails.device || !metaDetails.location) {
+        if (!metaDetails || !metaDetails.browser || !metaDetails.device_type) {
           console.warn('Meta details are incomplete:', metaDetails);
           // Try collecting again
           metaDetails = await collectMetaDetails();
@@ -221,7 +221,7 @@ const SignPetitionFormContent: React.FC = () => {
         last_name: formData.last_name,
         email: formData.email,
         timeshare_name: formData.timeshare_name,
-        meta_details: metaDetails,
+        meta_details: metaDetails, // flat structure
         created_date: new Date().toLocaleString('en-US', {
           timeZone: 'America/New_York',
           year: 'numeric',
@@ -294,13 +294,13 @@ const SignPetitionFormContent: React.FC = () => {
         try {
           await sendSignatureNotification({
             ...signatureData[0],
-            metadata: metaDetails,
+            metadata: metaDetails, // flat structure
             created_at: new Date().toISOString()
           });
           // Send user confirmation/share email
           await sendSharePetitionEmail({
             ...signatureData[0],
-            metadata: metaDetails,
+            metadata: metaDetails, // flat structure
             created_at: new Date().toISOString()
           });
           console.log('Email notification sent successfully');
