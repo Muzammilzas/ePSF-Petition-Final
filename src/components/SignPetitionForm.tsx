@@ -359,6 +359,9 @@ const SignPetitionFormContent: React.FC = () => {
   return (
     <Container maxWidth="md">
       <Paper elevation={3} sx={{ p: 4, mt: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+          <img src="/your-logo.png" alt="ePSF Logo" style={{ height: 60, width: 'auto' }} />
+        </Box>
         {currentPetition ? (
           <>
             <Typography variant="h4" gutterBottom align="center" sx={{ color: '#01BD9B', fontWeight: 'bold', mb: 3 }}>

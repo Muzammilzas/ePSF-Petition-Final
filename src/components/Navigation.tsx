@@ -30,6 +30,9 @@ const Navigation: React.FC = () => {
   const { user, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false); // desktop dropdown
+  const [scamDropdownOpen, setScamDropdownOpen] = useState(false); // mobile collapsible
+  const [dropdownHover, setDropdownHover] = useState(false); // sticky hover for dropdown
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -109,75 +112,61 @@ const Navigation: React.FC = () => {
         }
       ];
     } else {
+      // New public navigation structure
       return [
         {
-          text: 'Donate Now',
-          link: '/donate',
-          external: false,
-          variant: 'contained',
+          text: 'Home',
+          link: '/',
+          variant: 'text',
           sx: {
-            color: '#fff',
-            bgcolor: '#E0AC3F',
-            border: 'none',
-            borderRadius: '4px',
-            fontSize: '0.85rem',
-            fontWeight: 500,
-            py: 0.7,
-            px: 2,
-            textTransform: 'none',
-            width: isMobile ? '100%' : 'auto',
-            mb: isMobile ? 1 : 0,
-            '&:hover': {
-              bgcolor: '#c99a38',
-            },
+            color: '#01BD9B', fontWeight: 600, fontSize: '1rem', textTransform: 'none', '&:hover': { color: '#fff', backgroundColor: '#01BD9B' },
           }
         },
         {
-          text: 'Get Involved',
-          link: 'https://epublicsf.org/volunteer/',
-          external: true,
-          variant: 'contained',
+          text: 'Sign Petition',
+          link: '/petition',
+          variant: 'text',
           sx: {
-            color: '#fff',
-            bgcolor: '#01BD9B',
-            border: 'none',
-            borderRadius: '4px',
-            fontSize: '0.85rem',
-            fontWeight: 500,
-            py: 0.7,
-            px: 2,
-            textTransform: 'none',
-            width: isMobile ? '100%' : 'auto',
-            mb: isMobile ? 1 : 0,
-            '&:hover': {
-              bgcolor: '#00a589',
-            },
+            color: '#01BD9B', fontWeight: 600, fontSize: '1rem', textTransform: 'none', '&:hover': { color: '#fff', backgroundColor: '#01BD9B' },
+          }
+        },
+        // Scam Resources will be rendered after Sign Petition
+        {
+          text: 'Consumer Rights',
+          link: '/consumer-rights',
+          variant: 'text',
+          sx: {
+            color: '#01BD9B', fontWeight: 600, fontSize: '1rem', textTransform: 'none', '&:hover': { color: '#fff', backgroundColor: '#01BD9B' },
+          }
+        },
+        {
+          text: 'Donate',
+          link: '/donate',
+          variant: 'text',
+          sx: {
+            color: '#01BD9B', fontWeight: 600, fontSize: '1rem', textTransform: 'none', '&:hover': { color: '#fff', backgroundColor: '#01BD9B' },
           }
         },
         {
           text: 'Report a Scam',
           link: '/report-scam',
-          external: false,
-          variant: 'contained',
+          variant: 'text',
           sx: {
-            color: '#fff',
-            bgcolor: '#01BD9B',
-            border: 'none',
-            borderRadius: '4px',
-            fontSize: '0.85rem',
-            fontWeight: 500,
-            py: 0.7,
-            px: 2,
-            textTransform: 'none',
-            width: isMobile ? '100%' : 'auto',
-            '&:hover': {
-              bgcolor: '#00a589',
-            },
+            color: '#01BD9B', fontWeight: 600, fontSize: '1rem', textTransform: 'none', '&:hover': { color: '#fff', backgroundColor: '#01BD9B' },
           }
-        }
+        },
+        // Dropdown for Scam Resources handled separately in render
       ];
     }
   };
+
+  // Scam Resources dropdown items
+  const scamResources = [
+    { text: 'Timeshare Scam', link: '/timeshare-scam' },
+    { text: 'Timeshare Scam Checklist', link: '/timeshare-scam-checklist' },
+    { text: 'How Timeshare Scams Work', link: '/how-timeshare-scams-work' },
+    { text: 'Timeshare Scam Awareness', link: '/timeshare-scam-awareness' },
+  ];
 
   // Mobile drawer content
   const drawer = (
@@ -204,18 +193,6 @@ const Navigation: React.FC = () => {
               >
                 {item.text}
               </Button>
-            ) : 'external' in item && item.external ? (
-              <Button
-                component="a"
-                href={item.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                variant={item.variant}
-                fullWidth
-                sx={item.sx}
-              >
-                {item.text}
-              </Button>
             ) : (
               <Button
                 component={RouterLink}
@@ -229,6 +206,36 @@ const Navigation: React.FC = () => {
             )}
           </ListItem>
         ))}
+        {/* Scam Resources collapsible section for mobile */}
+        <ListItem sx={{ mb: 1, display: 'block' }}>
+          <Box sx={{ width: '100%' }}>
+            <Button
+              fullWidth
+              variant="text"
+              sx={{ color: '#01BD9B', fontWeight: 600, fontSize: '1rem', textTransform: 'none', justifyContent: 'flex-start', backgroundColor: scamDropdownOpen ? 'rgba(1,189,155,0.08)' : 'transparent', '&:hover': { color: '#fff', backgroundColor: '#01BD9B' } }}
+              onClick={() => setScamDropdownOpen((open) => !open)}
+            >
+              Scam Resources
+            </Button>
+            {scamDropdownOpen && (
+              <List sx={{ pl: 2 }}>
+                {scamResources.map((item, idx) => (
+                  <ListItem key={idx} sx={{ p: 0 }}>
+                    <Button
+                      component={RouterLink}
+                      to={item.link}
+                      variant="text"
+                      fullWidth
+                      sx={{ color: '#01BD9B', fontWeight: 500, fontSize: '0.95rem', textTransform: 'none', justifyContent: 'flex-start', '&:hover': { color: '#fff', backgroundColor: '#01BD9B' } }}
+                    >
+                      {item.text}
+                    </Button>
+                  </ListItem>
+                ))}
+              </List>
+            )}
+          </Box>
+        </ListItem>
       </List>
     </Box>
   );
@@ -285,7 +292,8 @@ const Navigation: React.FC = () => {
           </>
         ) : (
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-            {getNavigationItems().map((item, index) => (
+            {/* Home and Sign Petition */}
+            {getNavigationItems().slice(0,2).map((item, index) => (
               'action' in item ? (
                 <Button
                   key={index}
@@ -295,13 +303,88 @@ const Navigation: React.FC = () => {
                 >
                   {item.text}
                 </Button>
-              ) : 'external' in item && item.external ? (
+              ) : (
                 <Button
                   key={index}
-                  component="a"
-                  href={item.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  component={RouterLink}
+                  to={item.link}
+                  variant={item.variant}
+                  sx={item.sx}
+                >
+                  {item.text}
+                </Button>
+              )
+            ))}
+            {/* Scam Resources dropdown for desktop */}
+            <Box
+              sx={{ position: 'relative' }}
+              onMouseEnter={() => { setDropdownOpen(true); setDropdownHover(true); }}
+              onMouseLeave={() => { setDropdownHover(false); setTimeout(() => { if (!dropdownHover) setDropdownOpen(false); }, 100); }}
+            >
+              <Button
+                variant="text"
+                sx={{ color: '#01BD9B', fontWeight: 600, fontSize: '1rem', textTransform: 'none', backgroundColor: dropdownOpen ? 'rgba(1,189,155,0.08)' : 'transparent', '&:hover': { color: '#fff', backgroundColor: '#01BD9B' } }}
+                aria-haspopup="true"
+                aria-expanded={dropdownOpen}
+              >
+                Scam Resources
+              </Button>
+              {dropdownOpen && (
+                <Box
+                  onMouseEnter={() => { setDropdownOpen(true); setDropdownHover(true); }}
+                  onMouseLeave={() => { setDropdownHover(false); setTimeout(() => { if (!dropdownHover) setDropdownOpen(false); }, 100); }}
+                  sx={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    bgcolor: '#fff',
+                    boxShadow: 3,
+                    borderRadius: 1,
+                    minWidth: { xs: 220, sm: 260 },
+                    maxWidth: '90vw',
+                    zIndex: 10,
+                    p: { xs: 1, sm: 1.5 },
+                    mt: 1,
+                    overflow: 'auto',
+                  }}
+                >
+                  <List sx={{ p: 0, m: 0 }}>
+                    {scamResources.map((item, idx) => (
+                      <ListItem key={idx} sx={{ p: 0, mb: 0.5, '&:last-child': { mb: 0 } }}>
+                        <Button
+                          component={RouterLink}
+                          to={item.link}
+                          variant="text"
+                          sx={{
+                            color: '#01BD9B',
+                            fontWeight: 500,
+                            fontSize: { xs: '1rem', sm: '1.05rem' },
+                            textTransform: 'none',
+                            justifyContent: 'flex-start',
+                            width: '100%',
+                            px: 3,
+                            py: 1.2,
+                            borderRadius: 1,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            '&:hover': { color: '#fff', backgroundColor: '#01BD9B' },
+                          }}
+                        >
+                          {item.text}
+                        </Button>
+                      </ListItem>
+                    ))}
+                  </List>
+                </Box>
+              )}
+            </Box>
+            {/* The rest of the menu */}
+            {getNavigationItems().slice(2).map((item, index) => (
+              'action' in item ? (
+                <Button
+                  key={index+2}
+                  onClick={item.action}
                   variant={item.variant}
                   sx={item.sx}
                 >
@@ -309,7 +392,7 @@ const Navigation: React.FC = () => {
                 </Button>
               ) : (
                 <Button
-                  key={index}
+                  key={index+2}
                   component={RouterLink}
                   to={item.link}
                   variant={item.variant}
