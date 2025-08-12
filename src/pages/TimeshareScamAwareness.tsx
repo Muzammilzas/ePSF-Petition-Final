@@ -12,7 +12,7 @@ import {
   CardContent,
   Divider,
 } from '@mui/material';
-import { motion } from 'framer-motion';
+import { motion, Variants } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import BeachAccessIcon from '@mui/icons-material/BeachAccess';
 import WarningIcon from '@mui/icons-material/Warning';
