@@ -1,10 +1,10 @@
 import React from 'react';
 import { Box, Container, Typography, Button } from '@mui/material';
-import { motion } from 'framer-motion';
+import { motion, Variants } from 'framer-motion';
 import { sectionStyles, colors } from '../styles';
 
 // Create motion variants for staggered animations
-const containerVariants = {
+const containerVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
@@ -15,39 +15,39 @@ const containerVariants = {
   }
 };
 
-const slideUpVariants = {
+const slideUpVariants: Variants = {
   hidden: { y: 60, opacity: 0 },
   visible: { 
     y: 0, 
     opacity: 1,
     transition: { 
-      type: "spring",
+      type: "spring" as const,
       stiffness: 100,
       damping: 15
     }
   }
 };
 
-const warningVariants = {
+const warningVariants: Variants = {
   hidden: { scale: 0.8, opacity: 0 },
   visible: {
     scale: 1,
     opacity: 1,
     transition: {
-      type: "spring",
+      type: "spring" as const,
       stiffness: 300,
       damping: 20
     }
   }
 };
 
-const buttonVariants = {
+const buttonVariants: Variants = {
   hidden: { x: -50, opacity: 0 },
   visible: { 
     x: 0, 
     opacity: 1,
     transition: {
-      type: "spring",
+      type: "spring" as const,
       stiffness: 120,
       delay: 0.6
     }
@@ -59,7 +59,7 @@ const buttonVariants = {
   }
 };
 
-const imgVariants = {
+const imgVariants: Variants = {
   hidden: { 
     opacity: 0,
     rotateY: 30,
@@ -70,7 +70,7 @@ const imgVariants = {
     rotateY: 0,
     x: 0,
     transition: { 
-      type: "spring", 
+      type: "spring" as const, 
       damping: 20,
       delay: 0.3,
       duration: 0.8
@@ -211,4 +211,4 @@ const DarkCallToAction: React.FC = () => {
   );
 };
 
-export default DarkCallToAction; 
+export default DarkCallToAction;

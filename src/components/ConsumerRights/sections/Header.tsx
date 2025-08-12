@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Container, Typography, Grid } from '@mui/material';
-import { motion } from 'framer-motion';
+import { motion, Variants } from 'framer-motion';
 import { sectionStyles, colors } from '../styles';
 
 // Motion components
@@ -20,26 +20,26 @@ const containerVariants = {
   }
 };
 
-const itemVariants = {
+const itemVariants: Variants = {
   hidden: { opacity: 0, y: 30 },
   visible: {
     opacity: 1,
     y: 0,
     transition: {
       duration: 0.7,
-      ease: "easeOut"
+      ease: "easeOut" as const
     }
   }
 };
 
-const imageVariants = {
+const imageVariants: Variants = {
   hidden: { opacity: 0, x: 50 },
   visible: {
     opacity: 1,
     x: 0,
     transition: {
       duration: 0.7,
-      ease: "easeOut",
+      ease: "easeOut" as const,
       delay: 0.3
     }
   }
@@ -204,4 +204,4 @@ const Header: React.FC = () => {
   );
 };
 
-export default Header; 
+export default Header;

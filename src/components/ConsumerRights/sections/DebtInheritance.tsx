@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Container, Typography, Grid } from '@mui/material';
-import { motion } from 'framer-motion';
+import { motion, Variants } from 'framer-motion';
 import { sectionStyles, colors } from '../styles';
 
 // Create motion components
@@ -18,19 +18,19 @@ const sectionVariants = {
   }
 };
 
-const textRevealVariants = {
+const textRevealVariants: Variants = {
   hidden: { opacity: 0, y: 75 },
   visible: {
     opacity: 1,
     y: 0,
     transition: {
       duration: 0.8,
-      ease: [0.17, 0.67, 0.83, 0.67] // Bouncy easing
+      ease: "easeOut" as const
     }
   }
 };
 
-const buttonVariants = {
+const buttonVariants: Variants = {
   hidden: { opacity: 0, scale: 0.8 },
   visible: {
     opacity: 1,
@@ -38,7 +38,7 @@ const buttonVariants = {
     transition: {
       delay: 0.6,
       duration: 0.4,
-      type: "spring",
+      type: "spring" as const,
       stiffness: 200
     }
   },
@@ -51,7 +51,7 @@ const buttonVariants = {
   }
 };
 
-const imageRevealVariants = {
+const imageRevealVariants: Variants = {
   hidden: { 
     clipPath: "inset(0 100% 0 0)",
     opacity: 0
@@ -61,7 +61,7 @@ const imageRevealVariants = {
     opacity: 1,
     transition: { 
       duration: 1.2,
-      ease: "easeInOut",
+      ease: "easeInOut" as const,
       delay: 0.3
     }
   }
@@ -168,4 +168,4 @@ const DebtInheritance: React.FC = () => {
   );
 };
 
-export default DebtInheritance; 
+export default DebtInheritance;
