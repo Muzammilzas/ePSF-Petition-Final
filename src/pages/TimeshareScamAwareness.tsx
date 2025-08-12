@@ -26,7 +26,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import ReportIcon from '@mui/icons-material/Report';
 
-const fadeIn = {
+const fadeIn: Variants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.6 } }
 };
@@ -424,4 +424,4 @@ const TimeshareScamAwareness: React.FC = () => {
   );
 };
 
-export default TimeshareScamAwareness; 
+export default TimeshareScamAwareness;
