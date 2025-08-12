@@ -1,13 +1,13 @@
 import React from 'react';
 import { Box, Container, Typography, Grid, Paper } from '@mui/material';
-import { motion } from 'framer-motion';
+import { motion, Variants } from 'framer-motion';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import GavelIcon from '@mui/icons-material/Gavel';
 import MoneyOffIcon from '@mui/icons-material/MoneyOff';
 import { sectionStyles, colors } from '../styles';
 
-// Motion component wrappers
+// Create motion components
 const MotionBox = motion(Box);
 const MotionContainer = motion(Container);
 const MotionTypography = motion(Typography);
@@ -15,42 +15,42 @@ const MotionPaper = motion(Paper);
 const MotionGrid = motion(Grid);
 
 // Animation variants
-const sectionVariants = {
+const sectionVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
     transition: {
-      when: "beforeChildren",
+      when: "beforeChildren" as const,
       staggerChildren: 0.2
     }
   }
 };
 
-const fadeInUpVariants = {
+const fadeInUpVariants: Variants = {
   hidden: { opacity: 0, y: 40 },
   visible: {
     opacity: 1,
     y: 0,
     transition: {
       duration: 0.6,
-      ease: "easeOut"
+      ease: "easeOut" as const
     }
   }
 };
 
-const imageVariants = {
+const imageVariants: Variants = {
   hidden: { opacity: 0, scale: 0.9 },
   visible: {
     opacity: 1,
     scale: 1,
     transition: {
       duration: 0.8,
-      ease: "easeOut"
+      ease: "easeOut" as const
     }
   }
 };
 
-const cardVariants = {
+const cardVariants: Variants = {
   hidden: { opacity: 0, x: -20 },
   visible: (i: number) => ({
     opacity: 1,
@@ -58,18 +58,18 @@ const cardVariants = {
     transition: {
       delay: i * 0.1,
       duration: 0.5,
-      ease: "easeInOut"
+      ease: "easeInOut" as const
     }
   })
 };
 
-const iconVariants = {
+const iconVariants: Variants = {
   hidden: { scale: 0, rotate: -45 },
   visible: {
     scale: 1,
     rotate: 0,
     transition: {
-      type: "spring",
+      type: "spring" as const,
       stiffness: 260,
       damping: 20,
     }
@@ -298,4 +298,4 @@ const Problem: React.FC = () => {
   );
 };
 
-export default Problem; 
+export default Problem;
