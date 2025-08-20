@@ -474,7 +474,6 @@ const SignPetitionFormContent: React.FC = () => {
               name="timeshare_name"
               value={formData.timeshare_name}
               onChange={handleChange}
-              required
               disabled={loading}
                   variant="outlined"
                   size="small"
@@ -578,4 +577,4 @@ const SignPetitionForm: React.FC = () => {
   );
 };
 
-export default SignPetitionForm; 
+export default SignPetitionForm;
