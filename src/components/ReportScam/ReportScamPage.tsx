@@ -167,6 +167,7 @@ const ReportScamPage: React.FC = () => {
   };
 
   const handleSubmit = async (event?: React.FormEvent) => {
+    console.log('handleSubmit called');
     if (event) {
       event.preventDefault();
     }
@@ -403,9 +404,21 @@ const ReportScamPage: React.FC = () => {
         console.error('Error syncing with Google Sheets:', sheetError);
         // Don't throw error here, continue with the rest of the submission
       }
-
-      // Show success message
+      
+      // Use both navigation methods for better reliability
+      // First try direct browser navigation with full URL
+      window.location.href = window.location.origin + '/report-scam/thank-you';
+      
+      // Also try React Router navigation as backup
       navigate('/report-scam/thank-you');
+      
+      // Add a fallback redirect with increased timeout
+      setTimeout(() => {
+        if (window.location.pathname !== '/report-scam/thank-you') {
+          console.log('Fallback navigation triggered');
+          window.location.href = window.location.origin + '/report-scam/thank-you';
+        }
+      }, 2000);
     } catch (error: any) {
       console.error('Error submitting report:', error);
       setError(error.message || 'An error occurred while submitting your report. Please try again.');
@@ -525,4 +538,4 @@ const ReportScamPage: React.FC = () => {
   );
 };
 
-export default ReportScamPage; 
+export default ReportScamPage;

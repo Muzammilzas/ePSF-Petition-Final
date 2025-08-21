@@ -89,24 +89,40 @@ const SignPetitionFormContent: React.FC = () => {
       try {
         console.log('Starting location data collection...');
         
-        // Use ipapi.co directly instead of going through ipify first
-        const geoResponse = await fetch('https://ipapi.co/json/');
-        if (!geoResponse.ok) {
-          throw new Error(`Failed to fetch location data: ${geoResponse.status}`);
+        // Try geojs.io first as it has better CORS support
+        let geoData;
+        
+        // First get IP from geojs.io
+        const ipResponse = await fetch('https://get.geojs.io/v1/ip');
+        if (ipResponse.ok) {
+          const ip = await ipResponse.text();
+          // Then get geo data
+          const geoResponse = await fetch(`https://get.geojs.io/v1/ip/geo/${ip}.json`);
+          if (geoResponse.ok) {
+            geoData = await geoResponse.json();
+          }
         }
         
-        const geoData = await geoResponse.json();
+        if (!geoData) {
+          // Fallback to ipapi.co if geojs.io fails
+          const ipapiResponse = await fetch('https://ipapi.co/json/');
+          if (!ipapiResponse.ok) {
+            throw new Error(`Failed to fetch location data: ${ipapiResponse.status}`);
+          }
+          
+          geoData = await ipapiResponse.json();
+          if (geoData.error) {
+            throw new Error(`Location API error: ${geoData.error}`);
+          }
+        }
+        
         console.log('Location data fetched:', geoData);
-        
-        if (geoData.error) {
-          throw new Error(`Location API error: ${geoData.error}`);
-        }
 
         const locationInfo = {
           ip_address: geoData.ip,
           city: geoData.city || 'Unknown',
           region: geoData.region || 'Unknown',
-          country: geoData.country_name || 'Unknown',
+          country: geoData.country_name || geoData.country || 'Unknown',
           latitude: geoData.latitude,
           longitude: geoData.longitude,
           user_agent: navigator.userAgent,

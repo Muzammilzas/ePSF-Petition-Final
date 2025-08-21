@@ -38,6 +38,18 @@ export const getDeviceType = (userAgent: string): string => {
 
 export const getLocationFromIP = async (ip: string): Promise<string> => {
   try {
+    // Try geojs.io first
+    try {
+      const geoResponse = await fetch(`https://get.geojs.io/v1/ip/geo/${ip}.json`);
+      if (geoResponse.ok) {
+        const geoData = await geoResponse.json();
+        return `${geoData.city || 'Unknown'}, ${geoData.country || 'Unknown'}`;
+      }
+    } catch (geoError) {
+      console.error('Error getting location from geojs.io:', geoError);
+    }
+    
+    // Fall back to ipapi.co if geojs.io fails
     const response = await fetch(`https://ipapi.co/${ip}/json/`);
     const data = await response.json();
     return `${data.city}, ${data.country}`;
@@ -45,4 +57,4 @@ export const getLocationFromIP = async (ip: string): Promise<string> => {
     console.error('Error getting location from IP:', error);
     return 'Unknown';
   }
-}; 
+};

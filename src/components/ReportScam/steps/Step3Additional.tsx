@@ -101,6 +101,7 @@ const Step3Additional: React.FC<Step3AdditionalProps> = ({
               bgcolor: 'primary.dark',
             }
           }}
+          type="button" // Add this line to ensure it's treated as a button
         >
           {isSubmitting ? (
             <>
@@ -116,4 +117,4 @@ const Step3Additional: React.FC<Step3AdditionalProps> = ({
   );
 };
 
-export default Step3Additional; 
+export default Step3Additional;
