@@ -40,31 +40,79 @@ export const collectMetaDetails = async () => {
     // Get location data from multiple sources for redundancy
     console.log('Fetching location data...');
     
-    // Try ipapi.co first
+    // Try geojs.io first as it has better CORS support
     let locationInfo;
     try {
-      const ipapiResponse = await fetch('https://ipapi.co/json/');
-      if (ipapiResponse.ok) {
-        const ipapiData = await ipapiResponse.json();
-        if (!ipapiData.error) {
+      // First get IP from geojs.io
+      const ipResponse = await fetch('https://get.geojs.io/v1/ip');
+      if (ipResponse.ok) {
+        const ip = await ipResponse.text();
+        // Then get geo data
+        const geoResponse = await fetch(`https://get.geojs.io/v1/ip/geo/${ip}.json`);
+        if (geoResponse.ok) {
+          const geoData = await geoResponse.json();
           locationInfo = {
-            ip_address: ipapiData.ip || 'Unknown',
-            city: ipapiData.city || 'Unknown',
-            region: ipapiData.region || 'Unknown',
-            country: ipapiData.country_name || 'Unknown',
-            latitude: ipapiData.latitude || null,
-            longitude: ipapiData.longitude || null
+            ip_address: geoData.ip || 'Unknown',
+            city: geoData.city || 'Unknown',
+            region: geoData.region || 'Unknown',
+            country: geoData.country || 'Unknown',
+            latitude: geoData.latitude || null,
+            longitude: geoData.longitude || null
           };
-          console.log('Successfully got location from ipapi.co:', locationInfo);
-        } else {
-          console.warn('ipapi.co returned error:', ipapiData.error);
+          console.log('Successfully got location from geojs.io:', locationInfo);
         }
       }
     } catch (error) {
-      console.error('ipapi.co error:', error);
+      console.error('geojs.io error:', error);
     }
 
-    // If ipapi.co fails, try ip-api.com as backup
+    // If geojs.io fails, try ipify.org for basic IP info
+    if (!locationInfo) {
+      try {
+        const ipifyResponse = await fetch('https://api.ipify.org?format=json');
+        if (ipifyResponse.ok) {
+          const ipData = await ipifyResponse.json();
+          locationInfo = {
+            ip_address: ipData.ip || 'Unknown',
+            city: 'Unknown',
+            region: 'Unknown',
+            country: 'Unknown',
+            latitude: null,
+            longitude: null
+          };
+          console.log('Got IP only from ipify:', locationInfo);
+        }
+      } catch (error) {
+        console.error('ipify error:', error);
+      }
+    }
+
+    // Only try ipapi.co if other services fail (it has CORS issues)
+    if (!locationInfo) {
+      try {
+        const ipapiResponse = await fetch('https://ipapi.co/json/');
+        if (ipapiResponse.ok) {
+          const ipapiData = await ipapiResponse.json();
+          if (!ipapiData.error) {
+            locationInfo = {
+              ip_address: ipapiData.ip || 'Unknown',
+              city: ipapiData.city || 'Unknown',
+              region: ipapiData.region || 'Unknown',
+              country: ipapiData.country_name || 'Unknown',
+              latitude: ipapiData.latitude || null,
+              longitude: ipapiData.longitude || null
+            };
+            console.log('Successfully got location from ipapi.co:', locationInfo);
+          } else {
+            console.warn('ipapi.co returned error:', ipapiData.error);
+          }
+        }
+      } catch (error) {
+        console.error('ipapi.co error:', error);
+      }
+    }
+
+    // Try ip-api.com as last resort (also has CORS issues)
     if (!locationInfo) {
       try {
         const ipApiResponse = await fetch('https://api.ip-api.com/json/');
@@ -86,54 +134,6 @@ export const collectMetaDetails = async () => {
         }
       } catch (error) {
         console.error('ip-api.com error:', error);
-      }
-    }
-
-    // If both services fail, use geojs.io as final backup
-    if (!locationInfo) {
-      try {
-        // First get IP from geojs.io
-        const ipResponse = await fetch('https://get.geojs.io/v1/ip');
-        if (ipResponse.ok) {
-          const ip = await ipResponse.text();
-          // Then get geo data
-          const geoResponse = await fetch(`https://get.geojs.io/v1/ip/geo/${ip}.json`);
-          if (geoResponse.ok) {
-            const geoData = await geoResponse.json();
-            locationInfo = {
-              ip_address: geoData.ip || 'Unknown',
-              city: geoData.city || 'Unknown',
-              region: geoData.region || 'Unknown',
-              country: geoData.country || 'Unknown',
-              latitude: geoData.latitude || null,
-              longitude: geoData.longitude || null
-            };
-            console.log('Successfully got location from geojs.io:', locationInfo);
-          }
-        }
-      } catch (error) {
-        console.error('geojs.io error:', error);
-      }
-    }
-
-    // If all services fail, use a simpler IP-only service as last resort
-    if (!locationInfo) {
-      try {
-        const ipifyResponse = await fetch('https://api.ipify.org?format=json');
-        if (ipifyResponse.ok) {
-          const ipData = await ipifyResponse.json();
-          locationInfo = {
-            ip_address: ipData.ip || 'Unknown',
-            city: 'Unknown',
-            region: 'Unknown',
-            country: 'Unknown',
-            latitude: null,
-            longitude: null
-          };
-          console.log('Got IP only from ipify:', locationInfo);
-        }
-      } catch (error) {
-        console.error('ipify error:', error);
       }
     }
 
@@ -185,4 +185,4 @@ export const collectMetaDetails = async () => {
       longitude: null
     };
   }
-}; 
+};
